@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading">
+  <div style="display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;">
+    <h1 class="page-title">PROMPT<br>GALLERY</h1>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <span style="display: inline-block; width: 8px; height: 8px; background: var(--accent); border-radius: 999px; box-shadow: 0 0 12px var(--accent);"></span>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-size: 12px; letter-spacing: 0.1em; color: var(--accent); font-weight: 600;">LIVE · {{ all_count }} WORKS</span>
+    </div>
+  </div>
+  <p class="page-subtitle">AI로 만든 작품과 사용한 프롬프트를 함께 아카이브하는 커뮤니티. 모든 프롬프트는 원클릭으로 복사하고 자기 작업에 바로 사용할 수 있어요.</p>
+</div>
+
+<!-- 큰 카테고리 탭: IMAGE / VIDEO / ALL -->
+<div class="category-tabs">
+  <a href="/?type=image{% if current_model %}&model={{ current_model }}{% endif %}{% if current_sort == 'popular' %}&sort=popular{% endif %}"
+     class="category-tab {% if current_type == 'image' %}active{% endif %}">
+    <div class="category-tab-icon">◧</div>
+    <div class="category-tab-content">
+      <div class="category-tab-name">IMAGE</div>
+      <div class="category-tab-count">{{ image_count }} works</div>
+    </div>
+  </a>
+  <a href="/?type=video{% if current_model %}&model={{ current_model }}{% endif %}{% if current_sort == 'popular' %}&sort=popular{% endif %}"
+     class="category-tab {% if current_type == 'video' %}active{% endif %}">
+    <div class="category-tab-icon">▶</div>
+    <div class="category-tab-content">
+      <div class="category-tab-name">VIDEO</div>
+      <div class="category-tab-count">{{ video_count }} works</div>
+    </div>
+  </a>
+  <a href="/?type=all{% if current_model %}&model={{ current_model }}{% endif %}{% if current_sort == 'popular' %}&sort=popular{% endif %}"
+     class="category-tab {% if current_type == 'all' %}active{% endif %}">
+    <div class="category-tab-icon">⊞</div>
+    <div class="category-tab-content">
+      <div class="category-tab-name">ALL</div>
+      <div class="category-tab-count">{{ all_count }} works</div>
+    </div>
+  </a>
+</div>
+
+<div class="filters">
+  <div class="sort-tabs">
+    <a href="/?type={{ current_type }}{% if current_model %}&model={{ current_model }}{% endif %}"
+       class="sort-tab {% if current_sort != 'popular' %}active{% endif %}">LATEST</a>
+    <a href="/?type={{ current_type }}&sort=popular{% if current_model %}&model={{ current_model }}{% endif %}"
+       class="sort-tab {% if current_sort == 'popular' %}active{% endif %}">POPULAR</a>
+  </div>
+  <div class="chip-row">
+    <a href="/?type={{ current_type }}{% if current_sort == 'popular' %}&sort=popular{% endif %}"
+       class="chip {% if not current_model %}active{% endif %}">ALL MODELS</a>
+    {% for m in models %}
+    <a href="/?type={{ current_type }}&model={{ m }}{% if current_sort == 'popular' %}&sort=popular{% endif %}"
+       class="chip {% if current_model == m %}active{% endif %}">{{ m }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+{% if posts %}
+<div class="masonry">
+  {% for post in posts %}
+  <a href="/post/{{ post.id }}" class="card">
+    <div class="card-media">
+      {% if post.media_type == 'video' %}
+      <video src="/uploads/{{ post.media_path }}" muted playsinline preload="metadata" loop></video>
+      {% else %}
+      <img src="/uploads/{{ post.media_path }}" alt="" loading="lazy">
+      {% endif %}
+      <div class="card-meta-bar">
+        <span class="card-model-badge">{{ post.model }}</span>
+      </div>
+      {% if post.media_type == 'video' %}
+      <span class="video-badge">▶ VIDEO</span>
+      {% endif %}
+      <div class="card-stats">
+        <span>♥ {{ post.likes }}</span>
+        <span>· @{{ post.author }}</span>
+      </div>
+      <div class="card-overlay">
+        {% if post.title %}<div class="card-overlay-title">{{ post.title }}</div>{% endif %}
+        <p class="card-prompt-preview">{{ post.prompt }}</p>
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">
+  <div class="empty-icon">◇</div>
+  <p class="empty-title">
+    {% if current_type == 'video' %}아직 영상이 없어요{% elif current_type == 'image' %}아직 이미지가 없어요{% else %}아직 게시물이 없어요{% endif %}
+  </p>
+  <p class="empty-hint">첫 번째 작품을 업로드해보세요</p>
+</div>
+{% endif %}
+{% endblock %}
+

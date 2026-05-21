@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading">
+  <h1 class="page-title">UPLOAD</h1>
+  <p class="page-subtitle">이미지나 영상을 올리고 사용한 프롬프트를 함께 저장하세요</p>
+</div>
+
+<div class="form-card">
+{% if error %}
+<div class="error" style="margin-bottom: 16px;">{{ error }}</div>
+{% endif %}
+
+<form method="POST" enctype="multipart/form-data" id="uploadForm">
+  <div>
+    <label>FILE *</label>
+    <label class="file-drop" id="fileDrop">
+      <div class="file-drop-icon">⬆</div>
+      <p>이미지 또는 영상 (최대 50MB)</p>
+      <p class="hint">jpg · png · webp · gif · mp4 · webm</p>
+      <input type="file" name="file" id="fileInput" accept="image/*,video/*" required>
+    </label>
+    <div id="filePreview"></div>
+  </div>
+
+  <div>
+    <label>TITLE (선택)</label>
+    <input type="text" name="title" placeholder="예: 미래도시 야경">
+  </div>
+
+  <div>
+    <label>PROMPT *</label>
+    <textarea name="prompt" rows="5" required placeholder="사용한 프롬프트를 그대로 붙여넣으세요"></textarea>
+  </div>
+
+  <div>
+    <label>NEGATIVE PROMPT (선택)</label>
+    <textarea name="negative_prompt" rows="2"></textarea>
+  </div>
+
+  <div>
+    <label>MODEL *</label>
+    <select name="model" required>
+      {% for m in models %}
+      <option value="{{ m }}">{{ m }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label>TAGS (선택)</label>
+    <input type="text" name="tags" placeholder="쉼표 또는 공백 (예: 풍경, 사이버펑크, 야경)">
+  </div>
+
+  <button type="submit" class="submit-btn">PUBLISH</button>
+</form>
+</div>
+
+<script>
+const fileInput = document.getElementById('fileInput');
+const fileDrop = document.getElementById('fileDrop');
+const filePreview = document.getElementById('filePreview');
+
+fileInput.addEventListener('change', (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  fileDrop.style.display = 'none';
+  const url = URL.createObjectURL(f);
+  const isVideo = f.type.startsWith('video/');
+  filePreview.innerHTML = `
+    <div class="file-preview">
+      ${isVideo ? `<video src="${url}" controls></video>` : `<img src="${url}">`}
+      <button type="button" class="file-remove" id="removeFile">×</button>
+    </div>
+  `;
+  document.getElementById('removeFile').addEventListener('click', () => {
+    fileInput.value = '';
+    filePreview.innerHTML = '';
+    fileDrop.style.display = 'flex';
+  });
+});
+</script>
+{% endblock %}
+

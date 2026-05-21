@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <h1 class="auth-title">SIGN UP</h1>
+    <p class="auth-subtitle">계정을 만들고 자신만의 프롬프트 갤러리를 시작하세요</p>
+
+    {% if error %}
+    <div class="error" style="margin-bottom: 16px;">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST">
+      <div>
+        <label>USERNAME</label>
+        <input type="text" name="username" placeholder="영문, 숫자, _, -" required minlength="2" maxlength="20" autofocus>
+      </div>
+      <div>
+        <label>PASSWORD</label>
+        <input type="password" name="password" placeholder="6자 이상" required minlength="6">
+      </div>
+      <button type="submit" class="submit-btn">CREATE ACCOUNT</button>
+    </form>
+
+    <p class="auth-switch">
+      이미 계정이 있나요? <a href="/login">LOGIN</a>
+    </p>
+  </div>
+</div>
+{% endblock %}
+

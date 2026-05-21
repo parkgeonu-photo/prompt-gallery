@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading">
+  <h1 class="page-title">SEARCH</h1>
+  <p class="page-subtitle">프롬프트 키워드, 제목, 태그, 작성자로 검색</p>
+</div>
+
+<form method="GET" class="search-box">
+  <span class="search-icon">🔍</span>
+  <input type="text" name="q" value="{{ q }}" placeholder="검색어 입력..." autofocus>
+  <input type="hidden" name="type" value="{{ current_type }}">
+</form>
+
+<div class="category-tabs" style="margin-bottom: 20px;">
+  <a href="/search?q={{ q }}&type=all" class="category-tab {% if current_type == 'all' %}active{% endif %}">
+    <div class="category-tab-icon">⊞</div>
+    <div class="category-tab-content"><div class="category-tab-name">ALL</div></div>
+  </a>
+  <a href="/search?q={{ q }}&type=image" class="category-tab {% if current_type == 'image' %}active{% endif %}">
+    <div class="category-tab-icon">◧</div>
+    <div class="category-tab-content"><div class="category-tab-name">IMAGE</div></div>
+  </a>
+  <a href="/search?q={{ q }}&type=video" class="category-tab {% if current_type == 'video' %}active{% endif %}">
+    <div class="category-tab-icon">▶</div>
+    <div class="category-tab-content"><div class="category-tab-name">VIDEO</div></div>
+  </a>
+</div>
+
+{% if q %}
+<p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
+  "{{ q }}" — {{ posts|length }} results
+</p>
+
+{% if posts %}
+<div class="masonry">
+  {% for post in posts %}
+  <a href="/post/{{ post.id }}" class="card">
+    <div class="card-media">
+      {% if post.media_type == 'video' %}
+      <video src="/uploads/{{ post.media_path }}" muted playsinline preload="metadata" loop></video>
+      {% else %}
+      <img src="/uploads/{{ post.media_path }}" alt="" loading="lazy">
+      {% endif %}
+      <div class="card-meta-bar">
+        <span class="card-model-badge">{{ post.model }}</span>
+      </div>
+      {% if post.media_type == 'video' %}<span class="video-badge">▶ VIDEO</span>{% endif %}
+      <div class="card-stats">
+        <span>♥ {{ post.likes }}</span>
+        <span>· @{{ post.author }}</span>
+      </div>
+      <div class="card-overlay">
+        {% if post.title %}<div class="card-overlay-title">{{ post.title }}</div>{% endif %}
+        <p class="card-prompt-preview">{{ post.prompt }}</p>
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">
+  <div class="empty-icon">◇</div>
+  <p class="empty-title">결과가 없어요</p>
+  <p class="empty-hint">다른 키워드로 시도해보세요</p>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
+
+

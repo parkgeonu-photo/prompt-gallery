@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="profile-header">
+  <div class="avatar">{{ profile.username[0]|upper }}</div>
+  <div class="profile-info">
+    <h1 class="profile-username">@{{ profile.username }}</h1>
+    <div class="profile-stats">
+      <div class="stat"><strong>{{ posts|length }}</strong> posts</div>
+      <div class="stat"><strong>{{ total_likes }}</strong> likes</div>
+      <div class="stat"><strong>{{ total_views }}</strong> views</div>
+    </div>
+  </div>
+  {% if user and user.id == profile.id %}
+  <a href="/upload" class="btn btn-primary">+ NEW POST</a>
+  {% endif %}
+</div>
+
+{% if posts %}
+<div class="masonry">
+  {% for post in posts %}
+  <a href="/post/{{ post.id }}" class="card">
+    <div class="card-media">
+      {% if post.media_type == 'video' %}
+      <video src="/uploads/{{ post.media_path }}" muted playsinline preload="metadata" loop></video>
+      {% else %}
+      <img src="/uploads/{{ post.media_path }}" alt="" loading="lazy">
+      {% endif %}
+      <div class="card-meta-bar">
+        <span class="card-model-badge">{{ post.model }}</span>
+      </div>
+      {% if post.media_type == 'video' %}<span class="video-badge">▶ VIDEO</span>{% endif %}
+      <div class="card-stats">
+        <span>♥ {{ post.likes }}</span>
+        <span>· 👁 {{ post.views }}</span>
+      </div>
+      <div class="card-overlay">
+        {% if post.title %}<div class="card-overlay-title">{{ post.title }}</div>{% endif %}
+        <p class="card-prompt-preview">{{ post.prompt }}</p>
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">
+  <div class="empty-icon">◇</div>
+  <p class="empty-title">아직 게시물이 없어요</p>
+  {% if user and user.id == profile.id %}
+  <p class="empty-hint">첫 번째 작품을 업로드해보세요</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+
+

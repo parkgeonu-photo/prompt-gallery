@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <h1 class="auth-title">LOGIN</h1>
+    <p class="auth-subtitle">돌아오신 걸 환영해요</p>
+
+    {% if error %}
+    <div class="error" style="margin-bottom: 16px;">{{ error }}</div>
+    {% endif %}
+
+    <form method="POST">
+      <div>
+        <label>USERNAME</label>
+        <input type="text" name="username" required autofocus>
+      </div>
+      <div>
+        <label>PASSWORD</label>
+        <input type="password" name="password" required>
+      </div>
+      <button type="submit" class="submit-btn">LOGIN</button>
+    </form>
+
+    <p class="auth-switch">
+      처음이신가요? <a href="/signup">SIGN UP</a>
+    </p>
+  </div>
+</div>
+{% endblock %}
+

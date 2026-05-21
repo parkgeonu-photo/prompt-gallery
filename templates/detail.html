@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="detail-grid">
+  <div class="detail-media">
+    {% if post.media_type == 'video' %}
+    <video src="/uploads/{{ post.media_path }}" controls autoplay loop muted playsinline></video>
+    {% else %}
+    <img src="/uploads/{{ post.media_path }}" alt="{{ post.title or '' }}">
+    {% endif %}
+  </div>
+
+  <div class="detail-info">
+    {% if post.title %}
+    <h1 class="detail-title">{{ post.title }}</h1>
+    {% endif %}
+
+    <div class="detail-meta">
+      <a href="/u/{{ post.author }}" class="author-link">@{{ post.author }}</a>
+      <span>👁 {{ post.views }}</span>
+      <button class="like-btn" id="likeBtn" data-id="{{ post.id }}">
+        <span id="heartIcon">♡</span> <span id="likeCount">{{ post.likes }}</span>
+      </button>
+      {% if user and post.user_id == user.id %}
+      <form method="POST" action="/post/{{ post.id }}/delete" class="inline-form" onsubmit="return confirm('정말 삭제하시겠습니까?');">
+        <button type="submit" class="btn btn-danger" style="font-size: 11px; padding: 6px 12px;">DELETE</button>
+      </form>
+      {% endif %}
+    </div>
+
+    <div>
+      <span class="detail-model">{{ post.model }}</span>
+    </div>
+
+    <div class="section-block">
+      <div class="section-header">
+        <span class="section-label">PROMPT</span>
+        <button class="copy-btn" id="copyBtn" data-text="{{ post.prompt|e }}">
+          📋 COPY
+        </button>
+      </div>
+      <p class="prompt-text">{{ post.prompt }}</p>
+    </div>
+
+    {% if post.negative_prompt %}
+    <div class="section-block">
+      <div class="section-header">
+        <span class="section-label">NEGATIVE</span>
+        <button class="copy-btn" id="copyNegBtn" data-text="{{ post.negative_prompt|e }}">
+          📋 COPY
+        </button>
+      </div>
+      <p class="prompt-text" style="color: var(--text-muted);">{{ post.negative_prompt }}</p>
+    </div>
+    {% endif %}
+
+    {% if post.tags %}
+    <div>
+      <div class="section-label" style="margin-bottom: 8px;">TAGS</div>
+      <div class="tag-list">
+        {% for tag in post.tags %}
+        <span class="tag">#{{ tag }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div>
+      <a href="/" style="font-size: 12px; color: var(--text-muted); letter-spacing: 0.05em;">← BACK TO GALLERY</a>
+    </div>
+  </div>
+</div>
+
+<script>
+function attachCopy(btnId) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(btn.dataset.text);
+      btn.classList.add('copied');
+      const original = btn.innerHTML;
+      btn.innerHTML = '✓ COPIED';
+      setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = original; }, 1500);
+    } catch (e) { alert('복사 실패'); }
+  });
+}
+attachCopy('copyBtn'); attachCopy('copyNegBtn');
+
+const likeBtn = document.getElementById('likeBtn');
+const heartIcon = document.getElementById('heartIcon');
+const likeCount = document.getElementById('likeCount');
+let liked = false;
+likeBtn.addEventListener('click', async () => {
+  if (liked) return;
+  liked = true;
+  const res = await fetch('/like/' + likeBtn.dataset.id, { method: 'POST' });
+  const data = await res.json();
+  likeCount.textContent = data.likes;
+  heartIcon.textContent = '♥';
+  likeBtn.classList.add('liked');
+});
+</script>
+{% endblock %}
+
