@@ -2,7 +2,7 @@
 {% block content %}
 <div class="page-heading">
   <h1 class="page-title">UPLOAD</h1>
-  <p class="page-subtitle">이미지나 영상을 올리고 사용한 프롬프트를 함께 저장하세요. 레퍼런스 자료도 함께 보관할 수 있어요.</p>
+  <p class="page-subtitle">이미지나 영상을 드래그해서 올리고 사용한 프롬프트를 함께 저장하세요. 레퍼런스 자료도 함께 보관할 수 있어요.</p>
 </div>
 
 <div class="form-card">
@@ -13,12 +13,14 @@
 <form method="POST" enctype="multipart/form-data" id="uploadForm">
   <div>
     <label>FILE *</label>
-    <label class="file-drop" id="fileDrop">
-      <div class="file-drop-icon">⬆</div>
-      <p>이미지 또는 영상 (최대 50MB)</p>
-      <p class="hint">jpg · png · webp · gif · mp4 · webm</p>
-      <input type="file" name="file" id="fileInput" accept="image/*,video/*" required>
-    </label>
+    <div class="dnd-zone" id="fileDrop" tabindex="0">
+      <input type="file" name="file" id="fileInput" accept="image/*,video/*" required hidden>
+      <div class="dnd-default">
+        <div class="dnd-icon">⬆</div>
+        <p class="dnd-label">파일을 끌어다 놓거나 클릭해서 선택</p>
+        <p class="dnd-hint">이미지 또는 영상 (최대 50MB) · jpg · png · webp · gif · mp4 · webm</p>
+      </div>
+    </div>
     <div id="filePreview"></div>
   </div>
 
@@ -48,7 +50,7 @@
       <input type="text" name="model_custom" id="modelCustom" class="model-custom" placeholder="예: Seedance 2.0, Veo 3 Fast, Sora Turbo">
     </div>
     <p style="font-size:11px; color:var(--text-muted); margin-top:6px;">
-      💡 모델 이름 옆에 직접 입력 칸이 나타나면 버전·세부 이름을 자유롭게 적을 수 있어요. (예: Seedance 2.0, Veo 3, Midjourney v7)
+      💡 모델 이름 옆 칸에 버전·세부 이름을 자유롭게 적을 수 있어요. (예: Seedance 2.0, Veo 3, Midjourney v7)
     </p>
   </div>
 
@@ -59,12 +61,14 @@
 
   <div>
     <label>REFERENCES (선택, 최대 10개)</label>
-    <label class="refs-drop" id="refsDrop">
-      <div style="font-size: 24px; opacity: 0.4;">📎</div>
-      <p style="margin-top: 6px;">사용한 레퍼런스 이미지·영상·오디오를 첨부하세요</p>
-      <p class="hint" style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">최대 10개 · jpg, png, mp4, mp3, wav 등</p>
-      <input type="file" name="refs[]" id="refsInput" accept="image/*,video/*,audio/*" multiple>
-    </label>
+    <div class="dnd-zone dnd-zone-sm" id="refsDrop" tabindex="0">
+      <input type="file" name="refs[]" id="refsInput" accept="image/*,video/*,audio/*" multiple hidden>
+      <div class="dnd-default">
+        <div class="dnd-icon" style="font-size: 22px;">📎</div>
+        <p class="dnd-label">레퍼런스를 끌어다 놓거나 클릭해서 선택</p>
+        <p class="dnd-hint">이미지 · 영상 · 오디오 / 최대 10개 (jpg, png, mp4, mp3, wav 등)</p>
+      </div>
+    </div>
     <div class="refs-thumbs" id="refsThumbs"></div>
   </div>
 
@@ -72,22 +76,106 @@
 </form>
 </div>
 
+<style>
+/* Drag & drop zones */
+.dnd-zone {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 220px;
+  border: 2px dashed var(--border); border-radius: 12px;
+  background: var(--bg-elev); cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 24px;
+}
+.dnd-zone:hover { border-color: var(--text); background: var(--bg-card); }
+.dnd-zone.dragging {
+  border-color: var(--text); border-style: solid;
+  background: var(--bg-card);
+  transform: scale(1.005);
+  box-shadow: 0 0 0 4px rgba(0,0,0,0.04);
+}
+.dnd-zone.dragging .dnd-default { transform: scale(1.04); }
+.dnd-zone-sm { min-height: 120px; padding: 20px; }
+.dnd-default { text-align: center; transition: transform 0.2s; pointer-events: none; }
+.dnd-icon { font-size: 36px; opacity: 0.4; margin-bottom: 8px; }
+.dnd-label { font-size: 13px; color: var(--text); font-weight: 500; }
+.dnd-hint { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+.file-preview { position: relative; margin-top: 12px; }
+.file-preview img, .file-preview video {
+  width: 100%; border-radius: 12px;
+  max-height: 360px; object-fit: contain; background: #000;
+}
+.file-remove {
+  position: absolute; top: 10px; right: 10px;
+  background: rgba(0,0,0,0.85); color: #fff; border: 1px solid var(--border);
+  width: 32px; height: 32px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; cursor: pointer;
+}
+.file-remove:hover { background: var(--danger); border-color: var(--danger); }
+</style>
+
 <script>
+// ===== Reusable Drag & Drop helper =====
+function attachDnD(zoneEl, inputEl, onFiles) {
+  // click anywhere in the zone -> open file picker
+  zoneEl.addEventListener('click', () => inputEl.click());
+  zoneEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputEl.click(); }
+  });
+
+  ['dragenter', 'dragover'].forEach(ev =>
+    zoneEl.addEventListener(ev, (e) => {
+      e.preventDefault(); e.stopPropagation();
+      zoneEl.classList.add('dragging');
+    })
+  );
+  ['dragleave', 'drop'].forEach(ev =>
+    zoneEl.addEventListener(ev, (e) => {
+      e.preventDefault(); e.stopPropagation();
+      if (ev === 'dragleave' && zoneEl.contains(e.relatedTarget)) return;
+      zoneEl.classList.remove('dragging');
+    })
+  );
+  zoneEl.addEventListener('drop', (e) => {
+    const files = e.dataTransfer.files;
+    if (files && files.length) onFiles(files);
+  });
+  inputEl.addEventListener('change', (e) => {
+    if (e.target.files && e.target.files.length) onFiles(e.target.files);
+  });
+}
+
+// Block the browser's default behavior of opening dropped files in a new tab
+['dragover', 'drop'].forEach(ev => {
+  window.addEventListener(ev, (e) => e.preventDefault());
+});
+
 // ===== Main file =====
 const fileInput = document.getElementById('fileInput');
 const fileDrop = document.getElementById('fileDrop');
 const filePreview = document.getElementById('filePreview');
 
-fileInput.addEventListener('change', (e) => {
-  const f = e.target.files[0];
+attachDnD(fileDrop, fileInput, (files) => {
+  const f = files[0];
   if (!f) return;
+  const isImg = f.type.startsWith('image/');
+  const isVid = f.type.startsWith('video/');
+  if (!isImg && !isVid) { alert('이미지 또는 영상 파일만 가능합니다'); return; }
+
+  // Set the input.files (so the form submits with it)
+  const dt = new DataTransfer();
+  dt.items.add(f);
+  fileInput.files = dt.files;
+
+  // Hide drop zone, show preview
   fileDrop.style.display = 'none';
   const url = URL.createObjectURL(f);
-  const isVideo = f.type.startsWith('video/');
   filePreview.innerHTML = `
     <div class="file-preview">
-      ${isVideo ? `<video src="${url}" controls></video>` : `<img src="${url}">`}
-      <button type="button" class="file-remove" id="removeFile">×</button>
+      ${isVid ? `<video src="${url}" controls></video>` : `<img src="${url}">`}
+      <button type="button" class="file-remove" id="removeFile" aria-label="제거">×</button>
     </div>
   `;
   document.getElementById('removeFile').addEventListener('click', () => {
@@ -102,7 +190,6 @@ const modelSelect = document.getElementById('modelSelect');
 const modelCustom = document.getElementById('modelCustom');
 function updateModelCustom() {
   const v = modelSelect.value;
-  // Always allow optional version/detail input — but show by default for "기타"
   if (v.startsWith('기타')) {
     modelCustom.classList.add('show');
     modelCustom.required = true;
@@ -121,10 +208,9 @@ const refsInput = document.getElementById('refsInput');
 const refsDrop = document.getElementById('refsDrop');
 const refsThumbs = document.getElementById('refsThumbs');
 const MAX_REFS = 10;
-let selectedRefs = []; // File[]
+let selectedRefs = [];
 
 function rebuildRefsInput() {
-  // DataTransfer hack to update file input with the selectedRefs list
   const dt = new DataTransfer();
   selectedRefs.forEach(f => dt.items.add(f));
   refsInput.files = dt.files;
@@ -139,11 +225,11 @@ function renderRefsThumbs() {
     const wrap = document.createElement('div');
     wrap.className = 'refs-thumb-item' + (isAudio ? ' audio-thumb' : '');
     if (isAudio) {
-      wrap.innerHTML = `🎵<button type="button" class="thumb-remove">×</button><span class="thumb-type">AUDIO</span>`;
+      wrap.innerHTML = `🎵<button type="button" class="thumb-remove" aria-label="제거">×</button><span class="thumb-type">AUDIO</span>`;
     } else if (isVideo) {
-      wrap.innerHTML = `<video src="${url}" muted></video><button type="button" class="thumb-remove">×</button><span class="thumb-type">VIDEO</span>`;
+      wrap.innerHTML = `<video src="${url}" muted></video><button type="button" class="thumb-remove" aria-label="제거">×</button><span class="thumb-type">VIDEO</span>`;
     } else {
-      wrap.innerHTML = `<img src="${url}"><button type="button" class="thumb-remove">×</button>`;
+      wrap.innerHTML = `<img src="${url}"><button type="button" class="thumb-remove" aria-label="제거">×</button>`;
     }
     wrap.querySelector('.thumb-remove').addEventListener('click', (e) => {
       e.preventDefault();
@@ -156,12 +242,15 @@ function renderRefsThumbs() {
   });
 }
 
-refsInput.addEventListener('change', (e) => {
-  const newFiles = Array.from(e.target.files);
-  for (const f of newFiles) {
+attachDnD(refsDrop, refsInput, (files) => {
+  for (const f of Array.from(files)) {
     if (selectedRefs.length >= MAX_REFS) {
       alert(`레퍼런스는 최대 ${MAX_REFS}개까지 첨부 가능합니다.`);
       break;
+    }
+    // type filter
+    if (!(f.type.startsWith('image/') || f.type.startsWith('video/') || f.type.startsWith('audio/'))) {
+      continue;
     }
     selectedRefs.push(f);
   }

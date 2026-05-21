@@ -634,7 +634,7 @@
             <option value="curvy">볼륨감</option>
             <option value="petite">아담함</option>
             <option value="tall_slender">키크고 날씬</option>
-            <option value="custom">직접 입력</option>
+            <option value="custom">직접 ��력</option>
           </select>
           <input type="text" id="customBodyType" class="custom-input" placeholder="직접 입력">
         </div>
@@ -807,7 +807,7 @@
       { label: '자신감 있는', value: 'confident' },
       { label: '신비로운', value: 'mysterious' },
       { label: '장난기 있는', value: 'playful' },
-      { label: '진지한', value: 'serious' },
+      { label: '진��한', value: 'serious' },
       { label: '도도한', value: 'aloof' },
       { label: '츤데레', value: 'tsundere' },
       { label: '얀데레', value: 'yandere' },
@@ -1467,4 +1467,129 @@
       };
     }
 </script>
+
+<!-- ============ Version selector (collapsible) ============ -->
+<style>
+  .version-switcher {
+    max-width: 600px; margin: 24px auto 48px;
+    border: 1px solid var(--border); border-radius: 14px;
+    background: var(--bg-card);
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .version-switcher:hover { border-color: var(--border-hover); }
+  .version-switcher details { width: 100%; }
+  .version-switcher summary {
+    list-style: none; cursor: pointer;
+    padding: 16px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    user-select: none;
+    background: var(--bg-card);
+    transition: background 0.15s;
+  }
+  .version-switcher summary::-webkit-details-marker { display: none; }
+  .version-switcher summary:hover { background: var(--bg-elev); }
+  .version-switcher .vs-title {
+    display: flex; align-items: center; gap: 10px;
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-size: 13px; font-weight: 700; letter-spacing: 0.08em;
+    color: var(--text); text-transform: uppercase;
+  }
+  .version-switcher .vs-badge {
+    background: var(--text); color: var(--accent-text);
+    padding: 3px 8px; border-radius: 4px;
+    font-size: 10px; font-weight: 700;
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: 0.05em;
+  }
+  .version-switcher .vs-chevron {
+    color: var(--text-muted);
+    transition: transform 0.25s ease;
+    font-size: 14px;
+  }
+  .version-switcher details[open] .vs-chevron { transform: rotate(180deg); }
+  .version-switcher .vs-list {
+    border-top: 1px solid var(--border);
+    padding: 8px;
+    display: flex; flex-direction: column; gap: 4px;
+    background: var(--bg-elev);
+  }
+  .version-switcher .vs-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    transition: all 0.15s;
+    text-decoration: none;
+    color: var(--text);
+  }
+  .version-switcher .vs-item:hover {
+    border-color: var(--text);
+    transform: translateX(2px);
+  }
+  .version-switcher .vs-item.current {
+    background: var(--text); color: var(--accent-text); border-color: var(--text);
+  }
+  .version-switcher .vs-item.current .vs-item-desc { color: rgba(255,255,255,0.7); }
+  .version-switcher .vs-item-info { display: flex; flex-direction: column; gap: 3px; }
+  .version-switcher .vs-item-name {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 14px; font-weight: 900; letter-spacing: 0.02em;
+  }
+  .version-switcher .vs-item-desc {
+    font-size: 11px; color: var(--text-muted);
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .version-switcher .vs-item-arrow {
+    font-size: 14px; opacity: 0.5;
+  }
+  .version-switcher .vs-item.current .vs-item-arrow { display: none; }
+  .version-switcher .vs-current-tag {
+    background: var(--text); color: var(--accent-text);
+    font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+    padding: 2px 6px; border-radius: 3px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .version-switcher .vs-item.current .vs-current-tag {
+    background: var(--accent-text); color: var(--text);
+  }
+</style>
+
+<div class="version-switcher">
+  <details>
+    <summary>
+      <div class="vs-title">
+        <span>버전 선택</span>
+        <span class="vs-badge">V3 · 현재</span>
+      </div>
+      <span class="vs-chevron">▾</span>
+    </summary>
+    <div class="vs-list">
+      <a class="vs-item" href="https://xzinga-charactersheet.netlify.app/" target="_blank" rel="noopener">
+        <div class="vs-item-info">
+          <span class="vs-item-name">V1</span>
+          <span class="vs-item-desc">캐릭터 시트 1세대 — 기본 버전</span>
+        </div>
+        <span class="vs-item-arrow">↗</span>
+      </a>
+      <a class="vs-item" href="https://xzinga-charactersheet-v2.netlify.app/" target="_blank" rel="noopener">
+        <div class="vs-item-info">
+          <span class="vs-item-name">V2</span>
+          <span class="vs-item-desc">캐릭터 시트 2세대 — 확장 버전</span>
+        </div>
+        <span class="vs-item-arrow">↗</span>
+      </a>
+      <div class="vs-item current">
+        <div class="vs-item-info">
+          <span class="vs-item-name">V3</span>
+          <span class="vs-item-desc">캐릭터 시트 3세대 — 위에서 사용 중</span>
+        </div>
+        <span class="vs-current-tag">CURRENT</span>
+      </div>
+    </div>
+  </details>
+</div>
+
 {% endblock %}
+
