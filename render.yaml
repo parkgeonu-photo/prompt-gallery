@@ -1,4 +1,4 @@
-# Render.com 배포 설정
+# Render.com 배포 설정 (Free tier)
 services:
   - type: web
     name: prompt-gallery
@@ -11,8 +11,4 @@ services:
         value: "3.11"
       - key: SECRET_KEY
         generateValue: true
-    disk:
-      name: gallery-data
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
 
