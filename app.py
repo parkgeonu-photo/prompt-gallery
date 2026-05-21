@@ -120,14 +120,17 @@ def init_db():
                 likes INTEGER DEFAULT 0,
                 views INTEGER DEFAULT 0,
                 created_at BIGINT NOT NULL,
-                refs JSONB DEFAULT '[]'::jsonb
+                refs JSONB DEFAULT '[]'::jsonb,
+                visibility TEXT DEFAULT 'public'
             )
         """)
         c.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS refs JSONB DEFAULT '[]'::jsonb")
+        c.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS visibility TEXT DEFAULT 'public'")
         c.execute("CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_posts_model ON posts(model)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_posts_media_type ON posts(media_type)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_posts_visibility ON posts(visibility)")
 
 
 # =================================================================
@@ -214,8 +217,12 @@ def inject_user():
     return {"user": current_user()}
 
 
-def normalize_post(p):
-    """Convert DB row to template-friendly dict."""
+PARTIAL_LIMIT = 200  # chars visible before blur for visibility='partial'
+
+
+def normalize_post(p, viewer_id=None):
+    """Convert DB row to template-friendly dict.
+    Applies visibility-based prompt masking when viewer is not the owner."""
     p = dict(p)
     p["id"] = str(p["id"])
     if p.get("user_id"):
@@ -226,6 +233,32 @@ def normalize_post(p):
         try: refs = json.loads(refs)
         except Exception: refs = []
     p["refs"] = refs
+    p["visibility"] = p.get("visibility") or "public"
+
+    is_owner = viewer_id and p.get("user_id") and str(viewer_id) == str(p["user_id"])
+    p["is_owner"] = is_owner
+
+    # For partial visibility (non-owner): mask prompt beyond PARTIAL_LIMIT chars
+    if p["visibility"] == "partial" and not is_owner:
+        full = p["prompt"] or ""
+        if len(full) > PARTIAL_LIMIT:
+            p["prompt_visible"] = full[:PARTIAL_LIMIT]
+            p["prompt_hidden"] = full[PARTIAL_LIMIT:]
+            p["prompt_truncated"] = True
+        else:
+            p["prompt_visible"] = full
+            p["prompt_hidden"] = ""
+            p["prompt_truncated"] = False
+        # Hide negative prompt entirely for partial
+        p["negative_prompt_hidden"] = bool(p.get("negative_prompt"))
+        if p["negative_prompt_hidden"]:
+            p["negative_prompt"] = None
+    else:
+        p["prompt_visible"] = p["prompt"]
+        p["prompt_hidden"] = ""
+        p["prompt_truncated"] = False
+        p["negative_prompt_hidden"] = False
+
     return p
 
 
@@ -236,19 +269,37 @@ def normalize_post(p):
 def index():
     model = request.args.get("model")
     sort = request.args.get("sort", "recent")
-    media_filter = request.args.get("type", "image")
+    media_filter = request.args.get("type", "all")
     if media_filter not in ("image", "video", "all"):
-        media_filter = "image"
+        media_filter = "all"
+
+    u = current_user()
+    viewer_id = u["id"] if u else None
 
     with db() as c:
-        rows = c.fetchall("SELECT media_type, COUNT(*) AS n FROM posts GROUP BY media_type")
-        counts = {r["media_type"]: r["n"] for r in rows}
+        # Counts: hide private posts from others. Show partial publicly (cards still visible).
+        if viewer_id:
+            cnt_rows = c.fetchall(
+                "SELECT media_type, COUNT(*) AS n FROM posts WHERE visibility != 'private' OR user_id = %s GROUP BY media_type",
+                (viewer_id,),
+            )
+        else:
+            cnt_rows = c.fetchall(
+                "SELECT media_type, COUNT(*) AS n FROM posts WHERE visibility != 'private' GROUP BY media_type"
+            )
+        counts = {r["media_type"]: r["n"] for r in cnt_rows}
         image_count = counts.get("image", 0)
         video_count = counts.get("video", 0)
         all_count = image_count + video_count
 
         sql = "SELECT * FROM posts WHERE 1=1"
         params = []
+        # Hide private from others
+        if viewer_id:
+            sql += " AND (visibility != 'private' OR user_id = %s)"
+            params.append(viewer_id)
+        else:
+            sql += " AND visibility != 'private'"
         if media_filter in ("image", "video"):
             sql += " AND media_type = %s"
             params.append(media_filter)
@@ -257,7 +308,7 @@ def index():
             params.append(model)
         sql += " ORDER BY likes DESC, created_at DESC" if sort == "popular" else " ORDER BY created_at DESC"
         sql += " LIMIT 120"
-        posts = [normalize_post(r) for r in c.fetchall(sql, params)]
+        posts = [normalize_post(r, viewer_id) for r in c.fetchall(sql, params)]
 
     return render_template(
         "index.html",
@@ -269,12 +320,18 @@ def index():
 
 @app.route("/post/<post_id>")
 def post_detail(post_id):
+    u = current_user()
+    viewer_id = u["id"] if u else None
     with db() as c:
         row = c.fetchone("SELECT * FROM posts WHERE id = %s", (post_id,))
         if not row:
             abort(404)
+        # Private: only owner may view
+        if (row.get("visibility") or "public") == "private":
+            if not viewer_id or str(viewer_id) != str(row["user_id"]):
+                abort(404)
         c.execute("UPDATE posts SET views = views + 1 WHERE id = %s", (post_id,))
-        post = normalize_post(row)
+        post = normalize_post(row, viewer_id)
     return render_template("detail.html", post=post)
 
 
@@ -311,13 +368,15 @@ def upload():
         title = (request.form.get("title") or "").strip()
         neg = (request.form.get("negative_prompt") or "").strip()
         tags_raw = (request.form.get("tags") or "").strip()
+        visibility = (request.form.get("visibility") or "public").strip()
+        if visibility not in ("public", "partial", "private"):
+            visibility = "public"
 
         # Resolve model name
         if model_choice == "기타 (직접 입력)" or model_choice == "기타":
             model = model_custom or "기타"
         else:
             model = model_custom.strip() or model_choice
-            # If user typed a custom suffix (e.g. "Seedance 2.0"), prefer their text
             if model_custom:
                 model = model_custom
 
@@ -357,10 +416,10 @@ def upload():
 
         with db() as c:
             c.execute(
-                """INSERT INTO posts (id, user_id, title, media_path, media_type, prompt, negative_prompt, model, tags, author, created_at, refs)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                """INSERT INTO posts (id, user_id, title, media_path, media_type, prompt, negative_prompt, model, tags, author, created_at, refs, visibility)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                 (new_id, u["id"], title or None, public_url, media_type, prompt,
-                 neg or None, model, tags_clean, u["username"], int(time.time()), Json(refs)),
+                 neg or None, model, tags_clean, u["username"], int(time.time()), Json(refs), visibility),
             )
         return redirect(url_for("post_detail", post_id=new_id))
     return render_template("upload.html", models=AI_MODELS)
@@ -372,42 +431,73 @@ def search():
     media_filter = request.args.get("type", "all")
     if media_filter not in ("image", "video", "all"):
         media_filter = "all"
+    u = current_user()
+    viewer_id = u["id"] if u else None
     posts = []
     if q:
         with db() as c:
             sql = "SELECT * FROM posts WHERE (prompt ILIKE %s OR title ILIKE %s OR tags ILIKE %s OR author ILIKE %s OR model ILIKE %s)"
             like = f"%{q}%"
             params = [like, like, like, like, like]
+            if viewer_id:
+                sql += " AND (visibility != 'private' OR user_id = %s)"
+                params.append(viewer_id)
+            else:
+                sql += " AND visibility != 'private'"
             if media_filter in ("image", "video"):
                 sql += " AND media_type = %s"
                 params.append(media_filter)
             sql += " ORDER BY created_at DESC LIMIT 120"
-            posts = [normalize_post(r) for r in c.fetchall(sql, params)]
+            posts = [normalize_post(r, viewer_id) for r in c.fetchall(sql, params)]
     return render_template("search.html", posts=posts, q=q, current_type=media_filter)
 
 
 @app.route("/like/<post_id>", methods=["POST"])
 def like(post_id):
+    u = current_user()
+    viewer_id = u["id"] if u else None
     with db() as c:
+        row = c.fetchone("SELECT user_id, visibility FROM posts WHERE id = %s", (post_id,))
+        if not row:
+            return jsonify({"likes": 0}), 404
+        # private: only owner can interact
+        if (row.get("visibility") or "public") == "private":
+            if not viewer_id or str(viewer_id) != str(row["user_id"]):
+                return jsonify({"likes": 0}), 403
         c.execute("UPDATE posts SET likes = likes + 1 WHERE id = %s", (post_id,))
-        row = c.fetchone("SELECT likes FROM posts WHERE id = %s", (post_id,))
-    return jsonify({"likes": row["likes"] if row else 0})
+        cnt = c.fetchone("SELECT likes FROM posts WHERE id = %s", (post_id,))
+    return jsonify({"likes": cnt["likes"] if cnt else 0})
 
 
 @app.route("/u/<username>")
 def user_page(username):
+    u = current_user()
+    viewer_id = u["id"] if u else None
     with db() as c:
-        u = c.fetchone("SELECT * FROM users WHERE username = %s", (username,))
-        if not u:
+        target = c.fetchone("SELECT * FROM users WHERE username = %s", (username,))
+        if not target:
             abort(404)
-        rows = c.fetchall("SELECT * FROM posts WHERE user_id = %s ORDER BY created_at DESC", (u["id"],))
-        posts = [normalize_post(r) for r in rows]
+        is_self = viewer_id and str(viewer_id) == str(target["id"])
+        if is_self:
+            # Owner sees all their posts including private
+            rows = c.fetchall(
+                "SELECT * FROM posts WHERE user_id = %s ORDER BY created_at DESC",
+                (target["id"],),
+            )
+        else:
+            # Others: hide private posts
+            rows = c.fetchall(
+                "SELECT * FROM posts WHERE user_id = %s AND visibility != 'private' ORDER BY created_at DESC",
+                (target["id"],),
+            )
+        posts = [normalize_post(r, viewer_id) for r in rows]
         total_likes = sum(p["likes"] for p in posts)
         total_views = sum(p["views"] for p in posts)
-        profile = dict(u)
+        profile = dict(target)
         profile["id"] = str(profile["id"])
     return render_template("profile.html", profile=profile, posts=posts,
-                           total_likes=total_likes, total_views=total_views)
+                           total_likes=total_likes, total_views=total_views,
+                           is_self=is_self)
 
 
 # =================================================================
@@ -435,7 +525,7 @@ def signup():
         with db() as c:
             existing = c.fetchone("SELECT id FROM users WHERE username = %s", (username,))
             if existing:
-                return render_template("signup.html", error="이미 사용 중인 사용자명입니다"), 400
+                return render_template("signup.html", error="���미 사용 중인 사용자명입니다"), 400
             uid = str(uuid.uuid4())
             c.execute(
                 "INSERT INTO users (id, username, password_hash, created_at) VALUES (%s, %s, %s, %s)",
@@ -454,7 +544,7 @@ def login():
         with db() as c:
             row = c.fetchone("SELECT * FROM users WHERE username = %s", (username,))
         if not row or not verify_password(password, row["password_hash"]):
-            return render_template("login.html", error="사용자명 또는 비밀번호가 잘못되었습니다"), 400
+            return render_template("login.html", error="사용자명 또는 비밀번호가 ���못되었습니다"), 400
         session["user_id"] = str(row["id"])
         return redirect(request.args.get("next") or url_for("index"))
     return render_template("login.html")
@@ -479,4 +569,12 @@ init_db()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
+
+
+
+
+
+
+
 

@@ -10,10 +10,29 @@
       <div class="stat"><strong>{{ total_views }}</strong> views</div>
     </div>
   </div>
-  {% if user and user.id == profile.id %}
+  {% if is_self %}
   <a href="/upload" class="btn btn-primary">+ NEW POST</a>
   {% endif %}
 </div>
+
+{% if is_self %}
+{# Visibility filter for owner #}
+{% set vis_filter = request.args.get('vis', 'all') %}
+{% set _public = posts|selectattr('visibility','equalto','public')|list %}
+{% set _partial = posts|selectattr('visibility','equalto','partial')|list %}
+{% set _private = posts|selectattr('visibility','equalto','private')|list %}
+<div class="filters" style="margin-bottom: 24px;">
+  <div class="sort-tabs" style="flex-wrap: wrap;">
+    <a href="?vis=all" class="sort-tab {% if vis_filter == 'all' %}active{% endif %}">ALL · {{ posts|length }}</a>
+    <a href="?vis=public" class="sort-tab {% if vis_filter == 'public' %}active{% endif %}">🌐 PUBLIC · {{ _public|length }}</a>
+    <a href="?vis=partial" class="sort-tab {% if vis_filter == 'partial' %}active{% endif %}">◐ PARTIAL · {{ _partial|length }}</a>
+    <a href="?vis=private" class="sort-tab {% if vis_filter == 'private' %}active{% endif %}">🔒 PRIVATE · {{ _private|length }}</a>
+  </div>
+</div>
+{% if vis_filter == 'public' %}{% set posts = _public %}{% endif %}
+{% if vis_filter == 'partial' %}{% set posts = _partial %}{% endif %}
+{% if vis_filter == 'private' %}{% set posts = _private %}{% endif %}
+{% endif %}
 
 {% if posts %}
 <div class="masonry">
@@ -27,6 +46,11 @@
       {% endif %}
       <div class="card-meta-bar">
         <span class="card-model-badge">{{ post.model }}</span>
+        {% if post.visibility == 'partial' %}
+        <span class="card-vis-badge" title="일부공개">◐</span>
+        {% elif post.visibility == 'private' %}
+        <span class="card-vis-badge card-vis-private" title="비공개">🔒</span>
+        {% endif %}
       </div>
       {% if post.media_type == 'video' %}<span class="video-badge">▶ VIDEO</span>{% endif %}
       <div class="card-stats">
@@ -45,11 +69,10 @@
 <div class="empty">
   <div class="empty-icon">◇</div>
   <p class="empty-title">아직 게시물이 없어요</p>
-  {% if user and user.id == profile.id %}
+  {% if is_self %}
   <p class="empty-hint">첫 번째 작품을 업로드해보세요</p>
   {% endif %}
 </div>
 {% endif %}
 {% endblock %}
-
 

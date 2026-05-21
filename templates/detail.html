@@ -1,5 +1,42 @@
 {% extends "base.html" %}
 {% block content %}
+<style>
+  .blurred-text {
+    filter: blur(5px);
+    user-select: none;
+    pointer-events: none;
+    color: var(--text-muted);
+    background: var(--bg-elev);
+    padding: 2px 4px; border-radius: 3px;
+    -webkit-user-select: none;
+  }
+  .partial-notice {
+    margin-top: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: var(--bg-elev);
+    border: 1px dashed var(--border);
+    font-size: 12px;
+    color: var(--text-muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .partial-icon { font-size: 16px; flex-shrink: 0; }
+  .vis-badge {
+    display: inline-block;
+    padding: 6px 12px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.05em;
+    margin-left: 8px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .vis-badge-partial {
+    background: var(--bg-elev); color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .vis-badge-private {
+    background: #fef0f0; color: #8a1a1a;
+    border: 1px solid #f5d0d0;
+  }
+</style>
 <div class="detail-grid">
   <div class="detail-media">
     {% if post.media_type == 'video' %}
@@ -29,19 +66,47 @@
 
     <div>
       <span class="detail-model">{{ post.model }}</span>
+      {% if post.visibility == 'partial' %}
+      <span class="vis-badge vis-badge-partial" title="일부공개">◐ PARTIAL</span>
+      {% elif post.visibility == 'private' %}
+      <span class="vis-badge vis-badge-private" title="비공개 — 본인만 볼 수 있어요">🔒 PRIVATE</span>
+      {% endif %}
     </div>
 
     <div class="section-block">
       <div class="section-header">
         <span class="section-label">PROMPT</span>
+        {% if not post.prompt_truncated %}
         <button class="copy-btn" id="copyBtn" data-text="{{ post.prompt|e }}">
           📋 COPY
         </button>
+        {% endif %}
       </div>
-      <p class="prompt-text">{{ post.prompt }}</p>
+      {% if post.prompt_truncated %}
+        <p class="prompt-text">{{ post.prompt_visible }}<span class="blurred-text" aria-hidden="true">{{ post.prompt_hidden }}</span></p>
+        <div class="partial-notice">
+          <span class="partial-icon">◐</span>
+          <span><strong>일부공개 게시물</strong> · 처음 200자만 공개 · 작성자만 전체 프롬프트를 볼 수 있어요</span>
+        </div>
+      {% else %}
+        <p class="prompt-text">{{ post.prompt }}</p>
+      {% endif %}
     </div>
 
-    {% if post.negative_prompt %}
+    {% if post.negative_prompt_hidden %}
+    <div class="section-block">
+      <div class="section-header">
+        <span class="section-label">NEGATIVE</span>
+      </div>
+      <p class="prompt-text" style="color: var(--text-muted);">
+        <span class="blurred-text" aria-hidden="true">XXXXXXX XXXX XXXX XXXX XXXX XXXXXX XXXX XXXX XXXXXXX XXXX XXXX</span>
+      </p>
+      <div class="partial-notice">
+        <span class="partial-icon">◐</span>
+        <span>네거티브 프롬프트는 작성자만 볼 수 있어요</span>
+      </div>
+    </div>
+    {% elif post.negative_prompt %}
     <div class="section-block">
       <div class="section-header">
         <span class="section-label">NEGATIVE</span>
@@ -127,4 +192,7 @@ likeBtn.addEventListener('click', async () => {
 });
 </script>
 {% endblock %}
+
+
+
 
