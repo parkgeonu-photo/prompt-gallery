@@ -37,9 +37,9 @@
   <a href="/post/{{ post.id }}" class="card">
     <div class="card-media">
       {% if post.media_type == 'video' %}
-      <video src="/uploads/{{ post.media_path }}" muted playsinline preload="metadata" loop></video>
+      <video src="{{ post.media_path }}" muted playsinline preload="metadata" loop></video>
       {% else %}
-      <img src="/uploads/{{ post.media_path }}" alt="" loading="lazy">
+      <img src="{{ post.media_path }}" alt="" loading="lazy">
       {% endif %}
       <div class="card-meta-bar">
         <span class="card-model-badge">{{ post.model }}</span>

@@ -1,20 +1,37 @@
+"""
+Prompt Gallery — Supabase 버전
+- PostgreSQL DB (Supabase Postgres)
+- Supabase Storage (이미지/영상)
+- Flask + Gunicorn
+"""
 import os
-import sqlite3
 import uuid
 import time
 import hashlib
 import secrets
-from pathlib import Path
+import requests
 from functools import wraps
-from flask import Flask, request, render_template, redirect, url_for, send_from_directory, jsonify, abort, session, g
 
-BASE = Path(__file__).parent
-# Render 등 영구 디스크 마운트 경로 우선, 없으면 로컬 경로
-DATA_DIR = Path(os.environ.get("DATA_DIR", BASE))
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-DB_PATH = DATA_DIR / "gallery.db"
-UPLOAD_DIR = DATA_DIR / "uploads"
-UPLOAD_DIR.mkdir(exist_ok=True)
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from psycopg2.pool import SimpleConnectionPool
+from flask import (
+    Flask, request, render_template, redirect, url_for,
+    jsonify, abort, session, g
+)
+
+# =================================================================
+# Configuration
+# =================================================================
+DATABASE_URL = os.environ.get("DATABASE_URL")
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
+SUPABASE_BUCKET = os.environ.get("SUPABASE_BUCKET", "media")
+
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL env var is required")
+if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+    raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_KEY env vars are required")
 
 ALLOWED_IMG = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 ALLOWED_VID = {".mp4", ".webm", ".mov"}
@@ -30,51 +47,118 @@ app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024
 app.secret_key = os.environ.get("SECRET_KEY", "dev-" + secrets.token_hex(16))
 
 
+# =================================================================
+# Connection pool
+# =================================================================
+_pool = SimpleConnectionPool(1, 10, DATABASE_URL)
+
+
+class _DB:
+    def __init__(self):
+        self.conn = None
+        self.cur = None
+
+    def __enter__(self):
+        self.conn = _pool.getconn()
+        self.cur = self.conn.cursor(cursor_factory=RealDictCursor)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            if exc_type:
+                self.conn.rollback()
+            else:
+                self.conn.commit()
+        finally:
+            if self.cur:
+                self.cur.close()
+            if self.conn:
+                _pool.putconn(self.conn)
+
+    def execute(self, sql, params=None):
+        self.cur.execute(sql, params or ())
+        return self.cur
+
+    def fetchone(self, sql, params=None):
+        self.execute(sql, params)
+        return self.cur.fetchone()
+
+    def fetchall(self, sql, params=None):
+        self.execute(sql, params)
+        return self.cur.fetchall()
+
+
 def db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    return _DB()
 
 
 def init_db():
     with db() as c:
-        c.executescript("""
-        CREATE TABLE IF NOT EXISTS users (
-            id TEXT PRIMARY KEY,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            bio TEXT,
-            created_at INTEGER NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS posts (
-            id TEXT PRIMARY KEY,
-            user_id TEXT,
-            title TEXT,
-            media_path TEXT NOT NULL,
-            media_type TEXT NOT NULL,
-            prompt TEXT NOT NULL,
-            negative_prompt TEXT,
-            model TEXT NOT NULL,
-            tags TEXT,
-            author TEXT DEFAULT 'anonymous',
-            likes INTEGER DEFAULT 0,
-            views INTEGER DEFAULT 0,
-            created_at INTEGER NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_created ON posts(created_at DESC);
-        CREATE INDEX IF NOT EXISTS idx_model ON posts(model);
-        CREATE INDEX IF NOT EXISTS idx_user ON posts(user_id);
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id UUID PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                bio TEXT,
+                created_at BIGINT NOT NULL
+            )
         """)
-        # 기존 테이블에 user_id 컬럼이 없으면 추가 (마이그레이션)
-        cols = [r["name"] for r in c.execute("PRAGMA table_info(posts)").fetchall()]
-        if "user_id" not in cols:
-            c.execute("ALTER TABLE posts ADD COLUMN user_id TEXT")
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS posts (
+                id UUID PRIMARY KEY,
+                user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+                title TEXT,
+                media_path TEXT NOT NULL,
+                media_type TEXT NOT NULL,
+                prompt TEXT NOT NULL,
+                negative_prompt TEXT,
+                model TEXT NOT NULL,
+                tags TEXT,
+                author TEXT DEFAULT 'anonymous',
+                likes INTEGER DEFAULT 0,
+                views INTEGER DEFAULT 0,
+                created_at BIGINT NOT NULL
+            )
+        """)
+        c.execute("CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_posts_model ON posts(model)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_posts_media_type ON posts(media_type)")
 
 
-# ============== Auth helpers ==============
+# =================================================================
+# Supabase Storage
+# =================================================================
+def storage_upload(file_storage, save_name: str) -> str:
+    upload_url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{save_name}"
+    file_storage.stream.seek(0)
+    file_bytes = file_storage.stream.read()
+    headers = {
+        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+        "Content-Type": file_storage.mimetype or "application/octet-stream",
+        "x-upsert": "false",
+    }
+    r = requests.post(upload_url, data=file_bytes, headers=headers, timeout=60)
+    if not r.ok:
+        raise RuntimeError(f"Storage upload failed: {r.status_code} {r.text}")
+    return f"{SUPABASE_URL}/storage/v1/object/public/{SUPABASE_BUCKET}/{save_name}"
 
+
+def storage_delete(public_url: str):
+    try:
+        if f"/object/public/{SUPABASE_BUCKET}/" not in public_url:
+            return
+        path = public_url.split(f"/object/public/{SUPABASE_BUCKET}/", 1)[1]
+        del_url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{path}"
+        headers = {"Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"}
+        requests.delete(del_url, headers=headers, timeout=15)
+    except Exception:
+        pass
+
+
+# =================================================================
+# Auth helpers
+# =================================================================
 def hash_password(pw: str) -> str:
     salt = secrets.token_hex(16)
     h = hashlib.scrypt(pw.encode(), salt=salt.encode(), n=16384, r=8, p=1, dklen=32).hex()
@@ -97,8 +181,10 @@ def current_user():
     if hasattr(g, "user"):
         return g.user
     with db() as c:
-        row = c.execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
+        row = c.fetchone("SELECT * FROM users WHERE id = %s", (uid,))
     g.user = dict(row) if row else None
+    if g.user:
+        g.user["id"] = str(g.user["id"])
     return g.user
 
 
@@ -116,26 +202,20 @@ def inject_user():
     return {"user": current_user()}
 
 
-# ============== Routes ==============
-
-@app.route("/uploads/<path:filename>")
-def uploaded_file(filename):
-    return send_from_directory(UPLOAD_DIR, filename)
-
-
+# =================================================================
+# Browse routes
+# =================================================================
 @app.route("/")
 def index():
     model = request.args.get("model")
     sort = request.args.get("sort", "recent")
-    media_filter = request.args.get("type", "image")  # 'image' | 'video' | 'all'
+    media_filter = request.args.get("type", "image")
     if media_filter not in ("image", "video", "all"):
         media_filter = "image"
 
     with db() as c:
-        # Counts per media type for tab badges
-        counts = {row["media_type"]: row["c"] for row in c.execute(
-            "SELECT media_type, COUNT(*) AS c FROM posts GROUP BY media_type"
-        ).fetchall()}
+        rows = c.fetchall("SELECT media_type, COUNT(*) AS n FROM posts GROUP BY media_type")
+        counts = {r["media_type"]: r["n"] for r in rows}
         image_count = counts.get("image", 0)
         video_count = counts.get("video", 0)
         all_count = image_count + video_count
@@ -143,40 +223,37 @@ def index():
         sql = "SELECT * FROM posts WHERE 1=1"
         params = []
         if media_filter in ("image", "video"):
-            sql += " AND media_type = ?"
+            sql += " AND media_type = %s"
             params.append(media_filter)
         if model:
-            sql += " AND model = ?"
+            sql += " AND model = %s"
             params.append(model)
         sql += " ORDER BY likes DESC, created_at DESC" if sort == "popular" else " ORDER BY created_at DESC"
         sql += " LIMIT 120"
-        posts = [dict(r) for r in c.execute(sql, params).fetchall()]
+        posts = [dict(r) for r in c.fetchall(sql, params)]
         for p in posts:
             p["tags"] = (p["tags"] or "").split(",") if p["tags"] else []
+            p["id"] = str(p["id"])
 
     return render_template(
         "index.html",
-        posts=posts,
-        models=AI_MODELS,
-        current_model=model,
-        current_sort=sort,
-        current_type=media_filter,
-        image_count=image_count,
-        video_count=video_count,
-        all_count=all_count,
+        posts=posts, models=AI_MODELS,
+        current_model=model, current_sort=sort, current_type=media_filter,
+        image_count=image_count, video_count=video_count, all_count=all_count,
     )
 
 
 @app.route("/post/<post_id>")
 def post_detail(post_id):
     with db() as c:
-        row = c.execute("SELECT * FROM posts WHERE id = ?", (post_id,)).fetchone()
+        row = c.fetchone("SELECT * FROM posts WHERE id = %s", (post_id,))
         if not row:
             abort(404)
-        c.execute("UPDATE posts SET views = views + 1 WHERE id = ?", (post_id,))
-        c.commit()
+        c.execute("UPDATE posts SET views = views + 1 WHERE id = %s", (post_id,))
         post = dict(row)
         post["tags"] = (post["tags"] or "").split(",") if post["tags"] else []
+        post["id"] = str(post["id"])
+        post["user_id"] = str(post["user_id"]) if post["user_id"] else None
     return render_template("detail.html", post=post)
 
 
@@ -185,18 +262,13 @@ def post_detail(post_id):
 def post_delete(post_id):
     u = current_user()
     with db() as c:
-        row = c.execute("SELECT * FROM posts WHERE id = ?", (post_id,)).fetchone()
+        row = c.fetchone("SELECT * FROM posts WHERE id = %s", (post_id,))
         if not row:
             abort(404)
-        if row["user_id"] != u["id"]:
+        if str(row["user_id"]) != str(u["id"]):
             abort(403)
-        # 파일도 삭제
-        try:
-            (UPLOAD_DIR / row["media_path"]).unlink()
-        except FileNotFoundError:
-            pass
-        c.execute("DELETE FROM posts WHERE id = ?", (post_id,))
-        c.commit()
+        storage_delete(row["media_path"])
+        c.execute("DELETE FROM posts WHERE id = %s", (post_id,))
     return redirect(url_for("user_page", username=u["username"]))
 
 
@@ -224,18 +296,21 @@ def upload():
             return render_template("upload.html", models=AI_MODELS, error="지원하지 않는 파일 형식"), 400
 
         new_id = str(uuid.uuid4())
-        save_name = f"{new_id}{ext}"
-        f.save(UPLOAD_DIR / save_name)
+        save_name = f"{u['username']}/{new_id}{ext}"
+        try:
+            public_url = storage_upload(f, save_name)
+        except Exception as e:
+            return render_template("upload.html", models=AI_MODELS, error=f"업로드 실패: {e}"), 500
 
         tags_clean = ",".join([t.lstrip("#").strip().lower() for t in tags_raw.replace(",", " ").split() if t.strip()])
 
         with db() as c:
             c.execute(
                 """INSERT INTO posts (id, user_id, title, media_path, media_type, prompt, negative_prompt, model, tags, author, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (new_id, u["id"], title or None, save_name, media_type, prompt, neg or None, model, tags_clean, u["username"], int(time.time())),
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                (new_id, u["id"], title or None, public_url, media_type, prompt,
+                 neg or None, model, tags_clean, u["username"], int(time.time())),
             )
-            c.commit()
         return redirect(url_for("post_detail", post_id=new_id))
     return render_template("upload.html", models=AI_MODELS)
 
@@ -249,48 +324,50 @@ def search():
     posts = []
     if q:
         with db() as c:
-            sql = "SELECT * FROM posts WHERE (prompt LIKE ? OR title LIKE ? OR tags LIKE ? OR author LIKE ?)"
-            params = [f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%"]
+            sql = "SELECT * FROM posts WHERE (prompt ILIKE %s OR title ILIKE %s OR tags ILIKE %s OR author ILIKE %s)"
+            like = f"%{q}%"
+            params = [like, like, like, like]
             if media_filter in ("image", "video"):
-                sql += " AND media_type = ?"
+                sql += " AND media_type = %s"
                 params.append(media_filter)
             sql += " ORDER BY created_at DESC LIMIT 120"
-            rows = c.execute(sql, params).fetchall()
-            posts = [dict(r) for r in rows]
+            posts = [dict(r) for r in c.fetchall(sql, params)]
             for p in posts:
                 p["tags"] = (p["tags"] or "").split(",") if p["tags"] else []
+                p["id"] = str(p["id"])
     return render_template("search.html", posts=posts, q=q, current_type=media_filter)
 
 
 @app.route("/like/<post_id>", methods=["POST"])
 def like(post_id):
     with db() as c:
-        c.execute("UPDATE posts SET likes = likes + 1 WHERE id = ?", (post_id,))
-        c.commit()
-        row = c.execute("SELECT likes FROM posts WHERE id = ?", (post_id,)).fetchone()
+        c.execute("UPDATE posts SET likes = likes + 1 WHERE id = %s", (post_id,))
+        row = c.fetchone("SELECT likes FROM posts WHERE id = %s", (post_id,))
     return jsonify({"likes": row["likes"] if row else 0})
 
-
-# ============== User pages ==============
 
 @app.route("/u/<username>")
 def user_page(username):
     with db() as c:
-        u = c.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+        u = c.fetchone("SELECT * FROM users WHERE username = %s", (username,))
         if not u:
             abort(404)
-        rows = c.execute("SELECT * FROM posts WHERE user_id = ? ORDER BY created_at DESC", (u["id"],)).fetchall()
+        rows = c.fetchall("SELECT * FROM posts WHERE user_id = %s ORDER BY created_at DESC", (u["id"],))
         posts = [dict(r) for r in rows]
         for p in posts:
             p["tags"] = (p["tags"] or "").split(",") if p["tags"] else []
-        # stats
+            p["id"] = str(p["id"])
         total_likes = sum(p["likes"] for p in posts)
         total_views = sum(p["views"] for p in posts)
-    return render_template("profile.html", profile=dict(u), posts=posts, total_likes=total_likes, total_views=total_views)
+        profile = dict(u)
+        profile["id"] = str(profile["id"])
+    return render_template("profile.html", profile=profile, posts=posts,
+                           total_likes=total_likes, total_views=total_views)
 
 
-# ============== Auth routes ==============
-
+# =================================================================
+# Auth routes
+# =================================================================
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
@@ -303,15 +380,14 @@ def signup():
         if len(password) < 6:
             return render_template("signup.html", error="비밀번호는 6자 이상이어야 합니다"), 400
         with db() as c:
-            existing = c.execute("SELECT id FROM users WHERE username = ?", (username,)).fetchone()
+            existing = c.fetchone("SELECT id FROM users WHERE username = %s", (username,))
             if existing:
                 return render_template("signup.html", error="이미 사용 중인 사용자명입니다"), 400
             uid = str(uuid.uuid4())
             c.execute(
-                "INSERT INTO users (id, username, password_hash, created_at) VALUES (?, ?, ?, ?)",
+                "INSERT INTO users (id, username, password_hash, created_at) VALUES (%s, %s, %s, %s)",
                 (uid, username, hash_password(password), int(time.time())),
             )
-            c.commit()
         session["user_id"] = uid
         return redirect(request.args.get("next") or url_for("index"))
     return render_template("signup.html")
@@ -323,10 +399,10 @@ def login():
         username = (request.form.get("username") or "").strip().lower()
         password = request.form.get("password") or ""
         with db() as c:
-            row = c.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+            row = c.fetchone("SELECT * FROM users WHERE username = %s", (username,))
         if not row or not verify_password(password, row["password_hash"]):
             return render_template("login.html", error="사용자명 또는 비밀번호가 잘못되었습니다"), 400
-        session["user_id"] = row["id"]
+        session["user_id"] = str(row["id"])
         return redirect(request.args.get("next") or url_for("index"))
     return render_template("login.html")
 
@@ -337,10 +413,17 @@ def logout():
     return redirect(url_for("index"))
 
 
+@app.route("/health")
+def health():
+    return {"ok": True}
+
+
+# =================================================================
+# Bootstrap
+# =================================================================
+init_db()
+
+
 if __name__ == "__main__":
-    init_db()
     app.run(host="0.0.0.0", port=5000, debug=False)
-
-
-
 
