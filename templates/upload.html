@@ -2,7 +2,7 @@
 {% block content %}
 <div class="page-heading">
   <h1 class="page-title">UPLOAD</h1>
-  <p class="page-subtitle">이미지나 영상을 올리고 사용한 프롬프트를 함께 저장하세요</p>
+  <p class="page-subtitle">이미지나 영상을 올리고 사용한 프롬프트를 함께 저장하세요. 레퍼런스 자료도 함께 보관할 수 있어요.</p>
 </div>
 
 <div class="form-card">
@@ -39,11 +39,17 @@
 
   <div>
     <label>MODEL *</label>
-    <select name="model" required>
-      {% for m in models %}
-      <option value="{{ m }}">{{ m }}</option>
-      {% endfor %}
-    </select>
+    <div class="model-row">
+      <select name="model" id="modelSelect" required>
+        {% for m in models %}
+        <option value="{{ m }}">{{ m }}</option>
+        {% endfor %}
+      </select>
+      <input type="text" name="model_custom" id="modelCustom" class="model-custom" placeholder="예: Seedance 2.0, Veo 3 Fast, Sora Turbo">
+    </div>
+    <p style="font-size:11px; color:var(--text-muted); margin-top:6px;">
+      💡 모델 이름 옆에 직접 입력 칸이 나타나면 버전·세부 이름을 자유롭게 적을 수 있어요. (예: Seedance 2.0, Veo 3, Midjourney v7)
+    </p>
   </div>
 
   <div>
@@ -51,11 +57,23 @@
     <input type="text" name="tags" placeholder="쉼표 또는 공백 (예: 풍경, 사이버펑크, 야경)">
   </div>
 
-  <button type="submit" class="submit-btn">PUBLISH</button>
+  <div>
+    <label>REFERENCES (선택, 최대 10개)</label>
+    <label class="refs-drop" id="refsDrop">
+      <div style="font-size: 24px; opacity: 0.4;">📎</div>
+      <p style="margin-top: 6px;">사용한 레퍼런스 이미지·영상·오디오를 첨부하세요</p>
+      <p class="hint" style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">최대 10개 · jpg, png, mp4, mp3, wav 등</p>
+      <input type="file" name="refs[]" id="refsInput" accept="image/*,video/*,audio/*" multiple>
+    </label>
+    <div class="refs-thumbs" id="refsThumbs"></div>
+  </div>
+
+  <button type="submit" class="submit-btn" id="submitBtn">PUBLISH</button>
 </form>
 </div>
 
 <script>
+// ===== Main file =====
 const fileInput = document.getElementById('fileInput');
 const fileDrop = document.getElementById('fileDrop');
 const filePreview = document.getElementById('filePreview');
@@ -77,6 +95,85 @@ fileInput.addEventListener('change', (e) => {
     filePreview.innerHTML = '';
     fileDrop.style.display = 'flex';
   });
+});
+
+// ===== Model select (custom input toggle) =====
+const modelSelect = document.getElementById('modelSelect');
+const modelCustom = document.getElementById('modelCustom');
+function updateModelCustom() {
+  const v = modelSelect.value;
+  // Always allow optional version/detail input — but show by default for "기타"
+  if (v.startsWith('기타')) {
+    modelCustom.classList.add('show');
+    modelCustom.required = true;
+    modelCustom.placeholder = '모델 이름 직접 입력 (필수)';
+  } else {
+    modelCustom.classList.add('show');
+    modelCustom.required = false;
+    modelCustom.placeholder = `버전·세부 이름 (예: ${v} 2.0, ${v} v7) — 비워두면 "${v}"로 저장`;
+  }
+}
+modelSelect.addEventListener('change', updateModelCustom);
+updateModelCustom();
+
+// ===== Multi-file references =====
+const refsInput = document.getElementById('refsInput');
+const refsDrop = document.getElementById('refsDrop');
+const refsThumbs = document.getElementById('refsThumbs');
+const MAX_REFS = 10;
+let selectedRefs = []; // File[]
+
+function rebuildRefsInput() {
+  // DataTransfer hack to update file input with the selectedRefs list
+  const dt = new DataTransfer();
+  selectedRefs.forEach(f => dt.items.add(f));
+  refsInput.files = dt.files;
+}
+
+function renderRefsThumbs() {
+  refsThumbs.innerHTML = '';
+  selectedRefs.forEach((f, idx) => {
+    const url = URL.createObjectURL(f);
+    const isVideo = f.type.startsWith('video/');
+    const isAudio = f.type.startsWith('audio/');
+    const wrap = document.createElement('div');
+    wrap.className = 'refs-thumb-item' + (isAudio ? ' audio-thumb' : '');
+    if (isAudio) {
+      wrap.innerHTML = `🎵<button type="button" class="thumb-remove">×</button><span class="thumb-type">AUDIO</span>`;
+    } else if (isVideo) {
+      wrap.innerHTML = `<video src="${url}" muted></video><button type="button" class="thumb-remove">×</button><span class="thumb-type">VIDEO</span>`;
+    } else {
+      wrap.innerHTML = `<img src="${url}"><button type="button" class="thumb-remove">×</button>`;
+    }
+    wrap.querySelector('.thumb-remove').addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      selectedRefs.splice(idx, 1);
+      rebuildRefsInput();
+      renderRefsThumbs();
+    });
+    refsThumbs.appendChild(wrap);
+  });
+}
+
+refsInput.addEventListener('change', (e) => {
+  const newFiles = Array.from(e.target.files);
+  for (const f of newFiles) {
+    if (selectedRefs.length >= MAX_REFS) {
+      alert(`레퍼런스는 최대 ${MAX_REFS}개까지 첨부 가능합니다.`);
+      break;
+    }
+    selectedRefs.push(f);
+  }
+  rebuildRefsInput();
+  renderRefsThumbs();
+});
+
+// Submit: brief loading state
+document.getElementById('uploadForm').addEventListener('submit', () => {
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'UPLOADING...';
 });
 </script>
 {% endblock %}

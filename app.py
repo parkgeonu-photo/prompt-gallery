@@ -1,5 +1,5 @@
 """
-Prompt Gallery — Supabase 버전
+XAZINGA — Prompt Gallery
 - PostgreSQL DB (Supabase Postgres)
 - Supabase Storage (이미지/영상)
 - Flask + Gunicorn
@@ -7,13 +7,14 @@ Prompt Gallery — Supabase 버전
 import os
 import uuid
 import time
+import json
 import hashlib
 import secrets
 import requests
 from functools import wraps
 
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, Json
 from psycopg2.pool import SimpleConnectionPool
 from flask import (
     Flask, request, render_template, redirect, url_for,
@@ -35,15 +36,16 @@ if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
 
 ALLOWED_IMG = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 ALLOWED_VID = {".mp4", ".webm", ".mov"}
+ALLOWED_AUDIO = {".mp3", ".wav", ".m4a", ".ogg", ".flac"}
 
 AI_MODELS = [
     "Midjourney", "DALL-E 3", "Stable Diffusion", "Flux", "Nano Banana",
     "Seedream", "Imagen", "Sora", "Veo", "Seedance", "Kling",
-    "Runway", "Pika", "Higgsfield", "기타"
+    "Runway", "Pika", "Higgsfield", "기타 (직접 입력)"
 ]
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 50 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024  # 200MB total request size (covers refs + main file)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-" + secrets.token_hex(16))
 
 
@@ -117,9 +119,11 @@ def init_db():
                 author TEXT DEFAULT 'anonymous',
                 likes INTEGER DEFAULT 0,
                 views INTEGER DEFAULT 0,
-                created_at BIGINT NOT NULL
+                created_at BIGINT NOT NULL,
+                refs JSONB DEFAULT '[]'::jsonb
             )
         """)
+        c.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS refs JSONB DEFAULT '[]'::jsonb")
         c.execute("CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_posts_model ON posts(model)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id)")
@@ -146,7 +150,7 @@ def storage_upload(file_storage, save_name: str) -> str:
 
 def storage_delete(public_url: str):
     try:
-        if f"/object/public/{SUPABASE_BUCKET}/" not in public_url:
+        if not public_url or f"/object/public/{SUPABASE_BUCKET}/" not in public_url:
             return
         path = public_url.split(f"/object/public/{SUPABASE_BUCKET}/", 1)[1]
         del_url = f"{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{path}"
@@ -154,6 +158,14 @@ def storage_delete(public_url: str):
         requests.delete(del_url, headers=headers, timeout=15)
     except Exception:
         pass
+
+
+def detect_media_type(ext: str) -> str:
+    ext = ext.lower()
+    if ext in ALLOWED_IMG: return "image"
+    if ext in ALLOWED_VID: return "video"
+    if ext in ALLOWED_AUDIO: return "audio"
+    return ""
 
 
 # =================================================================
@@ -202,6 +214,21 @@ def inject_user():
     return {"user": current_user()}
 
 
+def normalize_post(p):
+    """Convert DB row to template-friendly dict."""
+    p = dict(p)
+    p["id"] = str(p["id"])
+    if p.get("user_id"):
+        p["user_id"] = str(p["user_id"])
+    p["tags"] = (p["tags"] or "").split(",") if p["tags"] else []
+    refs = p.get("refs") or []
+    if isinstance(refs, str):
+        try: refs = json.loads(refs)
+        except Exception: refs = []
+    p["refs"] = refs
+    return p
+
+
 # =================================================================
 # Browse routes
 # =================================================================
@@ -230,10 +257,7 @@ def index():
             params.append(model)
         sql += " ORDER BY likes DESC, created_at DESC" if sort == "popular" else " ORDER BY created_at DESC"
         sql += " LIMIT 120"
-        posts = [dict(r) for r in c.fetchall(sql, params)]
-        for p in posts:
-            p["tags"] = (p["tags"] or "").split(",") if p["tags"] else []
-            p["id"] = str(p["id"])
+        posts = [normalize_post(r) for r in c.fetchall(sql, params)]
 
     return render_template(
         "index.html",
@@ -250,10 +274,7 @@ def post_detail(post_id):
         if not row:
             abort(404)
         c.execute("UPDATE posts SET views = views + 1 WHERE id = %s", (post_id,))
-        post = dict(row)
-        post["tags"] = (post["tags"] or "").split(",") if post["tags"] else []
-        post["id"] = str(post["id"])
-        post["user_id"] = str(post["user_id"]) if post["user_id"] else None
+        post = normalize_post(row)
     return render_template("detail.html", post=post)
 
 
@@ -268,6 +289,12 @@ def post_delete(post_id):
         if str(row["user_id"]) != str(u["id"]):
             abort(403)
         storage_delete(row["media_path"])
+        refs = row.get("refs") or []
+        if isinstance(refs, str):
+            try: refs = json.loads(refs)
+            except Exception: refs = []
+        for r in refs:
+            storage_delete(r.get("url", ""))
         c.execute("DELETE FROM posts WHERE id = %s", (post_id,))
     return redirect(url_for("user_page", username=u["username"]))
 
@@ -279,21 +306,28 @@ def upload():
     if request.method == "POST":
         f = request.files.get("file")
         prompt = (request.form.get("prompt") or "").strip()
-        model = request.form.get("model") or "기타"
+        model_choice = request.form.get("model") or "기타 (직접 입력)"
+        model_custom = (request.form.get("model_custom") or "").strip()
         title = (request.form.get("title") or "").strip()
         neg = (request.form.get("negative_prompt") or "").strip()
         tags_raw = (request.form.get("tags") or "").strip()
+
+        # Resolve model name
+        if model_choice == "기타 (직접 입력)" or model_choice == "기타":
+            model = model_custom or "기타"
+        else:
+            model = model_custom.strip() or model_choice
+            # If user typed a custom suffix (e.g. "Seedance 2.0"), prefer their text
+            if model_custom:
+                model = model_custom
 
         if not f or not f.filename or not prompt:
             return render_template("upload.html", models=AI_MODELS, error="파일과 프롬프트는 필수입니다"), 400
 
         ext = os.path.splitext(f.filename)[1].lower()
-        if ext in ALLOWED_IMG:
-            media_type = "image"
-        elif ext in ALLOWED_VID:
-            media_type = "video"
-        else:
-            return render_template("upload.html", models=AI_MODELS, error="지원하지 않는 파일 형식"), 400
+        media_type = detect_media_type(ext)
+        if media_type not in ("image", "video"):
+            return render_template("upload.html", models=AI_MODELS, error="지원하지 않는 파일 형식 (이미지/영상만 가능)"), 400
 
         new_id = str(uuid.uuid4())
         save_name = f"{u['username']}/{new_id}{ext}"
@@ -302,14 +336,31 @@ def upload():
         except Exception as e:
             return render_template("upload.html", models=AI_MODELS, error=f"업로드 실패: {e}"), 500
 
+        # References (max 10)
+        refs = []
+        ref_files = request.files.getlist("refs[]")[:10]
+        for i, rf in enumerate(ref_files):
+            if not rf or not rf.filename:
+                continue
+            r_ext = os.path.splitext(rf.filename)[1].lower()
+            r_type = detect_media_type(r_ext)
+            if not r_type:
+                continue
+            r_name = f"{u['username']}/refs/{new_id}_{i}{r_ext}"
+            try:
+                r_url = storage_upload(rf, r_name)
+                refs.append({"url": r_url, "type": r_type})
+            except Exception:
+                continue
+
         tags_clean = ",".join([t.lstrip("#").strip().lower() for t in tags_raw.replace(",", " ").split() if t.strip()])
 
         with db() as c:
             c.execute(
-                """INSERT INTO posts (id, user_id, title, media_path, media_type, prompt, negative_prompt, model, tags, author, created_at)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                """INSERT INTO posts (id, user_id, title, media_path, media_type, prompt, negative_prompt, model, tags, author, created_at, refs)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                 (new_id, u["id"], title or None, public_url, media_type, prompt,
-                 neg or None, model, tags_clean, u["username"], int(time.time())),
+                 neg or None, model, tags_clean, u["username"], int(time.time()), Json(refs)),
             )
         return redirect(url_for("post_detail", post_id=new_id))
     return render_template("upload.html", models=AI_MODELS)
@@ -324,17 +375,14 @@ def search():
     posts = []
     if q:
         with db() as c:
-            sql = "SELECT * FROM posts WHERE (prompt ILIKE %s OR title ILIKE %s OR tags ILIKE %s OR author ILIKE %s)"
+            sql = "SELECT * FROM posts WHERE (prompt ILIKE %s OR title ILIKE %s OR tags ILIKE %s OR author ILIKE %s OR model ILIKE %s)"
             like = f"%{q}%"
-            params = [like, like, like, like]
+            params = [like, like, like, like, like]
             if media_filter in ("image", "video"):
                 sql += " AND media_type = %s"
                 params.append(media_filter)
             sql += " ORDER BY created_at DESC LIMIT 120"
-            posts = [dict(r) for r in c.fetchall(sql, params)]
-            for p in posts:
-                p["tags"] = (p["tags"] or "").split(",") if p["tags"] else []
-                p["id"] = str(p["id"])
+            posts = [normalize_post(r) for r in c.fetchall(sql, params)]
     return render_template("search.html", posts=posts, q=q, current_type=media_filter)
 
 
@@ -353,16 +401,21 @@ def user_page(username):
         if not u:
             abort(404)
         rows = c.fetchall("SELECT * FROM posts WHERE user_id = %s ORDER BY created_at DESC", (u["id"],))
-        posts = [dict(r) for r in rows]
-        for p in posts:
-            p["tags"] = (p["tags"] or "").split(",") if p["tags"] else []
-            p["id"] = str(p["id"])
+        posts = [normalize_post(r) for r in rows]
         total_likes = sum(p["likes"] for p in posts)
         total_views = sum(p["views"] for p in posts)
         profile = dict(u)
         profile["id"] = str(profile["id"])
     return render_template("profile.html", profile=profile, posts=posts,
                            total_likes=total_likes, total_views=total_views)
+
+
+# =================================================================
+# Character Sheet generator (standalone embedded page)
+# =================================================================
+@app.route("/character-sheet")
+def character_sheet():
+    return render_template("character_sheet.html")
 
 
 # =================================================================

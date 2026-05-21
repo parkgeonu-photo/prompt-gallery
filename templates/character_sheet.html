@@ -1,0 +1,1470 @@
+{% extends "base.html" %}
+{% block title %}CHARACTER SHEET — XAZINGA{% endblock %}
+{% block content %}
+<style>
+    .cs-root html-fake {
+      -webkit-text-size-adjust: 100%;
+      -webkit-tap-highlight-color: transparent;
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    .cs-root {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #fff;
+      color: #1d1d1f;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    .cs-root header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-top: 20px;
+    }
+    
+    .cs-root h1 {
+      font-size: 28px;
+      font-weight: 600;
+      color: #1d1d1f;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+    
+    .subtitle {
+      font-size: 15px;
+      color: #86868b;
+    }
+    
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 32px;
+      background: #f5f5f7;
+      border-radius: 12px;
+      padding: 4px;
+    }
+    
+    .tab {
+      flex: 1;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: #86868b;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      -webkit-appearance: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+    }
+    
+    .tab.active {
+      background: #fff;
+      color: #1d1d1f;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .form-row {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .form-row select {
+      width: 45%;
+      flex-shrink: 0;
+    }
+    
+    .form-row input {
+      flex: 1;
+    }
+    
+    .form-row .custom-input {
+      margin-top: 0;
+      display: none;
+    }
+    
+    .form-row .custom-input.show {
+      display: block;
+    }
+    
+    label {
+      font-size: 15px;
+      font-weight: 500;
+      color: #1d1d1f;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid #d2d2d7;
+      background: #fff;
+      color: #1d1d1f;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+    
+    input:focus, select:focus {
+      border-color: #1d1d1f;
+    }
+    
+    input::placeholder {
+      color: #86868b;
+    }
+    
+    .custom-input {
+      margin-top: 8px;
+      display: none;
+    }
+    
+    .custom-input.show {
+      display: block;
+    }
+    
+    .tag-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    
+    .tag {
+      padding: 8px 14px;
+      border-radius: 20px;
+      border: 1px solid #d2d2d7;
+      background: #fff;
+      color: #1d1d1f;
+      font-size: 13px;
+      font-weight: 400;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      -webkit-appearance: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+    }
+    
+    .tag.selected {
+      border-color: #1d1d1f;
+      background: #1d1d1f;
+      color: #fff;
+    }
+    
+    .btn-container {
+      margin-top: 32px;
+      margin-bottom: 24px;
+    }
+    
+    .generate-btn {
+      width: 100%;
+      padding: 16px;
+      border-radius: 12px;
+      border: none;
+      background: #1d1d1f;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      -webkit-appearance: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+    }
+    
+    .generate-btn:hover {
+      background: #000;
+    }
+    
+    .result {
+      background: #f5f5f7;
+      border-radius: 16px;
+      padding: 20px;
+      display: none;
+    }
+    
+    .result.show {
+      display: block;
+    }
+    
+    .result-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    .result-title {
+      font-size: 15px;
+      font-weight: 500;
+      color: #1d1d1f;
+    }
+    
+    .copy-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid #d2d2d7;
+      background: #fff;
+      color: #1d1d1f;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      -webkit-appearance: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+    }
+    
+    .copy-btn.copied {
+      background: #1d1d1f;
+      color: #fff;
+      border-color: #1d1d1f;
+    }
+    
+    .prompt-output {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      font-size: 13px;
+      line-height: 1.7;
+      color: #1d1d1f;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'SF Mono', Menlo, monospace;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .tips {
+      margin-top: 24px;
+      padding: 16px;
+      background: #f5f5f7;
+      border-radius: 12px;
+    }
+    
+    .tips p {
+      color: #86868b;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .history-item {
+      background: #f5f5f7;
+      border-radius: 12px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .history-item:hover {
+      background: #e8e8ed;
+    }
+    
+    .history-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    
+    .history-item-name {
+      font-weight: 600;
+      color: #1d1d1f;
+      font-size: 15px;
+    }
+    
+    .history-item-date {
+      font-size: 12px;
+      color: #86868b;
+    }
+    
+    .history-item-preview {
+      font-size: 13px;
+      color: #86868b;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .history-item-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    
+    .history-btn {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid #d2d2d7;
+      background: #fff;
+      color: #1d1d1f;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .history-btn.delete {
+      border-color: #ff3b30;
+      color: #ff3b30;
+    }
+    
+    .history-btn.delete:hover {
+      background: #ff3b30;
+      color: #fff;
+    }
+    
+    .history-empty {
+      text-align: center;
+      color: #86868b;
+      padding: 40px 20px;
+      font-size: 14px;
+    }
+    
+    .clear-all-btn {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #ff3b30;
+      background: #fff;
+      color: #ff3b30;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 16px;
+      transition: all 0.2s ease;
+    }
+    
+    .clear-all-btn:hover {
+      background: #ff3b30;
+      color: #fff;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 26px;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #d2d2d7;
+      border-radius: 26px;
+      transition: 0.2s ease;
+    }
+
+    .toggle-slider:before {
+      content: "";
+      position: absolute;
+      height: 22px;
+      width: 22px;
+      left: 2px;
+      bottom: 2px;
+      background: #fff;
+      border-radius: 50%;
+      transition: 0.2s ease;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background: #1d1d1f;
+    }
+
+    .toggle-switch input:checked + .toggle-slider:before {
+      transform: translateX(18px);
+    }
+
+    .mbti-select-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .mbti-select-row select {
+      width: 140px;
+      flex-shrink: 0;
+    }
+
+    .mbti-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: #1d1d1f;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .external-links {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #e8e8ed;
+    }
+
+    .external-links-label {
+      font-size: 12px;
+      color: #86868b;
+      margin-right: 4px;
+      white-space: nowrap;
+    }
+
+    .ext-link {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      color: #fff;
+      transition: opacity 0.15s ease;
+    }
+
+    .ext-link:hover {
+      opacity: 0.85;
+    }
+
+    .ext-link.gemini {
+      background: #4285F4;
+    }
+
+    .ext-link.chatgpt {
+      background: #10a37f;
+    }
+
+    .ext-link.midjourney {
+      background: #1d1d1f;
+    }
+</style>
+
+<div class="cs-root">
+  <div class="container">
+    <header>
+      <h1 onclick="resetForm()" style="cursor: pointer;">Character Sheet</h1>
+      <p class="subtitle">캐릭터 시트 프롬프트 생성기 v3</p>
+    </header>
+    
+    <div class="tabs">
+      <button class="tab active" data-tab="basic">기본 정보</button>
+      <button class="tab" data-tab="appearance">외모</button>
+      <button class="tab" data-tab="outfit">의상</button>
+      <button class="tab" data-tab="personality">성격 / 목소리</button>
+      <button class="tab" data-tab="history">히스토리</button>
+    </div>
+    
+    <!-- Basic Info -->
+    <div class="tab-content active" id="basic">
+      <div class="form-group">
+        <label>캐릭터 이름</label>
+        <input type="text" id="name" placeholder="REINA">
+      </div>
+      <div class="form-group">
+        <label>나이</label>
+        <div class="form-row">
+          <select id="ageOption" onchange="toggleCustomInput('ageOption', 'customAge')">
+            <option value="custom" selected>직접 입력</option>
+            <option value="none">선택 안함</option>
+          </select>
+          <input type="number" id="customAge" class="custom-input show" placeholder="나이 입력">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>키 (cm)</label>
+        <div class="form-row">
+          <select id="heightOption" onchange="toggleCustomInput('heightOption', 'customHeight')">
+            <option value="custom" selected>직접 입력</option>
+            <option value="none">선택 안함</option>
+          </select>
+          <input type="number" id="customHeight" class="custom-input show" placeholder="키 입력 (cm)">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>성별</label>
+        <div class="form-row">
+          <select id="gender" onchange="toggleCustomInput('gender', 'customGender')">
+            <option value="female">여성</option>
+            <option value="male">남성</option>
+            <option value="male_consistent">남성 일관성 (200%)</option>
+            <option value="androgynous">중성적</option>
+            <option value="custom">직접 입력</option>
+          </select>
+          <input type="text" id="customGender" class="custom-input" placeholder="직접 입력">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>스타일</label>
+        <select id="styleOption">
+          <option value="realistic" selected>리얼리스틱 (실사)</option>
+          <option value="hyperreal">하이퍼리얼리스틱</option>
+          <option value="game">게임 캐릭터</option>
+          <option value="anime">애니메이션</option>
+          <option value="3d">3D 렌더</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>얼굴 격자 그리드</label>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <label class="toggle-switch">
+            <input type="checkbox" id="faceGrid">
+            <span class="toggle-slider"></span>
+          </label>
+          <span style="font-size: 13px; color: #86868b;">모든 얼굴 뷰에 굵은 검정 격자 그리드 오버레이 추가</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Appearance -->
+    <div class="tab-content" id="appearance">
+      <div class="form-group">
+        <label>머리 색상</label>
+        <div class="form-row">
+          <select id="hairColor" onchange="toggleCustomInput('hairColor', 'customHairColor')">
+            <option value="same_as_image" selected>이미지와 동일</option>
+            <option value="black">블랙</option>
+            <option value="dark brown">다크 브라운</option>
+            <option value="brown">브라운</option>
+            <option value="light brown">라이트 브라운</option>
+            <option value="blonde">블론드</option>
+            <option value="platinum blonde">플래티넘 블론드</option>
+            <option value="ash gray">애쉬 그레이</option>
+            <option value="silver">실버</option>
+            <option value="white">화이트</option>
+            <option value="red">레드</option>
+            <option value="auburn">오번 (적갈색)</option>
+            <option value="pink">핑크</option>
+            <option value="blue">블루</option>
+            <option value="purple">퍼플</option>
+            <option value="green">그린</option>
+            <option value="ombre">옴브레</option>
+            <option value="custom">직접 입력</option>
+          </select>
+          <input type="text" id="customHairColor" class="custom-input" placeholder="직접 입력">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>머리 스타일</label>
+        <input type="text" id="hairStyle" placeholder="short wavy, bob cut...">
+      </div>
+      <div class="form-group">
+        <label>눈 색상</label>
+        <input type="text" id="eyeColor" placeholder="brown, gray...">
+      </div>
+      <div class="form-group">
+        <label>피부톤</label>
+        <div class="form-row">
+          <select id="skinTone" onchange="toggleCustomInput('skinTone', 'customSkinTone')">
+            <option value="same_as_image" selected>이미지와 동일</option>
+            <option value="fair">밝은 피부</option>
+            <option value="light">라이트</option>
+            <option value="medium">중간</option>
+            <option value="tan">태닝</option>
+            <option value="dark">어두운</option>
+            <option value="custom">직접 입력</option>
+          </select>
+          <input type="text" id="customSkinTone" class="custom-input" placeholder="직접 입력">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>피부 디테일</label>
+        <div class="form-row">
+          <select id="skinDetail" onchange="toggleCustomInput('skinDetail', 'customSkinDetail')">
+            <option value="same_as_image" selected>이미지와 동일</option>
+            <option value="clean">깨끗함</option>
+            <option value="flawless">잡티없음</option>
+            <option value="realistic_skin">리얼한 피부표현</option>
+            <option value="freckles">주근깨</option>
+            <option value="custom">직접 입력</option>
+          </select>
+          <input type="text" id="customSkinDetail" class="custom-input" placeholder="직접 입력">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>체형</label>
+        <div class="form-row">
+          <select id="bodyType" onchange="toggleCustomInput('bodyType', 'customBodyType')">
+            <option value="same_as_image" selected>이미지와 동일</option>
+            <option value="slim">슬림</option>
+            <option value="athletic">탄탄함</option>
+            <option value="curvy">볼륨감</option>
+            <option value="petite">아담함</option>
+            <option value="tall_slender">키크고 날씬</option>
+            <option value="custom">직접 입력</option>
+          </select>
+          <input type="text" id="customBodyType" class="custom-input" placeholder="직접 입력">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>얼굴 특징</label>
+        <input type="text" id="facialFeatures" placeholder="sharp jawline, full lips...">
+      </div>
+      <div class="form-group">
+        <label>특수 요소</label>
+        <input type="text" id="specialFeatures" placeholder="small horns, glasses...">
+      </div>
+    </div>
+    
+    <!-- Outfit -->
+    <div class="tab-content" id="outfit">
+      <div class="form-group">
+        <label>의상 스타일</label>
+        <div class="form-row">
+          <select id="outfitStyle" onchange="toggleCustomInput('outfitStyle', 'customOutfitStyle')">
+            <option value="same_as_image" selected>이미지와 동일</option>
+            <option value="futuristic">미래적</option>
+            <option value="streetwear">스트릿웨어</option>
+            <option value="military">밀리터리</option>
+            <option value="elegant">엘레강트</option>
+            <option value="casual">캐주얼</option>
+            <option value="gothic">고딕</option>
+            <option value="cyberpunk">사이버펑크</option>
+            <option value="fantasy">판타지</option>
+            <option value="custom">직접 입력</option>
+          </select>
+          <input type="text" id="customOutfitStyle" class="custom-input" placeholder="직접 입력">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>의상 컬러</label>
+        <div class="form-row">
+          <select id="outfitColor" onchange="toggleCustomInput('outfitColor', 'customOutfitColor')">
+            <option value="same_as_image" selected>이미지와 동일</option>
+            <option value="black">블랙</option>
+            <option value="white">화이트</option>
+            <option value="olive">올리브</option>
+            <option value="burgundy">버건디</option>
+            <option value="navy">네이비</option>
+            <option value="beige">베이지</option>
+            <option value="custom">직접 입력</option>
+          </select>
+          <input type="text" id="customOutfitColor" class="custom-input" placeholder="직접 입력">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>상의</label>
+        <input type="text" id="topwear" placeholder="fitted bodysuit, cropped jacket...">
+      </div>
+      <div class="form-group">
+        <label>하의</label>
+        <input type="text" id="bottomwear" placeholder="cargo pants, shorts...">
+      </div>
+      <div class="form-group">
+        <label>신발</label>
+        <input type="text" id="footwear" placeholder="knee-high boots...">
+      </div>
+      <div class="form-group">
+        <label>악세서리</label>
+        <input type="text" id="accessories" placeholder="choker, belt, gloves...">
+      </div>
+    </div>
+    
+    <!-- Personality -->
+    <div class="tab-content" id="personality">
+      <div class="form-group">
+        <label>MBTI</label>
+        <div class="mbti-select-row">
+          <select id="mbtiSelect" onchange="applyMBTI()">
+            <option value="">선택 안함</option>
+            <option value="INTJ">INTJ — 전략가</option>
+            <option value="INTP">INTP — 논리술사</option>
+            <option value="ENTJ">ENTJ — 통솔자</option>
+            <option value="ENTP">ENTP — 변론가</option>
+            <option value="INFJ">INFJ — 옹호자</option>
+            <option value="INFP">INFP — 중재자</option>
+            <option value="ENFJ">ENFJ — 선도자</option>
+            <option value="ENFP">ENFP — 활동가</option>
+            <option value="ISTJ">ISTJ — 현실주의자</option>
+            <option value="ISFJ">ISFJ — 수호자</option>
+            <option value="ESTJ">ESTJ — 경영자</option>
+            <option value="ESFJ">ESFJ — 집정관</option>
+            <option value="ISTP">ISTP — 장인</option>
+            <option value="ISFP">ISFP — 모험가</option>
+            <option value="ESTP">ESTP — 사업가</option>
+            <option value="ESFP">ESFP — 연예인</option>
+          </select>
+          <span id="mbtiBadge"></span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>성격 특성</label>
+        <div class="tag-container" id="personalityTags"></div>
+        <input type="text" id="customPersonality" placeholder="직접 입력 (쉼표로 구분)">
+      </div>
+      <div class="form-group">
+        <label>목소리 특성</label>
+        <div class="tag-container" id="voiceTags"></div>
+        <input type="text" id="customVoice" placeholder="직접 입력 (쉼표로 구분)">
+      </div>
+    </div>
+    
+    <!-- History -->
+    <div class="tab-content" id="history">
+      <div class="history-list" id="historyList">
+        <div class="history-empty">저장된 히스토리가 없습니다.</div>
+      </div>
+      <button class="clear-all-btn" id="clearAllBtn" style="display: none;" onclick="clearAllHistory()">전체 삭제</button>
+    </div>
+    
+    <div class="btn-container">
+      <button class="generate-btn" onclick="generatePrompt()">프롬프트 생성</button>
+    </div>
+    
+    <div class="result" id="result">
+      <div class="result-header">
+        <span class="result-title">생성된 프롬프트</span>
+        <button class="copy-btn" id="copyBtn" onclick="copyPrompt()">복사</button>
+      </div>
+      <pre class="prompt-output" id="promptOutput"></pre>
+      <div class="external-links">
+        <span class="external-links-label">복사 후 바로가기</span>
+        <a href="https://gemini.google.com" target="_blank" class="ext-link gemini">Gemini</a>
+        <a href="https://chatgpt.com" target="_blank" class="ext-link chatgpt">ChatGPT</a>
+        <a href="https://www.midjourney.com" target="_blank" class="ext-link midjourney">Midjourney</a>
+      </div>
+    </div>
+    
+    <div class="tips">
+      <p>💡 "이미지와 동일" 선택 시 해당 항목은 프롬프트에서 제외됩니다. 텍스트 필드를 비워두면 생략됩니다.</p>
+      <p style="color: #ff3b30; font-weight: 600; margin-top: 8px;">⚠️ 나이 입력 시 얼굴에 영향을 줄 수 있습니다. 남성은 AI 학습 데이터 부족으로 일관성이 떨어질 수 있으니 "남성 일관성(200%)" 옵션을 선택하세요.</p>
+    </div>
+    
+    <p style="text-align: center; color: #86868b; font-size: 13px; font-weight: 600; margin-top: 40px;">상단 타이틀 "Character Sheet" 클릭 시 리셋.</p>
+    
+    <footer style="text-align: center; margin-top: 12px; padding-bottom: 20px;">
+      <a href="https://www.threads.com/@xazinga" target="_blank" rel="noopener noreferrer" style="color: #86868b; text-decoration: none; font-size: 13px;">by Xazinga</a>
+    </footer>
+  </div>
+  
+</div>
+
+<script>
+    // Data
+    const personalityOptions = [
+      { label: '오만한', value: 'arrogant' },
+      { label: '귀족적인', value: 'aristocratic' },
+      { label: '섹시한', value: 'sexy' },
+      { label: '관심받고 싶어하는', value: 'attention-seeking' },
+      { label: '책임감 있는', value: 'responsible' },
+      { label: '에너지 넘치는', value: 'energetic' },
+      { label: '낙천적인', value: 'optimistic' },
+      { label: '역동적인', value: 'dynamic' },
+      { label: '순수한', value: 'naive' },
+      { label: '코믹한', value: 'comedic' },
+      { label: '덜렁대는', value: 'clumsy' },
+      { label: '차분한', value: 'calm' },
+      { label: '즉흥적인', value: 'spontaneous' },
+      { label: '무관심한', value: 'indifferent' },
+      { label: '현명한', value: 'wise' },
+      { label: '공감 잘하는', value: 'empathetic' },
+      { label: '체계적인', value: 'organized' },
+      { label: '다정한', value: 'gentle' },
+      { label: '냉소적인', value: 'sarcastic' },
+      { label: '자신감 있는', value: 'confident' },
+      { label: '신비로운', value: 'mysterious' },
+      { label: '장난기 있는', value: 'playful' },
+      { label: '진지한', value: 'serious' },
+      { label: '도도한', value: 'aloof' },
+      { label: '츤데레', value: 'tsundere' },
+      { label: '얀데레', value: 'yandere' },
+      { label: '쿨한', value: 'cool' },
+      { label: '열정적인', value: 'passionate' },
+      { label: '내성적인', value: 'introverted' },
+      { label: '외향적인', value: 'extroverted' },
+      { label: '반항적인', value: 'rebellious' },
+      { label: '순종적인', value: 'submissive' },
+      { label: '지배적인', value: 'dominant' },
+      { label: '보호본능 강한', value: 'protective' },
+      { label: '질투심 많은', value: 'jealous' },
+      { label: '독립적인', value: 'independent' },
+      { label: '예측불허', value: 'unpredictable' },
+      { label: '충성스러운', value: 'loyal' },
+      { label: '교활한', value: 'cunning' },
+      { label: '순진무구한', value: 'innocent' },
+      { label: '세련된', value: 'sophisticated' },
+      { label: '거친', value: 'rough' },
+      { label: '우아한', value: 'elegant' },
+      { label: '어색한', value: 'awkward' },
+      { label: '호기심 많은', value: 'curious' },
+    ];
+
+    const voiceTraitOptions = [
+      { label: '낮은', value: 'low' },
+      { label: '중간', value: 'medium' },
+      { label: '높은', value: 'high range' },
+      { label: '소프라노', value: 'soprano' },
+      { label: '벨벳 같은', value: 'velvety' },
+      { label: '관능적인', value: 'sensual' },
+      { label: '절제된', value: 'measured' },
+      { label: '자신감 있는', value: 'confident' },
+      { label: '새침한', value: 'flirty' },
+      { label: '냉소적인', value: 'sarcastic' },
+      { label: '긍정적인', value: 'positive' },
+      { label: '장난스러운', value: 'playful' },
+      { label: '따뜻한', value: 'compassionate' },
+      { label: '잘 통제된', value: 'well-controlled' },
+      { label: '귀족적인', value: 'aristocratic' },
+      { label: '포근한', value: 'warm' },
+      { label: '차가운', value: 'cold' },
+      { label: '숨결 섞인', value: 'breathy' },
+      { label: '허스키한', value: 'husky' },
+      { label: '날카로운', value: 'sharp' },
+      { label: '부드러운', value: 'soft' },
+      { label: '또렷한', value: 'clear' },
+      { label: '속삭이는', value: 'whispery' },
+      { label: '단호한', value: 'firm' },
+      { label: '나른한', value: 'languid' },
+      { label: '활기찬', value: 'lively' },
+      { label: '꿀 같은', value: 'honeyed' },
+      { label: '거친', value: 'raspy' },
+      { label: '맑은', value: 'crisp' },
+      { label: '깊은', value: 'deep' },
+      { label: '가벼운', value: 'light' },
+      { label: '진지한', value: 'solemn' },
+      { label: '쾌활한', value: 'cheerful' },
+      { label: '단조로운', value: 'monotone' },
+      { label: '감정적인', value: 'emotional' },
+      { label: '무표정한', value: 'deadpan' },
+    ];
+
+    const mbtiPersonalityMap = {
+      'INTJ': ['arrogant', 'independent', 'wise', 'organized', 'confident', 'serious', 'mysterious'],
+      'INTP': ['calm', 'independent', 'wise', 'introverted', 'unpredictable', 'curious'],
+      'ENTJ': ['dominant', 'confident', 'organized', 'responsible', 'passionate', 'arrogant'],
+      'ENTP': ['spontaneous', 'cunning', 'playful', 'confident', 'rebellious', 'dynamic'],
+      'INFJ': ['empathetic', 'mysterious', 'wise', 'gentle', 'introverted', 'loyal'],
+      'INFP': ['naive', 'empathetic', 'gentle', 'introverted', 'passionate', 'innocent'],
+      'ENFJ': ['empathetic', 'responsible', 'confident', 'gentle', 'passionate', 'extroverted'],
+      'ENFP': ['energetic', 'optimistic', 'spontaneous', 'playful', 'extroverted', 'passionate'],
+      'ISTJ': ['responsible', 'organized', 'serious', 'loyal', 'calm', 'independent'],
+      'ISFJ': ['gentle', 'responsible', 'empathetic', 'loyal', 'protective', 'calm'],
+      'ESTJ': ['dominant', 'organized', 'responsible', 'confident', 'serious', 'extroverted'],
+      'ESFJ': ['gentle', 'empathetic', 'responsible', 'extroverted', 'optimistic', 'loyal'],
+      'ISTP': ['cool', 'independent', 'calm', 'rebellious', 'spontaneous', 'indifferent'],
+      'ISFP': ['gentle', 'introverted', 'passionate', 'spontaneous', 'innocent', 'awkward'],
+      'ESTP': ['dynamic', 'energetic', 'confident', 'spontaneous', 'rebellious', 'extroverted'],
+      'ESFP': ['energetic', 'optimistic', 'playful', 'extroverted', 'attention-seeking', 'comedic'],
+    };
+
+    const selectedPersonality = new Set();
+    const selectedVoice = new Set();
+
+    // Initialize tags
+    function initTags() {
+      const personalityContainer = document.getElementById('personalityTags');
+      const voiceContainer = document.getElementById('voiceTags');
+
+      personalityOptions.forEach(opt => {
+        const tag = document.createElement('button');
+        tag.className = 'tag';
+        tag.textContent = opt.label;
+        tag.onclick = () => {
+          if (selectedPersonality.has(opt.value)) {
+            selectedPersonality.delete(opt.value);
+            tag.classList.remove('selected');
+          } else {
+            selectedPersonality.add(opt.value);
+            tag.classList.add('selected');
+          }
+        };
+        personalityContainer.appendChild(tag);
+      });
+
+      voiceTraitOptions.forEach(opt => {
+        const tag = document.createElement('button');
+        tag.className = 'tag';
+        tag.textContent = opt.label;
+        tag.onclick = () => {
+          if (selectedVoice.has(opt.value)) {
+            selectedVoice.delete(opt.value);
+            tag.classList.remove('selected');
+          } else {
+            selectedVoice.add(opt.value);
+            tag.classList.add('selected');
+          }
+        };
+        voiceContainer.appendChild(tag);
+      });
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.tab).classList.add('active');
+      });
+    });
+
+    // Apply MBTI personality traits
+    function applyMBTI() {
+      const mbti = document.getElementById('mbtiSelect').value;
+      const badge = document.getElementById('mbtiBadge');
+      
+      // Clear current personality selections
+      selectedPersonality.clear();
+      document.querySelectorAll('#personalityTags .tag').forEach(tag => tag.classList.remove('selected'));
+      
+      if (!mbti) {
+        badge.innerHTML = '';
+        return;
+      }
+      
+      badge.innerHTML = `<span class="mbti-badge">${mbti}</span>`;
+      
+      const traits = mbtiPersonalityMap[mbti] || [];
+      traits.forEach(traitValue => {
+        selectedPersonality.add(traitValue);
+        // Find and highlight the matching tag
+        const matchingOpt = personalityOptions.find(p => p.value === traitValue);
+        if (matchingOpt) {
+          document.querySelectorAll('#personalityTags .tag').forEach(tag => {
+            if (tag.textContent === matchingOpt.label) {
+              tag.classList.add('selected');
+            }
+          });
+        }
+      });
+    }
+
+    // Toggle custom input
+    function toggleCustomInput(selectId, inputId) {
+      const select = document.getElementById(selectId);
+      const input = document.getElementById(inputId);
+      if (select.value === 'custom') {
+        input.classList.add('show');
+      } else {
+        input.classList.remove('show');
+      }
+    }
+
+    // Get value helper
+    function getValue(selectId, customId, map = null) {
+      const select = document.getElementById(selectId);
+      const custom = document.getElementById(customId);
+      
+      if (select.value === 'custom') {
+        return custom.value.trim();
+      } else if (select.value === 'same_as_image') {
+        return '';
+      } else if (map && map[select.value]) {
+        return map[select.value];
+      }
+      return select.value;
+    }
+
+    // Generate prompt
+    function generatePrompt() {
+      const name = document.getElementById('name').value.trim();
+      
+      // 나이 처리
+      const ageOption = document.getElementById('ageOption').value;
+      const customAge = document.getElementById('customAge').value.trim();
+      let age = '';
+      if (ageOption === 'custom' && customAge) {
+        age = customAge;
+      }
+      
+      // Height handling
+      const heightOption = document.getElementById('heightOption').value;
+      const customHeight = document.getElementById('customHeight').value.trim();
+      let heightText = '';
+      if (heightOption === 'custom' && customHeight) {
+        heightText = `${customHeight}cm tall`;
+      }
+      // "none"이나 "same_as_image"면 heightText는 빈 문자열 유지
+      
+      // 스타일 옵션 처리
+      const styleOption = document.getElementById('styleOption').value;
+      let stylePrompt = '';
+      let styleNegativePrompt = '';
+      
+      if (styleOption === 'realistic') {
+        stylePrompt = 'photorealistic, real human, natural skin texture, real photograph, raw photo, DSLR quality, 8k uhd, realistic lighting, pores, skin details';
+        styleNegativePrompt = '3D render, CGI, game character, anime, illustration, digital art, plastic skin, doll-like, artificial, fake, cartoon, drawing, painting';
+      } else if (styleOption === 'hyperreal') {
+        stylePrompt = 'hyperrealistic, ultra realistic, extremely detailed, real human, natural skin texture, subsurface scattering, 8k uhd, photographic quality, studio photography';
+        styleNegativePrompt = '3D render, CGI, game character, anime, illustration, digital art, plastic skin, doll-like, artificial, cartoon';
+      } else if (styleOption === 'game') {
+        stylePrompt = 'video game character, 3D game art style, high quality game graphics, Unreal Engine 5, stylized realism';
+        styleNegativePrompt = 'photograph, real photo, realistic skin pores';
+      } else if (styleOption === 'anime') {
+        stylePrompt = 'anime style, japanese animation, cel shaded, vibrant colors, clean lines, anime character design';
+        styleNegativePrompt = 'photorealistic, real photo, 3D render, western cartoon';
+      } else if (styleOption === '3d') {
+        stylePrompt = '3D rendered, CGI, Pixar style, high quality 3D model, smooth rendering, studio lighting';
+        styleNegativePrompt = 'photograph, real photo, anime, 2D, flat';
+      }
+
+      const genderSelect = document.getElementById('gender').value;
+      const customGender = document.getElementById('customGender').value.trim();
+      
+      let genderText = '';
+      let maleConsistentMode = false;
+      let negativePrompt = '';
+      
+      if (genderSelect === 'custom' && customGender) {
+        genderText = customGender;
+      } else if (genderSelect === 'male_consistent') {
+        genderText = 'man';
+        maleConsistentMode = true;
+      } else if (genderSelect !== 'custom') {
+        const genderMap = { female: 'woman', male: 'man', androgynous: 'androgynous person' };
+        genderText = genderMap[genderSelect] || '';
+      }
+      
+      // 남성 일관성 모드일 때 추가 프롬프트
+      let maleConsistentPrompt = '';
+      if (maleConsistentMode) {
+        maleConsistentPrompt = 'identical face in all views, same person throughout, consistent male facial features, fixed facial structure, same eye shape, same nose shape, same jaw shape, same facial proportions, photorealistic male portrait consistency';
+        negativePrompt = 'feminine features, soft features, changing face, different faces, morphing, inconsistent features, face variation, multiple identities, androgynous, pretty boy, beautiful, cute face, round face, baby face, smooth skin, makeup, lipstick, feminine lips, long eyelashes, soft jaw, narrow shoulders, deformed face, distorted face, asymmetric face, bad anatomy, extra limbs, mutation, disfigured';
+      }
+      
+      const skinMap = { fair: 'fair skin', light: 'light skin', medium: 'medium skin', tan: 'tan skin', dark: 'dark skin' };
+      const skinText = getValue('skinTone', 'customSkinTone', skinMap);
+      
+      const skinDetailMap = { clean: 'clean clear skin', flawless: 'flawless poreless skin, no blemishes', realistic_skin: 'realistic skin texture with visible pores, natural skin imperfections, subsurface scattering', freckles: 'freckled skin, natural freckles across nose and cheeks' };
+      const skinDetailText = getValue('skinDetail', 'customSkinDetail', skinDetailMap);
+      
+      const bodyMap = { slim: 'slim body type', athletic: 'athletic body type', curvy: 'curvy body type', petite: 'petite body type', tall_slender: 'tall and slender body type' };
+      const bodyText = getValue('bodyType', 'customBodyType', bodyMap);
+
+      // Hair color handling
+      const hairColorSelect = document.getElementById('hairColor').value;
+      const customHairColor = document.getElementById('customHairColor').value.trim();
+      let hairColorText = '';
+      if (hairColorSelect === 'custom' && customHairColor) {
+        hairColorText = customHairColor;
+      } else if (hairColorSelect !== 'same_as_image' && hairColorSelect !== 'custom') {
+        hairColorText = hairColorSelect;
+      }
+
+      const hairStyle = document.getElementById('hairStyle').value.trim();
+      const eyeColor = document.getElementById('eyeColor').value.trim();
+      const facialFeatures = document.getElementById('facialFeatures').value.trim();
+      const specialFeatures = document.getElementById('specialFeatures').value.trim();
+
+      const colorMap = { black: 'black', white: 'white', olive: 'olive green', burgundy: 'burgundy', navy: 'navy blue', beige: 'beige', gray: 'gray', brown: 'brown' };
+      const outfitStyleText = getValue('outfitStyle', 'customOutfitStyle');
+      const outfitColorText = getValue('outfitColor', 'customOutfitColor', colorMap);
+
+      const topwear = document.getElementById('topwear').value.trim();
+      const bottomwear = document.getElementById('bottomwear').value.trim();
+      const footwear = document.getElementById('footwear').value.trim();
+      const accessories = document.getElementById('accessories').value.trim();
+
+      const customPersonality = document.getElementById('customPersonality').value.trim();
+      const customVoice = document.getElementById('customVoice').value.trim();
+
+      // Build prompt - 나이는 외모 설명에서 제외
+      const charParts = [stylePrompt, 'full character reference sheet'];
+      if (genderText) {
+        charParts.push(`of a ${genderText}`);
+      }
+      if (heightText) charParts.push(heightText);
+      if (skinText) charParts.push(skinText);
+      if (skinDetailText) charParts.push(skinDetailText);
+      if (bodyText) charParts.push(bodyText);
+
+      const characterBase = charParts.filter(Boolean).join(', ');
+
+      const hairParts = [hairColorText, hairStyle].filter(Boolean);
+      const hairDesc = hairParts.length > 0 ? `${hairParts.join(' ')} hair` : '';
+      const eyeDesc = eyeColor ? `${eyeColor} eyes` : '';
+      const faceDesc = [eyeDesc, facialFeatures].filter(Boolean).join(', ');
+
+      const outfitParts = [outfitStyleText, outfitColorText, topwear, bottomwear, footwear, accessories].filter(Boolean);
+      const outfitDesc = outfitParts.length > 0 ? `wearing ${outfitParts.join(', ')}` : '';
+
+      const viewSpec = 'multiple views showing: front full body view, back full body view, face close-up front view, face close-up side profile view, face close-up 3/4 angle view, upper body detail shot, outfit detail shots';
+      const techSpec = '16:9 aspect ratio, white clean background, professional studio soft lighting, fashion photography quality, high detail, consistent character across all views, professional character design sheet layout';
+      
+      // 얼굴 격자 그리드
+      const faceGrid = document.getElementById('faceGrid').checked;
+      const faceGridPrompt = faceGrid ? 'all face close-up views must have a 10x10 black grid overlay drawn directly on the face, 10 horizontal lines and 10 vertical lines, thick bold black lines partially covering eyes nose and mouth, grid for facial proportion mapping reference' : '';
+      
+      // 텍스트 오버레이 - 이름, 나이, 키 포함
+      let infoOverlayParts = [];
+      if (name) infoOverlayParts.push(`"Name: ${name.toUpperCase()}"`);
+      if (age) infoOverlayParts.push(`"Age: ${age}"`);
+      if (heightOption === 'custom' && customHeight) infoOverlayParts.push(`"Height: ${customHeight} cm"`);
+      const infoOverlay = infoOverlayParts.length > 0 ? `text overlay showing ${infoOverlayParts.join(', ')}` : '';
+      
+      // 나이 역발상 프롬프트 (나이 입력 시 외모 보호)
+      let ageProtectionPrompt = '';
+      let ageNegativePrompt = '';
+      if (age) {
+        ageProtectionPrompt = 'youthful appearance, same facial features as reference image, consistent face throughout all views, identical face, face unchanged by text';
+        ageNegativePrompt = 'aged face, old looking, wrinkles, crow feet, forehead lines, sagging skin, age spots, mature face, middle aged face, elderly features, aging skin, face affected by age number';
+      }
+
+      const mainParts = [characterBase, hairDesc, faceDesc, specialFeatures, outfitDesc, maleConsistentPrompt, ageProtectionPrompt, faceGridPrompt, viewSpec, techSpec, infoOverlay].filter(Boolean);
+      const mainPrompt = mainParts.join('. ');
+
+      // Traits
+      const allPersonality = [...selectedPersonality];
+      if (customPersonality) {
+        allPersonality.push(...customPersonality.split(',').map(s => s.trim()).filter(Boolean));
+      }
+      const allVoice = [...selectedVoice];
+      if (customVoice) {
+        allVoice.push(...customVoice.split(',').map(s => s.trim()).filter(Boolean));
+      }
+
+      const personalityText = allPersonality.length > 0 ? `Character: ${allPersonality.join(', ')}` : '';
+      const mbtiVal = document.getElementById('mbtiSelect').value;
+      const mbtiText = `MBTI: ${mbtiVal || 'not specified'}`;
+      const voiceText = `Voice: ${allVoice.length > 0 ? allVoice.join(', ') : 'not specified'}`;
+      const traitsSection = [mbtiText, personalityText, voiceText].filter(Boolean).join('\n');
+
+      let fullPrompt = `${mainPrompt}\n\n---\nCHARACTER TRAITS (for text overlay reference):\n${traitsSection}`;
+      
+      // 네거티브 프롬프트 합치기 (남성 일관성 + 나이 보호 + 스타일)
+      let combinedNegative = [negativePrompt, ageNegativePrompt, styleNegativePrompt].filter(Boolean).join(', ');
+      if (combinedNegative) {
+        fullPrompt += `\n\n---\nNEGATIVE PROMPT:\n${combinedNegative}`;
+      }
+
+      if (faceGrid) {
+        fullPrompt += `\n\n---\nNOTE: Remove grid overlay when generating video from this character sheet.`;
+      }
+
+      document.getElementById('promptOutput').textContent = fullPrompt;
+      document.getElementById('result').classList.add('show');
+      
+      // 히스토리에 저장
+      const formData = collectFormData();
+      saveToHistory(name, formData, fullPrompt);
+    }
+
+    // Copy
+    function copyPrompt() {
+      const text = document.getElementById('promptOutput').textContent;
+      navigator.clipboard.writeText(text);
+      const btn = document.getElementById('copyBtn');
+      btn.textContent = '복사됨';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = '복사';
+        btn.classList.remove('copied');
+      }, 2000);
+    }
+
+    // Reset form
+    function resetForm() {
+      // 기본 정보
+      document.getElementById('name').value = '';
+      document.getElementById('ageOption').value = 'custom';
+      document.getElementById('customAge').value = '';
+      document.getElementById('customAge').classList.add('show');
+      document.getElementById('heightOption').value = 'custom';
+      document.getElementById('customHeight').value = '';
+      document.getElementById('customHeight').classList.add('show');
+      document.getElementById('gender').value = 'female';
+      document.getElementById('customGender').value = '';
+      document.getElementById('customGender').classList.remove('show');
+      document.getElementById('styleOption').value = 'realistic';
+      document.getElementById('faceGrid').checked = false;
+      
+      // 외모
+      document.getElementById('hairColor').value = 'same_as_image';
+      document.getElementById('customHairColor').value = '';
+      document.getElementById('customHairColor').classList.remove('show');
+      document.getElementById('hairStyle').value = '';
+      document.getElementById('eyeColor').value = '';
+      document.getElementById('skinTone').value = 'same_as_image';
+      document.getElementById('customSkinTone').value = '';
+      document.getElementById('customSkinTone').classList.remove('show');
+      document.getElementById('skinDetail').value = 'same_as_image';
+      document.getElementById('customSkinDetail').value = '';
+      document.getElementById('customSkinDetail').classList.remove('show');
+      document.getElementById('bodyType').value = 'same_as_image';
+      document.getElementById('customBodyType').value = '';
+      document.getElementById('customBodyType').classList.remove('show');
+      document.getElementById('facialFeatures').value = '';
+      document.getElementById('specialFeatures').value = '';
+      
+      // 의상
+      document.getElementById('outfitStyle').value = 'same_as_image';
+      document.getElementById('customOutfitStyle').value = '';
+      document.getElementById('customOutfitStyle').classList.remove('show');
+      document.getElementById('outfitColor').value = 'same_as_image';
+      document.getElementById('customOutfitColor').value = '';
+      document.getElementById('customOutfitColor').classList.remove('show');
+      document.getElementById('topwear').value = '';
+      document.getElementById('bottomwear').value = '';
+      document.getElementById('footwear').value = '';
+      document.getElementById('accessories').value = '';
+      
+      // 성격/목소리
+      document.getElementById('mbtiSelect').value = '';
+      document.getElementById('mbtiBadge').innerHTML = '';
+      document.getElementById('customPersonality').value = '';
+      document.getElementById('customVoice').value = '';
+      
+      // 태그 초기화
+      selectedPersonality.clear();
+      selectedVoice.clear();
+      document.querySelectorAll('.tag').forEach(tag => tag.classList.remove('selected'));
+      
+      // 결과 숨기기
+      document.getElementById('result').classList.remove('show');
+    }
+
+    // Init
+    initTags();
+    loadHistory();
+    
+    // iOS Safari 터치 이벤트 지원
+    document.addEventListener('touchstart', function(){}, {passive: true});
+    
+    // 히스토리 저장
+    function saveToHistory(name, formData, prompt) {
+      let history = JSON.parse(localStorage.getItem('characterSheetHistory') || '[]');
+      const item = {
+        id: Date.now(),
+        name: name || '이름 없음',
+        date: new Date().toLocaleString('ko-KR'),
+        formData: formData,
+        prompt: prompt
+      };
+      history.unshift(item);
+      // 최대 20개 저장
+      if (history.length > 20) {
+        history = history.slice(0, 20);
+      }
+      localStorage.setItem('characterSheetHistory', JSON.stringify(history));
+      loadHistory();
+    }
+    
+    // 히스토리 불러오기
+    function loadHistory() {
+      const history = JSON.parse(localStorage.getItem('characterSheetHistory') || '[]');
+      const listEl = document.getElementById('historyList');
+      const clearBtn = document.getElementById('clearAllBtn');
+      
+      if (history.length === 0) {
+        listEl.innerHTML = '<div class="history-empty">저장된 히스토리가 없습니다.</div>';
+        clearBtn.style.display = 'none';
+        return;
+      }
+      
+      clearBtn.style.display = 'block';
+      listEl.innerHTML = history.map(item => `
+        <div class="history-item" onclick="loadFromHistory(${item.id})">
+          <div class="history-item-header">
+            <span class="history-item-name">${item.name}</span>
+            <span class="history-item-date">${item.date}</span>
+          </div>
+          <div class="history-item-preview">${item.prompt.substring(0, 80)}...</div>
+          <div class="history-item-actions">
+            <button class="history-btn" onclick="event.stopPropagation(); copyHistoryPrompt(${item.id})">프롬프트 복사</button>
+            <button class="history-btn delete" onclick="event.stopPropagation(); deleteHistory(${item.id})">삭제</button>
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    // 히스토리에서 불러오기
+    function loadFromHistory(id) {
+      const history = JSON.parse(localStorage.getItem('characterSheetHistory') || '[]');
+      const item = history.find(h => h.id === id);
+      if (!item) return;
+      
+      const data = item.formData;
+      
+      // 기본 정보
+      document.getElementById('name').value = data.name || '';
+      document.getElementById('ageOption').value = data.ageOption || 'custom';
+      document.getElementById('customAge').value = data.customAge || '';
+      toggleCustomInput('ageOption', 'customAge');
+      document.getElementById('heightOption').value = data.heightOption || 'custom';
+      document.getElementById('customHeight').value = data.customHeight || '';
+      toggleCustomInput('heightOption', 'customHeight');
+      document.getElementById('gender').value = data.gender || 'female';
+      document.getElementById('customGender').value = data.customGender || '';
+      toggleCustomInput('gender', 'customGender');
+      document.getElementById('styleOption').value = data.styleOption || 'realistic';
+      document.getElementById('faceGrid').checked = data.faceGrid || false;
+      
+      // 외모
+      document.getElementById('hairColor').value = data.hairColor || 'same_as_image';
+      document.getElementById('customHairColor').value = data.customHairColor || '';
+      toggleCustomInput('hairColor', 'customHairColor');
+      document.getElementById('hairStyle').value = data.hairStyle || '';
+      document.getElementById('eyeColor').value = data.eyeColor || '';
+      document.getElementById('skinTone').value = data.skinTone || 'same_as_image';
+      document.getElementById('customSkinTone').value = data.customSkinTone || '';
+      toggleCustomInput('skinTone', 'customSkinTone');
+      document.getElementById('skinDetail').value = data.skinDetail || 'same_as_image';
+      document.getElementById('customSkinDetail').value = data.customSkinDetail || '';
+      toggleCustomInput('skinDetail', 'customSkinDetail');
+      document.getElementById('bodyType').value = data.bodyType || 'same_as_image';
+      document.getElementById('customBodyType').value = data.customBodyType || '';
+      toggleCustomInput('bodyType', 'customBodyType');
+      document.getElementById('facialFeatures').value = data.facialFeatures || '';
+      document.getElementById('specialFeatures').value = data.specialFeatures || '';
+      
+      // 의상
+      document.getElementById('outfitStyle').value = data.outfitStyle || 'same_as_image';
+      document.getElementById('customOutfitStyle').value = data.customOutfitStyle || '';
+      toggleCustomInput('outfitStyle', 'customOutfitStyle');
+      document.getElementById('outfitColor').value = data.outfitColor || 'same_as_image';
+      document.getElementById('customOutfitColor').value = data.customOutfitColor || '';
+      toggleCustomInput('outfitColor', 'customOutfitColor');
+      document.getElementById('topwear').value = data.topwear || '';
+      document.getElementById('bottomwear').value = data.bottomwear || '';
+      document.getElementById('footwear').value = data.footwear || '';
+      document.getElementById('accessories').value = data.accessories || '';
+      
+      // 성격/목소리
+      document.getElementById('mbtiSelect').value = data.mbti || '';
+      if (data.mbti) {
+        document.getElementById('mbtiBadge').innerHTML = `<span class="mbti-badge">${data.mbti}</span>`;
+      } else {
+        document.getElementById('mbtiBadge').innerHTML = '';
+      }
+      document.getElementById('customPersonality').value = data.customPersonality || '';
+      document.getElementById('customVoice').value = data.customVoice || '';
+      
+      // 태그 복원
+      selectedPersonality.clear();
+      selectedVoice.clear();
+      document.querySelectorAll('#personalityTags .tag').forEach(tag => {
+        tag.classList.remove('selected');
+        const value = personalityOptions.find(p => p.label === tag.textContent)?.value;
+        if (data.personality && data.personality.includes(value)) {
+          selectedPersonality.add(value);
+          tag.classList.add('selected');
+        }
+      });
+      document.querySelectorAll('#voiceTags .tag').forEach(tag => {
+        tag.classList.remove('selected');
+        const value = voiceTraitOptions.find(v => v.label === tag.textContent)?.value;
+        if (data.voiceTraits && data.voiceTraits.includes(value)) {
+          selectedVoice.add(value);
+          tag.classList.add('selected');
+        }
+      });
+      
+      // 기본 정보 탭으로 이동
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelector('[data-tab="basic"]').classList.add('active');
+      document.getElementById('basic').classList.add('active');
+      
+      alert('불러왔습니다!');
+    }
+    
+    // 히스토리 프롬프트 복사
+    function copyHistoryPrompt(id) {
+      const history = JSON.parse(localStorage.getItem('characterSheetHistory') || '[]');
+      const item = history.find(h => h.id === id);
+      if (item) {
+        navigator.clipboard.writeText(item.prompt);
+        alert('프롬프트가 복사되었습니다!');
+      }
+    }
+    
+    // 히스토리 삭제
+    function deleteHistory(id) {
+      if (!confirm('이 히스토리를 삭제하시겠습니까?')) return;
+      let history = JSON.parse(localStorage.getItem('characterSheetHistory') || '[]');
+      history = history.filter(h => h.id !== id);
+      localStorage.setItem('characterSheetHistory', JSON.stringify(history));
+      loadHistory();
+    }
+    
+    // 전체 삭제
+    function clearAllHistory() {
+      if (!confirm('모든 히스토리를 삭제하시겠습니까?')) return;
+      localStorage.removeItem('characterSheetHistory');
+      loadHistory();
+    }
+    
+    // 현재 폼 데이터 수집
+    function collectFormData() {
+      return {
+        name: document.getElementById('name').value,
+        ageOption: document.getElementById('ageOption').value,
+        customAge: document.getElementById('customAge').value,
+        heightOption: document.getElementById('heightOption').value,
+        customHeight: document.getElementById('customHeight').value,
+        gender: document.getElementById('gender').value,
+        customGender: document.getElementById('customGender').value,
+        styleOption: document.getElementById('styleOption').value,
+        faceGrid: document.getElementById('faceGrid').checked,
+        hairColor: document.getElementById('hairColor').value,
+        customHairColor: document.getElementById('customHairColor').value,
+        hairStyle: document.getElementById('hairStyle').value,
+        eyeColor: document.getElementById('eyeColor').value,
+        skinTone: document.getElementById('skinTone').value,
+        customSkinTone: document.getElementById('customSkinTone').value,
+        skinDetail: document.getElementById('skinDetail').value,
+        customSkinDetail: document.getElementById('customSkinDetail').value,
+        bodyType: document.getElementById('bodyType').value,
+        customBodyType: document.getElementById('customBodyType').value,
+        facialFeatures: document.getElementById('facialFeatures').value,
+        specialFeatures: document.getElementById('specialFeatures').value,
+        outfitStyle: document.getElementById('outfitStyle').value,
+        customOutfitStyle: document.getElementById('customOutfitStyle').value,
+        outfitColor: document.getElementById('outfitColor').value,
+        customOutfitColor: document.getElementById('customOutfitColor').value,
+        topwear: document.getElementById('topwear').value,
+        bottomwear: document.getElementById('bottomwear').value,
+        footwear: document.getElementById('footwear').value,
+        accessories: document.getElementById('accessories').value,
+        customPersonality: document.getElementById('customPersonality').value,
+        customVoice: document.getElementById('customVoice').value,
+        mbti: document.getElementById('mbtiSelect').value,
+        personality: [...selectedPersonality],
+        voiceTraits: [...selectedVoice]
+      };
+    }
+</script>
+{% endblock %}

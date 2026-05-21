@@ -2,16 +2,15 @@
 {% block content %}
 <div class="page-heading">
   <div style="display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;">
-    <h1 class="page-title">PROMPT<br>GALLERY</h1>
+    <h1 class="page-title">XAZINGA</h1>
     <div style="display: flex; gap: 8px; align-items: center;">
-      <span style="display: inline-block; width: 8px; height: 8px; background: var(--accent); border-radius: 999px; box-shadow: 0 0 12px var(--accent);"></span>
-      <span style="font-family: 'Space Grotesk', sans-serif; font-size: 12px; letter-spacing: 0.1em; color: var(--accent); font-weight: 600;">LIVE · {{ all_count }} WORKS</span>
+      <span style="display: inline-block; width: 8px; height: 8px; background: var(--text); border-radius: 999px;"></span>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-size: 12px; letter-spacing: 0.1em; color: var(--text); font-weight: 600;">LIVE · {{ all_count }} WORKS</span>
     </div>
   </div>
-  <p class="page-subtitle">AI로 만든 작품과 사용한 프롬프트를 함께 아카이브하는 커뮤니티. 모든 프롬프트는 원클릭으로 복사하고 자기 작업에 바로 사용할 수 있어요.</p>
+  <p class="page-subtitle">AI로 만든 작품과 사용한 프롬프트를 함께 아카이브하는 갤러리. 모든 프롬프트는 원클릭으로 복사하고 자기 작업에 바로 사용할 수 있어요.</p>
 </div>
 
-<!-- 큰 카테고리 탭: IMAGE / VIDEO / ALL -->
 <div class="category-tabs">
   <a href="/?type=image{% if current_model %}&model={{ current_model }}{% endif %}{% if current_sort == 'popular' %}&sort=popular{% endif %}"
      class="category-tab {% if current_type == 'image' %}active{% endif %}">

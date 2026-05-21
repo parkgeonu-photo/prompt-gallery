@@ -53,6 +53,32 @@
     </div>
     {% endif %}
 
+    {% if post.refs %}
+    <div>
+      <div class="section-label" style="margin-bottom: 10px;">REFERENCES ({{ post.refs|length }})</div>
+      <div class="refs-grid">
+        {% for r in post.refs %}
+          {% if r.type == 'image' %}
+          <a class="ref-thumb" href="{{ r.url }}" target="_blank" rel="noopener">
+            <img src="{{ r.url }}" alt="reference" loading="lazy">
+            <span class="ref-type-badge">IMG</span>
+          </a>
+          {% elif r.type == 'video' %}
+          <a class="ref-thumb" href="{{ r.url }}" target="_blank" rel="noopener">
+            <video src="{{ r.url }}" muted preload="metadata"></video>
+            <span class="ref-type-badge">VID</span>
+          </a>
+          {% elif r.type == 'audio' %}
+          <a class="ref-thumb audio" href="{{ r.url }}" target="_blank" rel="noopener" title="오디오 파일">
+            🎵
+            <span class="ref-type-badge">AUD</span>
+          </a>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
     {% if post.tags %}
     <div>
       <div class="section-label" style="margin-bottom: 8px;">TAGS</div>
