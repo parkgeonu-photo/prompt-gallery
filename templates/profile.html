@@ -12,6 +12,8 @@
   </div>
   {% if is_self %}
   <a href="/upload" class="btn btn-primary">+ NEW POST</a>
+  {% elif user %}
+  <a href="/messages/{{ profile.username }}" class="btn btn-ghost">✉ MESSAGE</a>
   {% endif %}
 </div>
 
@@ -75,4 +77,5 @@
 </div>
 {% endif %}
 {% endblock %}
+
 

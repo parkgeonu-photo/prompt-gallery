@@ -3,12 +3,11 @@
 <style>
   .blurred-text {
     filter: blur(5px);
-    user-select: none;
+    user-select: none; -webkit-user-select: none;
     pointer-events: none;
     color: var(--text-muted);
     background: var(--bg-elev);
     padding: 2px 4px; border-radius: 3px;
-    -webkit-user-select: none;
   }
   .partial-notice {
     margin-top: 12px;
@@ -16,8 +15,7 @@
     border-radius: 8px;
     background: var(--bg-elev);
     border: 1px dashed var(--border);
-    font-size: 12px;
-    color: var(--text-muted);
+    font-size: 12px; color: var(--text-muted);
     display: flex; align-items: center; gap: 8px;
   }
   .partial-icon { font-size: 16px; flex-shrink: 0; }
@@ -28,15 +26,94 @@
     margin-left: 8px;
     font-family: 'Space Grotesk', sans-serif;
   }
-  .vis-badge-partial {
-    background: var(--bg-elev); color: var(--text);
-    border: 1px solid var(--border);
+  .vis-badge-partial { background: var(--bg-elev); color: var(--text); border: 1px solid var(--border); }
+  .vis-badge-private { background: #fef0f0; color: #8a1a1a; border: 1px solid #f5d0d0; }
+
+  /* Source URL link */
+  .source-link-block {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; border-radius: 10px;
+    background: var(--bg-elev); border: 1px solid var(--border);
+    transition: all 0.15s;
   }
-  .vis-badge-private {
-    background: #fef0f0; color: #8a1a1a;
-    border: 1px solid #f5d0d0;
+  .source-link-block:hover { border-color: var(--text); }
+  .source-link-icon { font-size: 16px; flex-shrink: 0; }
+  .source-link-info { flex: 1; min-width: 0; }
+  .source-link-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+    color: var(--text-muted); text-transform: uppercase; margin-bottom: 2px;
   }
+  .source-link-url {
+    font-size: 13px; color: var(--text);
+    word-break: break-all;
+    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+  }
+
+  /* Comments */
+  .comments-section { margin-top: 8px; }
+  .comments-list {
+    display: flex; flex-direction: column; gap: 12px;
+    margin-bottom: 18px;
+  }
+  .comment-item {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px;
+    transition: border-color 0.15s;
+  }
+  .comment-item:target { border-color: var(--text); background: var(--bg-elev); }
+  .comment-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px; font-size: 12px;
+  }
+  .comment-author {
+    font-weight: 700; color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .comment-author:hover { text-decoration: underline; }
+  .comment-time { color: var(--text-muted); font-size: 11px; }
+  .comment-actions { display: flex; gap: 8px; align-items: center; }
+  .comment-body {
+    font-size: 14px; line-height: 1.55;
+    word-break: break-word; white-space: pre-wrap;
+  }
+  .comment-form {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .comment-form textarea {
+    width: 100%; min-height: 80px;
+    padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--bg);
+    font-size: 14px; font-family: inherit; resize: vertical;
+    outline: none;
+  }
+  .comment-form textarea:focus { border-color: var(--text); }
+  .comment-form-actions {
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .comment-counter { font-size: 11px; color: var(--text-muted); }
+  .comment-empty {
+    text-align: center; padding: 32px 16px;
+    color: var(--text-muted); font-size: 13px;
+    border: 1px dashed var(--border); border-radius: 12px;
+    background: var(--bg-elev);
+  }
+  .comment-delete {
+    background: transparent; border: none; cursor: pointer;
+    color: var(--text-muted); font-size: 11px;
+    padding: 2px 6px; border-radius: 4px;
+  }
+  .comment-delete:hover { color: var(--danger); background: #fdf0f0; }
+  .login-prompt {
+    text-align: center; padding: 16px;
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: 12px; font-size: 13px; color: var(--text-muted);
+  }
+  .login-prompt a { color: var(--text); font-weight: 700; }
+  .login-prompt a:hover { text-decoration: underline; }
 </style>
+
 <div class="detail-grid">
   <div class="detail-media">
     {% if post.media_type == 'video' %}
@@ -57,6 +134,9 @@
       <button class="like-btn" id="likeBtn" data-id="{{ post.id }}">
         <span id="heartIcon">♡</span> <span id="likeCount">{{ post.likes }}</span>
       </button>
+      {% if user and post.user_id != user.id %}
+      <a href="/messages/{{ post.author }}" class="btn btn-ghost" style="font-size: 11px; padding: 6px 12px;">✉ MESSAGE</a>
+      {% endif %}
       {% if user and post.user_id == user.id %}
       <form method="POST" action="/post/{{ post.id }}/delete" class="inline-form" onsubmit="return confirm('정말 삭제하시겠습니까?');">
         <button type="submit" class="btn btn-danger" style="font-size: 11px; padding: 6px 12px;">DELETE</button>
@@ -77,9 +157,7 @@
       <div class="section-header">
         <span class="section-label">PROMPT</span>
         {% if not post.prompt_truncated %}
-        <button class="copy-btn" id="copyBtn" data-text="{{ post.prompt|e }}">
-          📋 COPY
-        </button>
+        <button class="copy-btn" id="copyBtn" data-text="{{ post.prompt|e }}">📋 COPY</button>
         {% endif %}
       </div>
       {% if post.prompt_truncated %}
@@ -95,9 +173,7 @@
 
     {% if post.negative_prompt_hidden %}
     <div class="section-block">
-      <div class="section-header">
-        <span class="section-label">NEGATIVE</span>
-      </div>
+      <div class="section-header"><span class="section-label">NEGATIVE</span></div>
       <p class="prompt-text" style="color: var(--text-muted);">
         <span class="blurred-text" aria-hidden="true">XXXXXXX XXXX XXXX XXXX XXXX XXXXXX XXXX XXXX XXXXXXX XXXX XXXX</span>
       </p>
@@ -110,12 +186,21 @@
     <div class="section-block">
       <div class="section-header">
         <span class="section-label">NEGATIVE</span>
-        <button class="copy-btn" id="copyNegBtn" data-text="{{ post.negative_prompt|e }}">
-          📋 COPY
-        </button>
+        <button class="copy-btn" id="copyNegBtn" data-text="{{ post.negative_prompt|e }}">📋 COPY</button>
       </div>
       <p class="prompt-text" style="color: var(--text-muted);">{{ post.negative_prompt }}</p>
     </div>
+    {% endif %}
+
+    {% if post.source_url %}
+    <a class="source-link-block" href="{{ post.source_url }}" target="_blank" rel="noopener">
+      <div class="source-link-icon">🔗</div>
+      <div class="source-link-info">
+        <div class="source-link-label">SOURCE</div>
+        <div class="source-link-url">{{ post.source_url }}</div>
+      </div>
+      <div style="opacity: 0.5;">↗</div>
+    </a>
     {% endif %}
 
     {% if post.refs %}
@@ -148,12 +233,55 @@
     <div>
       <div class="section-label" style="margin-bottom: 8px;">TAGS</div>
       <div class="tag-list">
-        {% for tag in post.tags %}
-        <span class="tag">#{{ tag }}</span>
-        {% endfor %}
+        {% for tag in post.tags %}<span class="tag">#{{ tag }}</span>{% endfor %}
       </div>
     </div>
     {% endif %}
+
+    {# ============ Comments ============ #}
+    <div class="comments-section">
+      <div class="section-label" style="margin-bottom: 12px;">COMMENTS ({{ comments|length }})</div>
+
+      {% if user %}
+      <form class="comment-form" method="POST" action="/post/{{ post.id }}/comment">
+        <textarea name="body" id="commentBody" required maxlength="1000"
+                  placeholder="댓글을 남겨보세요..."></textarea>
+        <div class="comment-form-actions">
+          <span class="comment-counter"><span id="commentLen">0</span> / 1000</span>
+          <button type="submit" class="btn btn-primary" style="font-size: 12px; padding: 8px 18px;">POST COMMENT</button>
+        </div>
+      </form>
+      {% else %}
+      <div class="login-prompt">
+        댓글을 남기려면 <a href="/login?next=/post/{{ post.id }}">로그인</a>이 필요해요
+      </div>
+      {% endif %}
+
+      <div class="comments-list" style="margin-top: 18px;">
+        {% if comments %}
+          {% for c in comments %}
+          <div class="comment-item" id="c-{{ c.id }}">
+            <div class="comment-head">
+              <div>
+                <a href="/u/{{ c.author }}" class="comment-author">@{{ c.author }}</a>
+                <span class="comment-time" style="margin-left: 6px;">· {{ (c.created_at|datetimeformat) if c.created_at else '' }}</span>
+              </div>
+              <div class="comment-actions">
+                {% if user and (c.is_mine or post.user_id == user.id) %}
+                <form method="POST" action="/comment/{{ c.id }}/delete" class="inline-form" onsubmit="return confirm('댓글을 삭제하시겠습니까?');">
+                  <button type="submit" class="comment-delete">삭제</button>
+                </form>
+                {% endif %}
+              </div>
+            </div>
+            <div class="comment-body">{{ c.body }}</div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="comment-empty">아직 댓글이 없어요. 첫 댓글을 남겨보세요!</div>
+        {% endif %}
+      </div>
+    </div>
 
     <div>
       <a href="/" style="font-size: 12px; color: var(--text-muted); letter-spacing: 0.05em;">← BACK TO GALLERY</a>
@@ -165,7 +293,8 @@
 function attachCopy(btnId) {
   const btn = document.getElementById(btnId);
   if (!btn) return;
-  btn.addEventListener('click', async () => {
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
     try {
       await navigator.clipboard.writeText(btn.dataset.text);
       btn.classList.add('copied');
@@ -178,21 +307,28 @@ function attachCopy(btnId) {
 attachCopy('copyBtn'); attachCopy('copyNegBtn');
 
 const likeBtn = document.getElementById('likeBtn');
-const heartIcon = document.getElementById('heartIcon');
-const likeCount = document.getElementById('likeCount');
-let liked = false;
-likeBtn.addEventListener('click', async () => {
-  if (liked) return;
-  liked = true;
-  const res = await fetch('/like/' + likeBtn.dataset.id, { method: 'POST' });
-  const data = await res.json();
-  likeCount.textContent = data.likes;
-  heartIcon.textContent = '♥';
-  likeBtn.classList.add('liked');
-});
+if (likeBtn) {
+  const heartIcon = document.getElementById('heartIcon');
+  const likeCount = document.getElementById('likeCount');
+  let liked = false;
+  likeBtn.addEventListener('click', async () => {
+    if (liked) return;
+    liked = true;
+    const res = await fetch('/like/' + likeBtn.dataset.id, { method: 'POST' });
+    if (!res.ok) { liked = false; return; }
+    const data = await res.json();
+    likeCount.textContent = data.likes;
+    heartIcon.textContent = '♥';
+    likeBtn.classList.add('liked');
+  });
+}
+
+// Comment textarea char counter
+const cBody = document.getElementById('commentBody');
+const cLen = document.getElementById('commentLen');
+if (cBody && cLen) {
+  cBody.addEventListener('input', () => { cLen.textContent = cBody.value.length; });
+}
 </script>
 {% endblock %}
-
-
-
 

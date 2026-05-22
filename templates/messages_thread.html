@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .thread-wrap { max-width: 720px; margin: 0 auto; }
+  .thread-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 20px; margin-bottom: 16px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .thread-header .thread-avatar {
+    width: 48px; height: 48px; border-radius: 999px;
+    background: var(--text); color: var(--accent-text);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 20px; font-weight: 900;
+  }
+  .thread-header .name {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 22px; font-weight: 900; letter-spacing: -0.01em;
+  }
+  .thread-header .name a:hover { text-decoration: underline; }
+  .thread-back {
+    font-size: 12px; color: var(--text-muted);
+    margin-bottom: 12px; display: inline-block;
+  }
+
+  .messages-list {
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 20px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px;
+    min-height: 200px; max-height: 60vh; overflow-y: auto;
+    margin-bottom: 12px;
+  }
+  .msg-row { display: flex; }
+  .msg-row.mine { justify-content: flex-end; }
+  .msg-bubble {
+    max-width: 78%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 14px; line-height: 1.45;
+    word-break: break-word; white-space: pre-wrap;
+    position: relative;
+  }
+  .msg-row.mine .msg-bubble {
+    background: var(--text); color: var(--accent-text);
+    border-bottom-right-radius: 4px;
+  }
+  .msg-row.theirs .msg-bubble {
+    background: var(--bg-elev); color: var(--text);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+  .msg-time {
+    font-size: 10px; color: var(--text-muted);
+    margin-top: 4px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .msg-row.mine .msg-time { text-align: right; }
+  .msg-empty {
+    text-align: center; padding: 40px 20px;
+    color: var(--text-muted); font-size: 13px;
+  }
+
+  .send-form {
+    display: flex; gap: 8px; align-items: flex-end;
+    padding: 12px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .send-form textarea {
+    flex: 1;
+    min-height: 44px; max-height: 200px;
+    padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg);
+    font-size: 14px; font-family: inherit;
+    resize: vertical; outline: none;
+  }
+  .send-form textarea:focus { border-color: var(--text); }
+  .send-form button {
+    padding: 10px 18px; border-radius: 8px;
+    background: var(--text); color: var(--accent-text);
+    border: none; font-weight: 700; font-size: 13px;
+    letter-spacing: 0.05em; cursor: pointer;
+    flex-shrink: 0;
+  }
+  .send-form button:hover { background: var(--accent-hover); }
+</style>
+
+<div class="thread-wrap">
+  <a href="/messages" class="thread-back">← 모든 메시지로</a>
+
+  <div class="thread-header">
+    <div class="thread-avatar">{{ other.username[0]|upper }}</div>
+    <div>
+      <div class="name"><a href="/u/{{ other.username }}">@{{ other.username }}</a></div>
+      <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">1:1 메시지</div>
+    </div>
+  </div>
+
+  <div class="messages-list" id="msgList">
+    {% if messages %}
+      {% for m in messages %}
+      <div class="msg-row {% if m.mine %}mine{% else %}theirs{% endif %}">
+        <div>
+          <div class="msg-bubble">{{ m.body }}</div>
+          <div class="msg-time">{{ m.created_at|relativetime }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="msg-empty">@{{ other.username }}에게 첫 메시지를 보내보세요</div>
+    {% endif %}
+  </div>
+
+  <form method="POST" class="send-form">
+    <textarea name="body" placeholder="메시지를 입력하세요..." required maxlength="2000" rows="1"></textarea>
+    <button type="submit">SEND</button>
+  </form>
+</div>
+
+<script>
+// Auto-scroll messages list to bottom
+const msgList = document.getElementById('msgList');
+if (msgList) msgList.scrollTop = msgList.scrollHeight;
+
+// Auto-grow textarea
+const ta = document.querySelector('.send-form textarea');
+if (ta) {
+  ta.addEventListener('input', () => {
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
+  });
+  // Cmd/Ctrl+Enter to submit
+  ta.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      ta.form.requestSubmit();
+    }
+  });
+}
+</script>
+{% endblock %}
+

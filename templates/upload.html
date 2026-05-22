@@ -83,12 +83,17 @@
         </div>
       </label>
       <label class="vis-option">
-        <input type="radio" name="visibility" value="private">
-        <div class="vis-card">
+        <input type="radio" name="visibility" value="private"{% if private_used and private_used >= private_limit %} disabled{% endif %}>
+        <div class="vis-card{% if private_used and private_used >= private_limit %} vis-disabled{% endif %}">
           <div class="vis-icon">🔒</div>
           <div class="vis-info">
-            <div class="vis-name">PRIVATE <span class="vis-tag">비공개</span></div>
-            <div class="vis-desc">내 페이지(<code>/u/내사용자명</code>)에서 <strong>나만 볼 수 있어요</strong>. 갤러리/검색에 노출 안됨.</div>
+            <div class="vis-name">
+              PRIVATE <span class="vis-tag">비공개</span>
+              {% if private_used is defined %}
+              <span class="vis-counter{% if private_used >= private_limit %} vis-counter-full{% endif %}">{{ private_used }} / {{ private_limit }}</span>
+              {% endif %}
+            </div>
+            <div class="vis-desc">내 페이지(<code>/u/내사용자명</code>)에서 <strong>나만 볼 수 있어요</strong>. 갤러리/검색에 노출 안됨.{% if private_used and private_used >= private_limit %} <strong style="color: var(--danger);">한도 도달 — 더 올리려면 기존 비공개 게시물을 삭제하세요.</strong>{% else %} 최대 {{ private_limit }}개까지.{% endif %}</div>
           </div>
         </div>
       </label>
@@ -106,6 +111,16 @@
       </div>
     </div>
     <div class="refs-thumbs" id="refsThumbs"></div>
+  </div>
+
+  <div>
+    <label>SOURCE URL (참고한 영상/링크 출처, 선택)</label>
+    <input type="url" name="source_url"
+           placeholder="https://www.youtube.com/watch?v=... 또는 https://www.instagram.com/p/..."
+           maxlength="500">
+    <p style="font-size:11px; color:var(--text-muted); margin-top:6px;">
+      🔗 참고한 영상이나 원본 링크를 붙여넣으세요. 게시물 상세 페이지에서 클릭 가능한 링크로 표시됩니다.
+    </p>
   </div>
 
   <button type="submit" class="submit-btn" id="submitBtn">PUBLISH</button>
@@ -198,6 +213,17 @@
   background: var(--bg-elev); padding: 1px 5px; border-radius: 3px;
   font-size: 11px;
 }
+.vis-counter {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: var(--bg-elev);
+  padding: 2px 7px; border-radius: 999px;
+  margin-left: 6px;
+}
+.vis-counter-full { color: var(--accent-text); background: var(--danger); }
+.vis-card.vis-disabled { opacity: 0.55; cursor: not-allowed; }
+.vis-card.vis-disabled:hover { border-color: var(--border); }
 </style>
 
 <script>
@@ -350,6 +376,9 @@ document.getElementById('uploadForm').addEventListener('submit', () => {
 });
 </script>
 {% endblock %}
+
+
+
 
 
 

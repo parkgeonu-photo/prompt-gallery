@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-heading">
+  <h1 class="page-title">MESSAGES</h1>
+  <p class="page-subtitle">서로 메시지를 주고받아보세요. 작성자 페이지나 게시물에서 ✉ MESSAGE 버튼으로 시작할 수도 있어요.</p>
+</div>
+
+<style>
+  .threads-list { display: flex; flex-direction: column; gap: 8px; max-width: 720px; }
+  .thread-card {
+    display: flex; align-items: center; gap: 16px;
+    padding: 16px 20px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px;
+    transition: all 0.15s;
+    text-decoration: none; color: var(--text);
+  }
+  .thread-card:hover { border-color: var(--text); transform: translateY(-1px); }
+  .thread-card.unread { border-color: var(--text); background: var(--bg-elev); }
+  .thread-avatar {
+    width: 44px; height: 44px; border-radius: 999px;
+    background: var(--text); color: var(--accent-text);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 18px; font-weight: 900;
+    flex-shrink: 0;
+  }
+  .thread-body { flex: 1; min-width: 0; }
+  .thread-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 10px; margin-bottom: 4px;
+  }
+  .thread-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700; font-size: 14px;
+  }
+  .thread-time { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+  .thread-preview {
+    font-size: 13px; color: var(--text-muted);
+    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .thread-preview.unread-text { color: var(--text); font-weight: 600; }
+  .thread-meta { display: flex; align-items: center; gap: 6px; }
+  .you-badge {
+    background: var(--bg-elev); color: var(--text-muted);
+    padding: 1px 6px; border-radius: 4px; font-size: 10px;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+  }
+  .unread-dot {
+    width: 8px; height: 8px; background: var(--danger);
+    border-radius: 999px; flex-shrink: 0;
+  }
+</style>
+
+{% if threads %}
+<div class="threads-list">
+  {% for t in threads %}
+  <a href="/messages/{{ t.other_username }}" class="thread-card {% if t.unread %}unread{% endif %}">
+    <div class="thread-avatar">{{ t.other_username[0]|upper }}</div>
+    <div class="thread-body">
+      <div class="thread-head">
+        <div class="thread-meta">
+          <span class="thread-name">@{{ t.other_username }}</span>
+          {% if t.unread %}<span class="unread-dot"></span>{% endif %}
+        </div>
+        <span class="thread-time">{{ t.created_at|relativetime }}</span>
+      </div>
+      <div class="thread-preview {% if t.unread %}unread-text{% endif %}">
+        {% if t.mine %}<span class="you-badge">나</span> {% endif %}{{ t.body }}
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">
+  <div class="empty-icon">✉</div>
+  <p class="empty-title">아직 메시지가 없어요</p>
+  <p class="empty-hint">다른 사용자의 프로필이나 게시물에서 ✉ MESSAGE 버튼을 눌러 시작해보세요</p>
+</div>
+{% endif %}
+{% endblock %}
+
