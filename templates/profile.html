@@ -1,24 +1,241 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="profile-header">
-  <div class="avatar">{{ profile.username[0]|upper }}</div>
-  <div class="profile-info">
-    <h1 class="profile-username">@{{ profile.username }}</h1>
-    <div class="profile-stats">
-      <div class="stat"><strong>{{ posts|length }}</strong> posts</div>
-      <div class="stat"><strong>{{ total_likes }}</strong> likes</div>
-      <div class="stat"><strong>{{ total_views }}</strong> views</div>
-    </div>
-  </div>
+<style>
+  /* 아바타 - 클릭 가능 (마이페이지 본인) */
+  .avatar-clickable {
+    position: relative; cursor: pointer;
+    width: 96px; height: 96px; border-radius: 50%;
+    overflow: hidden; flex-shrink: 0;
+    background: var(--bg); border: 2px solid var(--border);
+  }
+  .avatar-clickable img,
+  .avatar-clickable .avatar-letter {
+    width: 100%; height: 100%; object-fit: cover;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 38px; font-weight: 800; background: var(--bg);
+  }
+  .avatar-readonly {
+    width: 96px; height: 96px; border-radius: 50%;
+    overflow: hidden; flex-shrink: 0;
+    background: var(--bg); border: 2px solid var(--border);
+  }
+  .avatar-readonly img { width: 100%; height: 100%; object-fit: cover; }
+  .avatar-letter-ro {
+    width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+    font-size: 38px; font-weight: 800;
+  }
+  .avatar-clickable:hover .avatar-hover {
+    opacity: 1;
+  }
+  .avatar-hover {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.6); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 800; letter-spacing: 1px;
+    opacity: 0; transition: opacity 0.18s;
+  }
+  .avatar-clickable input[type=file] { display: none; }
+
+  /* 프로필 헤더 */
+  .profile-header-new {
+    display: flex; gap: 22px; padding: 24px 0 28px;
+    border-bottom: 1px solid var(--border); margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+  .profile-main-info { flex: 1; min-width: 240px; }
+  .profile-username-row {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .profile-username {
+    font-family: 'Archivo Black', sans-serif; font-size: 30px;
+    margin: 0; letter-spacing: -1px;
+  }
+  .admin-badge-sm {
+    background: var(--text); color: var(--bg);
+    font-size: 10px; padding: 3px 7px; border-radius: 4px;
+    font-weight: 800; letter-spacing: 0.5px;
+  }
+  .profile-stats {
+    display: flex; gap: 18px; font-size: 13px;
+    color: var(--text-muted); margin-bottom: 12px;
+  }
+  .profile-stats strong { color: var(--text); font-weight: 800; }
+
+  /* BIO + LINKS 표시 영역 */
+  .profile-bio-display {
+    font-size: 14px; line-height: 1.6; color: var(--text);
+    white-space: pre-wrap; word-wrap: break-word; margin-bottom: 12px;
+  }
+  .profile-bio-empty {
+    color: var(--text-muted); font-style: italic; font-size: 13px;
+    margin-bottom: 12px;
+  }
+  .profile-links {
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .profile-link-pill {
+    background: var(--bg-elev); color: var(--text);
+    padding: 6px 12px; border-radius: 999px; font-size: 12px;
+    border: 1px solid var(--border); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 5px;
+    font-weight: 600; transition: all 0.15s;
+  }
+  .profile-link-pill:hover { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  .profile-actions {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .edit-profile-btn {
+    background: transparent; color: var(--text);
+    border: 1px solid var(--border); padding: 8px 14px;
+    border-radius: 6px; font-size: 12px; font-weight: 700;
+    cursor: pointer; letter-spacing: 0.5px;
+  }
+  .edit-profile-btn:hover { background: var(--bg-elev); }
+
+  /* 편집 모드 */
+  .profile-edit-form {
+    display: none; background: var(--bg-elev); border-radius: 10px;
+    padding: 18px 20px; border: 1px solid var(--border);
+    margin-bottom: 22px;
+  }
+  .profile-edit-form.active { display: block; }
+  .pf-row { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+  .pf-row label {
+    font-size: 10px; font-weight: 800; letter-spacing: 1.2px;
+    color: var(--text-muted);
+  }
+  .pf-row input, .pf-row textarea {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 9px 11px; border-radius: 6px; font-family: inherit; font-size: 13px;
+  }
+  .pf-row textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
+  .pf-row-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .pf-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }
+  .pf-save {
+    background: var(--text); color: var(--bg); border: none;
+    padding: 9px 18px; border-radius: 6px; font-weight: 800;
+    font-size: 12px; cursor: pointer; letter-spacing: 0.5px;
+  }
+  .pf-cancel {
+    background: transparent; color: var(--text); border: 1px solid var(--border);
+    padding: 9px 18px; border-radius: 6px; font-size: 12px; cursor: pointer;
+  }
+</style>
+
+<div class="profile-header-new">
   {% if is_self %}
-  <a href="/upload" class="btn btn-primary">+ NEW POST</a>
-  {% elif user %}
-  <a href="/messages/{{ profile.username }}" class="btn btn-ghost">✉ MESSAGE</a>
+  <label class="avatar-clickable" title="클릭해서 프로필 사진 변경">
+    {% if profile.avatar_url %}
+      <img src="{{ profile.avatar_url }}" alt="@{{ profile.username }}">
+    {% else %}
+      <div class="avatar-letter">{{ profile.username[0]|upper }}</div>
+    {% endif %}
+    <div class="avatar-hover">📷 변경</div>
+    <form id="avatarForm" method="post" action="/profile/avatar" enctype="multipart/form-data" style="display:none"></form>
+    <input type="file" accept="image/*" id="avatarInput" form="avatarForm" name="avatar_file"
+           onchange="if(this.files.length){document.getElementById('avatarForm').submit();}">
+  </label>
+  {% else %}
+  <div class="avatar-readonly">
+    {% if profile.avatar_url %}
+      <img src="{{ profile.avatar_url }}" alt="@{{ profile.username }}">
+    {% else %}
+      <div class="avatar-letter-ro">{{ profile.username[0]|upper }}</div>
+    {% endif %}
+  </div>
   {% endif %}
+
+  <div class="profile-main-info">
+    <div class="profile-username-row">
+      <h1 class="profile-username">@{{ profile.username }}</h1>
+      {% if profile.is_admin %}<span class="admin-badge-sm">ADMIN</span>{% endif %}
+    </div>
+    <div class="profile-stats">
+      <div><strong>{{ posts|length }}</strong> posts</div>
+      <div><strong>{{ total_likes }}</strong> likes</div>
+      <div><strong>{{ total_views }}</strong> views</div>
+    </div>
+
+    {% if profile.bio %}
+      <div class="profile-bio-display">{{ profile.bio }}</div>
+    {% elif is_self %}
+      <div class="profile-bio-empty">자기소개를 추가해보세요 ✏️</div>
+    {% endif %}
+
+    {% set sl = profile.social_links or {} %}
+    {% if sl.website or sl.instagram or sl.twitter or sl.youtube or sl.threads %}
+    <div class="profile-links">
+      {% if sl.website %}<a class="profile-link-pill" href="{{ sl.website }}" target="_blank" rel="noopener nofollow">🌐 Website</a>{% endif %}
+      {% if sl.instagram %}<a class="profile-link-pill" href="{{ sl.instagram }}" target="_blank" rel="noopener nofollow">📷 Instagram</a>{% endif %}
+      {% if sl.twitter %}<a class="profile-link-pill" href="{{ sl.twitter }}" target="_blank" rel="noopener nofollow">𝕏 Twitter</a>{% endif %}
+      {% if sl.youtube %}<a class="profile-link-pill" href="{{ sl.youtube }}" target="_blank" rel="noopener nofollow">▶ YouTube</a>{% endif %}
+      {% if sl.threads %}<a class="profile-link-pill" href="{{ sl.threads }}" target="_blank" rel="noopener nofollow">@ Threads</a>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="profile-actions">
+    {% if is_self %}
+      <button type="button" class="edit-profile-btn" onclick="document.getElementById('editForm').classList.toggle('active');">
+        ✏️ EDIT PROFILE
+      </button>
+      <a href="/upload" class="btn btn-primary">+ NEW POST</a>
+    {% elif user %}
+      <a href="/messages/{{ profile.username }}" class="btn btn-ghost">✉ MESSAGE</a>
+      {% set is_blocked = blocked_ids and profile.id in (blocked_ids|map('string')|list) %}
+      {% if is_blocked %}
+        <form method="post" action="/unblock/{{ profile.username }}" style="display:inline;">
+          <button type="submit" class="btn btn-ghost" style="color:#b33a3a;">UNBLOCK</button>
+        </form>
+      {% else %}
+        <form method="post" action="/block/{{ profile.username }}" style="display:inline;"
+              onsubmit="return confirm('@{{ profile.username }}님을 차단할까요?');">
+          <button type="submit" class="btn btn-ghost" style="color:#b33a3a;">🚫 BLOCK</button>
+        </form>
+      {% endif %}
+    {% endif %}
+  </div>
 </div>
 
 {% if is_self %}
-{# Visibility filter for owner #}
+<form class="profile-edit-form" id="editForm" method="post" action="/profile/edit">
+  <div class="pf-row">
+    <label>BIO (자기소개)</label>
+    <textarea name="bio" maxlength="500" placeholder="간단한 자기소개를 적어주세요...">{{ profile.bio or '' }}</textarea>
+  </div>
+  <div class="pf-row-grid">
+    <div class="pf-row">
+      <label>🌐 WEBSITE</label>
+      <input type="url" name="link_website" placeholder="https://your.site" value="{{ sl.website or '' }}" maxlength="300">
+    </div>
+    <div class="pf-row">
+      <label>📷 INSTAGRAM</label>
+      <input type="url" name="link_instagram" placeholder="https://instagram.com/..." value="{{ sl.instagram or '' }}" maxlength="300">
+    </div>
+    <div class="pf-row">
+      <label>𝕏 TWITTER</label>
+      <input type="url" name="link_twitter" placeholder="https://x.com/..." value="{{ sl.twitter or '' }}" maxlength="300">
+    </div>
+    <div class="pf-row">
+      <label>▶ YOUTUBE</label>
+      <input type="url" name="link_youtube" placeholder="https://youtube.com/@..." value="{{ sl.youtube or '' }}" maxlength="300">
+    </div>
+    <div class="pf-row">
+      <label>@ THREADS</label>
+      <input type="url" name="link_threads" placeholder="https://threads.net/@..." value="{{ sl.threads or '' }}" maxlength="300">
+    </div>
+  </div>
+  <div class="pf-actions">
+    <button type="button" class="pf-cancel" onclick="document.getElementById('editForm').classList.remove('active');">취소</button>
+    <button type="submit" class="pf-save">💾 SAVE</button>
+  </div>
+</form>
+{% endif %}
+
+{% if is_self %}
 {% set vis_filter = request.args.get('vis', 'all') %}
 {% set _public = posts|selectattr('visibility','equalto','public')|list %}
 {% set _partial = posts|selectattr('visibility','equalto','partial')|list %}
@@ -71,11 +288,8 @@
 <div class="empty">
   <div class="empty-icon">◇</div>
   <p class="empty-title">아직 게시물이 없어요</p>
-  {% if is_self %}
-  <p class="empty-hint">첫 번째 작품을 업로드해보세요</p>
-  {% endif %}
+  {% if is_self %}<p class="empty-hint">첫 번째 작품을 업로드해보세요</p>{% endif %}
 </div>
 {% endif %}
 {% endblock %}
-
 

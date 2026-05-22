@@ -843,6 +843,12 @@ def user_page(username):
         total_views = sum(p["views"] for p in posts)
         profile = dict(target)
         profile["id"] = str(profile["id"])
+        # social_links가 JSON 문자열이면 파싱
+        sl = profile.get("social_links") or {}
+        if isinstance(sl, str):
+            try: sl = json.loads(sl)
+            except Exception: sl = {}
+        profile["social_links"] = sl
     return render_template("profile.html", profile=profile, posts=posts,
                            total_likes=total_likes, total_views=total_views,
                            is_self=is_self)
@@ -980,6 +986,7 @@ def admin_settings_update():
 @app.route("/settings", methods=["GET", "POST"])
 @login_required
 def user_settings():
+    """기존 SETTINGS 페이지는 호환 유지. 새 편집은 마이페이지 인라인에서."""
     u = current_user()
     if request.method == "POST":
         bio = (request.form.get("bio") or "").strip()[:500]
@@ -997,6 +1004,60 @@ def user_settings():
             )
         return redirect(f"/u/{u['username']}")
     return render_template("settings.html")
+
+
+@app.route("/profile/avatar", methods=["POST"])
+@login_required
+def profile_avatar_update():
+    """마이페이지에서 아바타 클릭하면 바로 업로드. AJAX 호환."""
+    u = current_user()
+    avatar_file = request.files.get("avatar_file")
+    if not avatar_file or not avatar_file.filename:
+        if request.headers.get("Accept", "").startswith("application/json"):
+            return jsonify({"error": "파일이 없습니다"}), 400
+        return redirect(f"/u/{u['username']}")
+    ext = os.path.splitext(avatar_file.filename)[1].lower()
+    if ext not in ALLOWED_IMG:
+        if request.headers.get("Accept", "").startswith("application/json"):
+            return jsonify({"error": "이미지 파일만 가능합니다"}), 400
+        return redirect(f"/u/{u['username']}")
+    name = f"avatars/{u['id']}-{int(time.time())}{ext}"
+    avatar_url = storage_upload(avatar_file, name)
+    with db() as c:
+        c.execute("UPDATE users SET avatar_url = %s WHERE id = %s", (avatar_url, u["id"]))
+    if request.headers.get("Accept", "").startswith("application/json"):
+        return jsonify({"avatar_url": avatar_url})
+    return redirect(f"/u/{u['username']}")
+
+
+@app.route("/profile/edit", methods=["POST"])
+@login_required
+def profile_edit():
+    """BIO + 외부 링크 5종 인라인 저장."""
+    u = current_user()
+    bio = (request.form.get("bio") or "").strip()[:500]
+
+    def _norm(url):
+        url = (url or "").strip()[:300]
+        if url and not url.startswith(("http://", "https://")):
+            url = "https://" + url
+        return url or None
+
+    links = {
+        "website":   _norm(request.form.get("link_website")),
+        "instagram": _norm(request.form.get("link_instagram")),
+        "twitter":   _norm(request.form.get("link_twitter")),
+        "youtube":   _norm(request.form.get("link_youtube")),
+        "threads":   _norm(request.form.get("link_threads")),
+    }
+    links = {k: v for k, v in links.items() if v}
+
+    with db() as c:
+        c.execute(
+            "UPDATE users SET bio = %s, social_links = %s WHERE id = %s",
+            (bio, Json(links), u["id"])
+        )
+    return redirect(f"/u/{u['username']}")
 
 
 # =================================================================
@@ -1199,6 +1260,8 @@ def app_delete(app_id):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
+
 
 
 
