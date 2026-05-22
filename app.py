@@ -396,6 +396,18 @@ def normalize_post(p, viewer_id=None):
 # Browse routes
 # =================================================================
 @app.route("/")
+def start():
+    """깔끔한 시작 페이지 — 흰 배경 + 고양이 + ENTER 버튼."""
+    with db() as c:
+        rows = c.fetchall("SELECT key, value FROM site_settings", ())
+        s = {r["key"]: r["value"] for r in rows}
+    # start_cat_url은 우선순위: site_settings.start_cat_url -> logo_url -> 기본
+    cat_url = s.get("start_cat_url") or s.get("logo_url") or \
+              "https://d2ol7oe51mr4n9.cloudfront.net/user_34ctFqCBIuenEEsMCqyrHXc4WX1/c598945a-597e-4392-bb17-a70a218961ae.jpg"
+    return render_template("start.html", start_cat_url=cat_url)
+
+
+@app.route("/explore")
 def index():
     model = request.args.get("model")
     sort = request.args.get("sort", "recent")
@@ -1312,6 +1324,7 @@ def app_delete(app_id):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 

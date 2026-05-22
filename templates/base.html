@@ -594,7 +594,7 @@ select { cursor: pointer; }
       <span>{{ site.site_name or 'XAZINGA' }}</span>
     </a>
     <nav class="nav">
-      <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">PROMPT</a>
+      <a href="/explore" class="nav-link {% if request.path == '/explore' or request.path == '/' %}active{% endif %}">PROMPT</a>
       <a href="/apps" class="nav-link {% if request.path.startswith('/apps') %}active{% endif %}">APP</a>
       <a href="/character-sheet" class="nav-link {% if request.path == '/character-sheet' %}active{% endif %}">CHARACTER SHEET</a>
       {% if user %}
@@ -745,6 +745,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 

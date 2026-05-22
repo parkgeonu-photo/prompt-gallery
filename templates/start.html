@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{# 헤더/네비/푸터 다 숨기기 — 깔끔한 시작 화면 #}
+{% block og_title %}{{ site.site_name or 'XAZINGA' }}{% endblock %}
+
+{% block content %}
+<style>
+  /* base.html 헤더 + 네비 모두 숨김 — 미니멀 시작 화면 */
+  body { background: #ffffff !important; }
+  .topbar, header, nav, .nav, .header-actions, .logo { display: none !important; }
+  main { padding: 0 !important; max-width: 100vw !important; }
+  #searchOverlay { display: none !important; }
+
+  .start-page {
+    position: fixed; inset: 0;
+    background: #ffffff;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 24px;
+    overflow: hidden;
+    z-index: 1;
+  }
+
+  .start-cat {
+    max-width: 280px; max-height: 50vh;
+    width: auto; height: auto;
+    border-radius: 16px;
+    object-fit: contain;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+    margin-bottom: 36px;
+    animation: fadeIn 0.8s ease-out;
+  }
+
+  .start-brand {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: clamp(40px, 8vw, 72px);
+    letter-spacing: -2px;
+    color: #000;
+    line-height: 1;
+    margin-bottom: 6px;
+    animation: fadeIn 0.9s ease-out 0.1s both;
+  }
+
+  .start-tagline {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    color: #888;
+    letter-spacing: 0.5px;
+    margin-bottom: 36px;
+    text-align: center;
+    animation: fadeIn 1s ease-out 0.2s both;
+  }
+
+  .start-enter {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: #000; color: #fff;
+    padding: 16px 40px;
+    border: none;
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 14px;
+    letter-spacing: 3px;
+    cursor: pointer;
+    border-radius: 999px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    animation: fadeIn 1.1s ease-out 0.3s both;
+  }
+  .start-enter:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  }
+  .start-enter .arrow {
+    transition: transform 0.2s ease;
+  }
+  .start-enter:hover .arrow {
+    transform: translateX(4px);
+  }
+
+  .start-footer {
+    position: absolute; bottom: 24px; left: 0; right: 0;
+    text-align: center;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 10px; letter-spacing: 2px;
+    color: #bbb;
+    animation: fadeIn 1.2s ease-out 0.5s both;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (max-width: 480px) {
+    .start-cat { max-width: 220px; margin-bottom: 28px; }
+    .start-brand { font-size: 44px; letter-spacing: -1.5px; }
+    .start-enter { padding: 14px 32px; font-size: 12px; }
+  }
+</style>
+
+<div class="start-page">
+  <img src="{{ start_cat_url }}" class="start-cat" alt="XAZINGA">
+  <h1 class="start-brand">XAZINGA</h1>
+  <p class="start-tagline">AI PROMPT GALLERY</p>
+  <a href="/explore" class="start-enter">
+    <span>ENTER</span>
+    <span class="arrow">→</span>
+  </a>
+  <div class="start-footer">© XAZINGA · A GALLERY OF AI</div>
+</div>
+
+<script>
+  // 키보드 Enter / Space로도 진입 가능
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      window.location.href = '/explore';
+    }
+  });
+</script>
+{% endblock %}
+
