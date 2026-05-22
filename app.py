@@ -433,8 +433,10 @@ def index():
             sql += " AND media_type = %s"
             params.append(media_filter)
         if model:
-            sql += " AND model = %s"
+            # 정확히 일치 OR 모델명으로 시작 (예: 'Midjourney' -> 'Midjourney v7'도 잡음)
+            sql += " AND (model = %s OR model ILIKE %s)"
             params.append(model)
+            params.append(model + ' %')
         if blocked:
             sql += " AND user_id != ALL(%s)"
             params.append(list(blocked))
@@ -849,9 +851,41 @@ def user_page(username):
             try: sl = json.loads(sl)
             except Exception: sl = {}
         profile["social_links"] = sl
+
+        # 본인 페이지일 때만 최근 메시지 8개
+        my_threads = []
+        if is_self:
+            blocked = get_blocked_ids(u["id"])
+            rows = c.fetchall("""
+                SELECT DISTINCT ON (other_id)
+                    other_id, other_username, other_avatar, body, created_at, read_at, sender_id, recipient_id
+                FROM (
+                    SELECT m.body, m.created_at, m.read_at, m.sender_id, m.recipient_id,
+                           CASE WHEN m.sender_id = %s THEN m.recipient_id ELSE m.sender_id END AS other_id,
+                           CASE WHEN m.sender_id = %s THEN ru.username ELSE su.username END AS other_username,
+                           CASE WHEN m.sender_id = %s THEN ru.avatar_url ELSE su.avatar_url END AS other_avatar
+                    FROM messages m
+                    JOIN users su ON su.id = m.sender_id
+                    JOIN users ru ON ru.id = m.recipient_id
+                    WHERE m.sender_id = %s OR m.recipient_id = %s
+                ) t
+                ORDER BY other_id, created_at DESC
+            """, (u["id"], u["id"], u["id"], u["id"], u["id"]))
+            tlist = []
+            for r in rows:
+                d = dict(r)
+                d["other_id"] = str(d["other_id"])
+                d["sender_id"] = str(d["sender_id"])
+                d["mine"] = d["sender_id"] == u["id"]
+                d["unread"] = (not d["mine"]) and (d["read_at"] is None)
+                tlist.append(d)
+            tlist.sort(key=lambda r: r["created_at"], reverse=True)
+            blocked_str = {str(b) for b in blocked} if blocked else set()
+            my_threads = [t for t in tlist if t["other_id"] not in blocked_str][:8]
+
     return render_template("profile.html", profile=profile, posts=posts,
                            total_likes=total_likes, total_views=total_views,
-                           is_self=is_self)
+                           is_self=is_self, my_threads=my_threads)
 
 
 @app.route("/signup", methods=["GET", "POST"])
@@ -1278,6 +1312,7 @@ def app_delete(app_id):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 

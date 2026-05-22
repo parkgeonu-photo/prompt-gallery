@@ -236,6 +236,78 @@
 {% endif %}
 
 {% if is_self %}
+<style>
+  .messages-section {
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 22px; margin-bottom: 28px;
+  }
+  .ms-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .ms-title {
+    font-family: 'Archivo Black', sans-serif; font-size: 14px;
+    letter-spacing: 1px;
+  }
+  .ms-empty { color: var(--text-muted); font-size: 12px; padding: 8px 0; }
+  .ms-list { display: flex; flex-direction: column; gap: 6px; }
+  .ms-thread {
+    display: flex; gap: 12px; align-items: center;
+    padding: 10px 12px; border-radius: 8px;
+    background: var(--bg); border: 1px solid var(--border);
+    text-decoration: none; color: inherit; transition: all 0.15s;
+  }
+  .ms-thread:hover { border-color: var(--text); }
+  .ms-thread.unread { border-left: 3px solid var(--text); padding-left: 9px; }
+  .ms-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    overflow: hidden; flex-shrink: 0; background: var(--bg-elev);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 14px;
+  }
+  .ms-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .ms-body { flex: 1; min-width: 0; }
+  .ms-name { font-size: 12px; font-weight: 800; }
+  .ms-preview {
+    font-size: 12px; color: var(--text-muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .ms-preview.mine::before { content: '나: '; }
+  .ms-meta { font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
+  .ms-unread-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--text); flex-shrink: 0;
+  }
+</style>
+<div class="messages-section">
+  <div class="ms-header">
+    <div class="ms-title">✉ MESSAGES{% if unread_count and unread_count > 0 %} <span style="background:var(--text);color:var(--bg);font-size:9px;padding:2px 6px;border-radius:99px;margin-left:4px;">{{ unread_count }} new</span>{% endif %}</div>
+    <a href="/messages" style="font-size:11px;color:var(--text-muted);text-decoration:none;font-weight:700;letter-spacing:0.5px;">ALL →</a>
+  </div>
+  {% if my_threads %}
+    <div class="ms-list">
+      {% for t in my_threads %}
+      <a href="/messages/{{ t.other_username }}" class="ms-thread {% if t.unread %}unread{% endif %}">
+        <div class="ms-avatar">
+          {% if t.other_avatar %}<img src="{{ t.other_avatar }}" alt="">
+          {% else %}{{ t.other_username[0]|upper }}{% endif %}
+        </div>
+        <div class="ms-body">
+          <div class="ms-name">@{{ t.other_username }}</div>
+          <div class="ms-preview {% if t.mine %}mine{% endif %}">{{ t.body }}</div>
+        </div>
+        <div class="ms-meta">{{ t.created_at|relativetime }}</div>
+        {% if t.unread %}<div class="ms-unread-dot"></div>{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="ms-empty">아직 메시지가 없어요. 다른 사용자 프로필에서 ✉ MESSAGE 버튼으로 시작해보세요.</div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if is_self %}
 {% set vis_filter = request.args.get('vis', 'all') %}
 {% set _public = posts|selectattr('visibility','equalto','public')|list %}
 {% set _partial = posts|selectattr('visibility','equalto','partial')|list %}
@@ -292,4 +364,5 @@
 </div>
 {% endif %}
 {% endblock %}
+
 

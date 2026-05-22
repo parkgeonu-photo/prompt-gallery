@@ -5,6 +5,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}{{ site.site_name or 'XAZINGA' }}{% endblock %}</title>
 <link rel="icon" type="image/png" href="{{ site.logo_url or 'https://agwqkgjgskcotqiedohb.supabase.co/storage/v1/object/public/media/branding/xazinga-logo.png' }}">
+
+{# Open Graph + Twitter 카드 — 카톡/X/Discord 등 링크 미리보기 #}
+<meta property="og:site_name" content="{{ site.site_name or 'XAZINGA' }}">
+<meta property="og:title" content="{% block og_title %}{{ site.site_name or 'XAZINGA' }}{% endblock %}">
+<meta property="og:description" content="{% block og_description %}{{ site.site_tagline or 'AI로 만든 작품과 사용한 프롬프트를 함께 아카이브하는 갤러리' }}{% endblock %}">
+<meta property="og:url" content="{{ request.url }}">
+{% block og_media %}
+{% if site.og_video_url %}
+<meta property="og:type" content="video.other">
+<meta property="og:video" content="{{ site.og_video_url }}">
+<meta property="og:video:url" content="{{ site.og_video_url }}">
+<meta property="og:video:secure_url" content="{{ site.og_video_url }}">
+<meta property="og:video:type" content="video/mp4">
+<meta property="og:video:width" content="1280">
+<meta property="og:video:height" content="720">
+<meta name="twitter:card" content="player">
+<meta name="twitter:player" content="{{ site.og_video_url }}">
+<meta name="twitter:player:width" content="1280">
+<meta name="twitter:player:height" content="720">
+{% else %}
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+{% endif %}
+{% if site.og_image_url or site.logo_url %}
+<meta property="og:image" content="{{ site.og_image_url or site.logo_url }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:image" content="{{ site.og_image_url or site.logo_url }}">
+{% endif %}
+{% endblock %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=Bebas+Neue&family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -564,16 +594,14 @@ select { cursor: pointer; }
       <span>{{ site.site_name or 'XAZINGA' }}</span>
     </a>
     <nav class="nav">
-      <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">EXPLORE</a>
+      <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">PROMPT</a>
       <a href="/apps" class="nav-link {% if request.path.startswith('/apps') %}active{% endif %}">APP</a>
-      <a href="/search" class="nav-link {% if request.path == '/search' %}active{% endif %}">SEARCH</a>
       <a href="/character-sheet" class="nav-link {% if request.path == '/character-sheet' %}active{% endif %}">CHARACTER SHEET</a>
       {% if user %}
-      <a href="/messages" class="nav-link {% if request.path.startswith('/messages') %}active{% endif %}" style="position: relative;">
-        MESSAGES
+      <a href="/u/{{ user.username }}" class="nav-link {% if request.path.startswith('/u/') or request.path.startswith('/messages') %}active{% endif %}" style="position: relative;">
+        MY PAGE
         {% if unread_count and unread_count > 0 %}<span class="nav-dot">{{ unread_count }}</span>{% endif %}
       </a>
-      <a href="/u/{{ user.username }}" class="nav-link {% if request.path.startswith('/u/') %}active{% endif %}">MY PAGE</a>
       {% if user.is_admin %}
       <a href="/admin" class="nav-link {% if request.path.startswith('/admin') %}active{% endif %}" style="position: relative;">
         ⚙ ADMIN
@@ -584,11 +612,17 @@ select { cursor: pointer; }
     </nav>
     <div class="header-actions">
       {% if user %}
+        <button type="button" class="btn btn-ghost icon-only" id="searchTrigger" aria-label="검색" title="검색">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+        </button>
         <a href="/upload" class="btn btn-primary">+ UPLOAD</a>
         <form method="POST" action="/logout" class="inline-form">
           <button type="submit" class="btn btn-ghost">LOGOUT</button>
         </form>
       {% else %}
+        <button type="button" class="btn btn-ghost icon-only" id="searchTrigger" aria-label="검색" title="검색">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
+        </button>
         <a href="/login" class="btn btn-ghost">LOGIN</a>
         <a href="/signup" class="btn btn-primary">SIGN UP</a>
       {% endif %}
@@ -598,6 +632,91 @@ select { cursor: pointer; }
 <main>
 {% block content %}{% endblock %}
 </main>
+
+<!-- 검색 오버레이 -->
+<div id="searchOverlay" class="search-overlay" aria-hidden="true">
+  <form action="/search" method="get" class="search-overlay-box">
+    <button type="button" id="searchClose" class="search-overlay-close" aria-label="닫기">×</button>
+    <label class="search-overlay-label">SEARCH</label>
+    <input type="text" name="q" id="searchInput" class="search-overlay-input"
+           placeholder="프롬프트 / 모델 / 태그 / @사용자 검색" autocomplete="off">
+    <p class="search-overlay-hint">Enter로 검색 · ESC로 닫기</p>
+  </form>
+</div>
+
+<style>
+  .header-actions .icon-only {
+    width: 36px; height: 36px; padding: 0 !important;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 50% !important;
+  }
+  .search-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    display: none; align-items: flex-start; justify-content: center;
+    padding-top: 12vh;
+  }
+  .search-overlay.open { display: flex; }
+  .search-overlay-box {
+    width: 92%; max-width: 640px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 14px; padding: 28px 30px 22px;
+    position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .search-overlay-close {
+    position: absolute; top: 12px; right: 14px;
+    background: transparent; border: none;
+    font-size: 28px; cursor: pointer; color: var(--text-muted);
+    line-height: 1; padding: 4px 10px;
+  }
+  .search-overlay-close:hover { color: var(--text); }
+  .search-overlay-label {
+    display: block;
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 11px; letter-spacing: 2px;
+    color: var(--text-muted); margin-bottom: 10px;
+  }
+  .search-overlay-input {
+    width: 100%; background: transparent;
+    border: none; border-bottom: 2px solid var(--text);
+    padding: 8px 2px 12px; outline: none;
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 22px; color: var(--text);
+    letter-spacing: -0.5px;
+  }
+  .search-overlay-input::placeholder { color: var(--text-muted); font-weight: 400; letter-spacing: 0; }
+  .search-overlay-hint {
+    margin-top: 12px; font-size: 11px; color: var(--text-muted);
+    letter-spacing: 0.5px;
+  }
+</style>
+
+<script>
+// 검색 오버레이 토글
+(function(){
+  const overlay = document.getElementById('searchOverlay');
+  const trigger = document.getElementById('searchTrigger');
+  const closeBtn = document.getElementById('searchClose');
+  const input = document.getElementById('searchInput');
+  if (!overlay || !trigger) return;
+  function open() {
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden', 'false');
+    setTimeout(() => input && input.focus(), 50);
+  }
+  function close() {
+    overlay.classList.remove('open');
+    overlay.setAttribute('aria-hidden', 'true');
+  }
+  trigger.addEventListener('click', open);
+  closeBtn && closeBtn.addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && overlay.classList.contains('open')) close();
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); open(); }
+  });
+})();
+</script>
 <script>
 // Hover-to-play for video cards
 document.addEventListener('DOMContentLoaded', () => {
@@ -626,6 +745,9 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
+
+
 
 
 
