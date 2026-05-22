@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .settings-wrap { max-width: 560px; margin: 0 auto; }
+  .settings-card {
+    background: var(--bg-elev); padding: 28px; border-radius: 12px;
+    border: 1px solid var(--border);
+  }
+  .avatar-preview {
+    width: 120px; height: 120px; border-radius: 50%;
+    background: var(--bg); object-fit: cover; display: block; margin: 0 auto 18px;
+    border: 2px solid var(--border);
+  }
+  .avatar-fallback {
+    width: 120px; height: 120px; border-radius: 50%; margin: 0 auto 18px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 48px; font-weight: 800; background: var(--bg);
+    border: 2px solid var(--border);
+  }
+  .field-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+  .field-row label { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--text-muted); }
+  .field-row input[type=file], .field-row textarea {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 10px 12px; border-radius: 6px; font-family: inherit; font-size: 13px;
+  }
+  .field-row textarea { min-height: 80px; resize: vertical; }
+  .save-btn {
+    background: var(--text); color: var(--bg); border: none;
+    padding: 12px 28px; border-radius: 8px; font-weight: 800;
+    font-family: 'Archivo Black', sans-serif; letter-spacing: 1.5px;
+    cursor: pointer; font-size: 13px; width: 100%;
+  }
+  .field-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+</style>
+
+<div class="page-heading">
+  <h1 class="page-title">⚙ SETTINGS</h1>
+  <p class="page-subtitle">프로필 사진과 소개를 편집할 수 있어요.</p>
+</div>
+
+<div class="settings-wrap">
+  <div class="settings-card">
+    <form method="post" enctype="multipart/form-data">
+      {% if user.avatar_url %}
+      <img src="{{ user.avatar_url }}" class="avatar-preview" alt="avatar">
+      {% else %}
+      <div class="avatar-fallback">{{ user.username[0]|upper }}</div>
+      {% endif %}
+
+      <div class="field-row">
+        <label>PROFILE PHOTO (JPG / PNG / GIF / WEBP)</label>
+        <input type="file" name="avatar_file" accept="image/*">
+        <p class="field-hint">5 MB 이하 추천. GIF 애니메이션도 가능해요.</p>
+      </div>
+
+      <div class="field-row">
+        <label>BIO (자기소개)</label>
+        <textarea name="bio" maxlength="500"
+                  placeholder="간단한 자기소개를 적어주세요...">{{ user.bio or '' }}</textarea>
+      </div>
+
+      <button type="submit" class="save-btn">💾 SAVE</button>
+    </form>
+  </div>
+
+  <div style="margin-top: 24px; text-align: center;">
+    <a href="/blocked" style="color: var(--text-muted); font-size: 12px;">차단한 사용자 관리 →</a>
+  </div>
+</div>
+{% endblock %}
+

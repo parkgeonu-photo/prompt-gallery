@@ -38,6 +38,32 @@
   }
   .source-link-block:hover { border-color: var(--text); }
   .source-link-icon { font-size: 16px; flex-shrink: 0; }
+
+  .process-block {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px 20px;
+    margin: 18px 0;
+  }
+  .process-text {
+    white-space: pre-wrap; word-wrap: break-word;
+    font-size: 14px; line-height: 1.7; color: var(--text);
+    font-family: 'Space Grotesk', monospace;
+  }
+  .process-images {
+    display: grid; gap: 8px; margin-top: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+  .process-img-thumb {
+    display: block; aspect-ratio: 1/1; overflow: hidden;
+    border-radius: 6px; background: var(--bg);
+    border: 1px solid var(--border);
+  }
+  .process-img-thumb img {
+    width: 100%; height: 100%; object-fit: cover;
+    transition: transform 0.2s;
+  }
+  .process-img-thumb:hover img { transform: scale(1.05); }
   .source-link-info { flex: 1; min-width: 0; }
   .source-link-label {
     font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
@@ -203,6 +229,24 @@
     </a>
     {% endif %}
 
+    {% if post.process_text or post.process_images %}
+    <div class="process-block">
+      <div class="section-label" style="margin-bottom: 10px;">🛠 작업 프로세스</div>
+      {% if post.process_text %}
+      <div class="process-text">{{ post.process_text }}</div>
+      {% endif %}
+      {% if post.process_images %}
+      <div class="process-images">
+        {% for pi in post.process_images %}
+        <a class="process-img-thumb" href="{{ pi.url }}" target="_blank" rel="noopener">
+          <img src="{{ pi.url }}" loading="lazy" alt="작업 과정">
+        </a>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
     {% if post.refs %}
     <div>
       <div class="section-label" style="margin-bottom: 10px;">REFERENCES ({{ post.refs|length }})</div>
@@ -331,4 +375,6 @@ if (cBody && cLen) {
 }
 </script>
 {% endblock %}
+
+
 

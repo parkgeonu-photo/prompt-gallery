@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .blocked-wrap { max-width: 560px; margin: 0 auto; }
+  .blocked-card {
+    background: var(--bg-elev); padding: 28px; border-radius: 12px;
+    border: 1px solid var(--border);
+  }
+  .blocked-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 14px; border-radius: 8px;
+    background: var(--bg); margin-bottom: 8px;
+    border: 1px solid var(--border);
+  }
+  .blocked-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    object-fit: cover; background: var(--bg-elev);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800;
+  }
+  .blocked-info { flex: 1; }
+  .blocked-username { font-weight: 700; font-size: 14px; }
+  .blocked-meta { font-size: 11px; color: var(--text-muted); }
+  .unblock-btn {
+    background: transparent; color: var(--text);
+    border: 1px solid var(--border); padding: 6px 12px;
+    border-radius: 6px; font-size: 11px; font-weight: 700;
+    cursor: pointer; letter-spacing: 1px;
+  }
+  .unblock-btn:hover { background: var(--bg-elev); }
+  .empty-msg { color: var(--text-muted); text-align: center; padding: 24px; font-size: 13px; }
+</style>
+
+<div class="page-heading">
+  <h1 class="page-title">🚫 BLOCKED USERS</h1>
+  <p class="page-subtitle">차단한 사용자의 게시물 · 댓글 · 메시지는 안 보여요.</p>
+</div>
+
+<div class="blocked-wrap">
+  <div class="blocked-card">
+    {% if blocked %}
+      {% for b in blocked %}
+      <div class="blocked-row">
+        {% if b.avatar_url %}
+        <img src="{{ b.avatar_url }}" class="blocked-avatar" alt="">
+        {% else %}
+        <div class="blocked-avatar">{{ b.username[0]|upper }}</div>
+        {% endif %}
+        <div class="blocked-info">
+          <div class="blocked-username">@{{ b.username }}</div>
+          <div class="blocked-meta">{% if b.created_at %}{{ b.created_at.strftime('%Y-%m-%d') }} 차단{% endif %}</div>
+        </div>
+        <form method="post" action="/unblock/{{ b.username }}" style="display:inline">
+          <button type="submit" class="unblock-btn">UNBLOCK</button>
+        </form>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-msg">차단한 사용자가 없어요.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+

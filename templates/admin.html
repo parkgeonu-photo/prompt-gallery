@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .admin-grid { display: grid; gap: 24px; max-width: 960px; margin: 0 auto; }
+  .admin-section {
+    background: var(--bg-elev); border-radius: 12px; padding: 24px;
+    border: 1px solid var(--border);
+  }
+  .admin-section h2 {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 18px; margin: 0 0 16px; letter-spacing: 0.5px;
+  }
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat-card {
+    background: var(--bg); padding: 16px; border-radius: 8px;
+    border: 1px solid var(--border); text-align: center;
+  }
+  .stat-num { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 800; }
+  .stat-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; letter-spacing: 1px; }
+  .pending-card {
+    display: flex; gap: 14px; padding: 14px;
+    background: var(--bg); border-radius: 8px; margin-bottom: 10px;
+    border: 1px solid var(--border);
+  }
+  .pending-thumb {
+    width: 64px; height: 64px; border-radius: 6px; object-fit: cover;
+    background: var(--bg-elev); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 26px;
+  }
+  .pending-info { flex: 1; min-width: 0; }
+  .pending-title { font-weight: 700; margin-bottom: 4px; }
+  .pending-meta { font-size: 11px; color: var(--text-muted); }
+  .pending-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .btn-approve, .btn-reject, .btn-view {
+    padding: 6px 12px; border-radius: 6px; font-size: 11px;
+    font-weight: 700; border: none; cursor: pointer;
+    text-decoration: none; display: inline-flex; align-items: center;
+  }
+  .btn-approve { background: #1c7c54; color: white; }
+  .btn-reject { background: #b33a3a; color: white; }
+  .btn-view { background: var(--bg-elev); color: var(--text); border: 1px solid var(--border); }
+  .field-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .field-row label { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--text-muted); }
+  .field-row input[type=text], .field-row input[type=url], .field-row textarea {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 10px 12px; border-radius: 6px; font-family: inherit; font-size: 13px;
+  }
+  .field-row textarea { min-height: 80px; resize: vertical; }
+  .file-pick {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--bg); padding: 10px; border-radius: 6px;
+    border: 1px dashed var(--border);
+  }
+  .preview-img { max-width: 80px; max-height: 80px; border-radius: 4px; object-fit: cover; background: var(--border); }
+  .save-btn {
+    background: var(--text); color: var(--bg); border: none;
+    padding: 12px 28px; border-radius: 8px; font-weight: 800;
+    font-family: 'Archivo Black', sans-serif; letter-spacing: 1.5px;
+    cursor: pointer; font-size: 13px;
+  }
+  .empty-msg { color: var(--text-muted); text-align: center; padding: 24px; font-size: 13px; }
+</style>
+
+<div class="page-heading">
+  <h1 class="page-title">⚙ ADMIN</h1>
+  <p class="page-subtitle">사이트 설정과 승인 대기 게시물을 관리하세요.</p>
+</div>
+
+<div class="admin-grid">
+
+  <div class="admin-section">
+    <h2>📊 STATS</h2>
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-num">{{ stats.users_n }}</div><div class="stat-label">USERS</div></div>
+      <div class="stat-card"><div class="stat-num">{{ stats.posts_n }}</div><div class="stat-label">POSTS</div></div>
+      <div class="stat-card"><div class="stat-num">{{ stats.apps_n }}</div><div class="stat-label">APPS</div></div>
+      <div class="stat-card"><div class="stat-num">{{ stats.pending_n }}</div><div class="stat-label">PENDING</div></div>
+    </div>
+  </div>
+
+  <div class="admin-section">
+    <h2>🎨 SITE SETTINGS</h2>
+    <form method="post" action="/admin/settings" enctype="multipart/form-data">
+
+      <div class="field-row">
+        <label>SITE NAME</label>
+        <input type="text" name="site_name" value="{{ settings.site_name or 'XAZINGA' }}" maxlength="80">
+      </div>
+
+      <div class="field-row">
+        <label>TAGLINE (홈 화면 설명문)</label>
+        <textarea name="site_tagline" maxlength="500">{{ settings.site_tagline or '' }}</textarea>
+      </div>
+
+      <div class="field-row">
+        <label>LOGO (헤더 — PNG / JPG / GIF / WEBP)</label>
+        <div class="file-pick">
+          {% if settings.logo_url %}
+          <img src="{{ settings.logo_url }}" class="preview-img" alt="logo">
+          {% endif %}
+          <input type="file" name="logo_file" accept="image/*">
+        </div>
+        <input type="url" name="logo_url" value="{{ settings.logo_url or '' }}" placeholder="또는 URL 직접 입력">
+      </div>
+
+      <div class="field-row">
+        <label>
+          <input type="checkbox" name="hero_enabled" {% if settings.hero_enabled == 'true' %}checked{% endif %}
+                 style="margin-right: 6px; transform: translateY(1px);">
+          MAIN HERO 이미지 표시
+        </label>
+      </div>
+
+      <div class="field-row">
+        <label>MAIN HERO IMAGE/GIF (GIF로 변경 가능)</label>
+        <div class="file-pick">
+          {% if settings.hero_image_url %}
+          <img src="{{ settings.hero_image_url }}" class="preview-img" alt="hero">
+          {% endif %}
+          <input type="file" name="hero_file" accept="image/*,video/mp4,video/webm">
+        </div>
+        <input type="url" name="hero_image_url" value="{{ settings.hero_image_url or '' }}" placeholder="또는 URL 직접 입력 (.gif 가능)">
+      </div>
+
+      <button type="submit" class="save-btn">💾 SAVE</button>
+    </form>
+  </div>
+
+  <div class="admin-section">
+    <h2>📱 PENDING APP POSTS ({{ pending|length }})</h2>
+    {% if pending %}
+      {% for p in pending %}
+      <div class="pending-card">
+        {% if p.thumbnail_url %}
+        <img src="{{ p.thumbnail_url }}" class="pending-thumb" alt="">
+        {% else %}
+        <div class="pending-thumb">📱</div>
+        {% endif %}
+        <div class="pending-info">
+          <div class="pending-title">{{ p.title }}</div>
+          <div class="pending-meta">@{{ p.username }} · {{ p.app_name }} {% if p.category %}· {{ p.category }}{% endif %}</div>
+        </div>
+        <div class="pending-actions">
+          <a href="/apps/{{ p.id }}" class="btn-view">VIEW</a>
+          <form method="post" action="/apps/{{ p.id }}/approve" style="display:inline">
+            <button type="submit" class="btn-approve">✓ APPROVE</button>
+          </form>
+          <form method="post" action="/apps/{{ p.id }}/reject" style="display:inline"
+                onsubmit="this.reason.value = prompt('거절 사유?') || ''; return this.reason.value !== '';">
+            <input type="hidden" name="reason">
+            <button type="submit" class="btn-reject">✗ REJECT</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-msg">승인 대기 중인 앱 게시물이 없어요.</div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+

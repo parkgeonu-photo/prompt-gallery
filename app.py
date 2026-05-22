@@ -48,6 +48,15 @@ PARTIAL_LIMIT = 200            # chars visible before blur
 PRIVATE_POST_LIMIT = 50        # max private posts per user
 COMMENT_MAX_LEN = 1000
 MESSAGE_MAX_LEN = 2000
+APP_CONTENT_MAX = 20000
+PROCESS_TEXT_MAX = 5000
+PROCESS_IMAGES_MAX = 8
+AVATAR_MAX_BYTES = 5 * 1024 * 1024
+
+APP_CATEGORIES = [
+    "생산성", "디자인", "AI 도구", "개발", "영상/사진",
+    "음악", "게임", "교육", "라이프스타일", "유틸리티", "기타"
+]
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
@@ -242,10 +251,38 @@ def login_required(fn):
     return wrapper
 
 
+def admin_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kw):
+        u = current_user()
+        if not u:
+            return redirect(url_for("login", next=request.path))
+        if not u.get("is_admin"):
+            abort(403)
+        return fn(*args, **kw)
+    return wrapper
+
+
+def get_blocked_ids(viewer_id):
+    """양방향 차단 — 내가 차단한 사람 + 나를 차단한 사람."""
+    if not viewer_id:
+        return set()
+    with db() as c:
+        rows = c.fetchall(
+            "SELECT blocked_id AS uid FROM blocks WHERE blocker_id = %s "
+            "UNION SELECT blocker_id AS uid FROM blocks WHERE blocked_id = %s",
+            (viewer_id, viewer_id)
+        )
+        return {r["uid"] for r in rows}
+
+
 @app.context_processor
 def inject_user():
     u = current_user()
     unread = 0
+    pending_apps = 0
+    blocked_ids = set()
+    settings = {}
     if u:
         with db() as c:
             row = c.fetchone(
@@ -253,7 +290,27 @@ def inject_user():
                 (u["id"],),
             )
             unread = row["n"] if row else 0
-    return {"user": u, "unread_count": unread}
+            if u.get("is_admin"):
+                row = c.fetchone(
+                    "SELECT COUNT(*) AS n FROM app_posts WHERE status = 'pending'"
+                )
+                pending_apps = row["n"] if row else 0
+            rows = c.fetchall("SELECT blocked_id FROM blocks WHERE blocker_id = %s", (u["id"],))
+            blocked_ids = {r["blocked_id"] for r in rows}
+    try:
+        with db() as c:
+            rows = c.fetchall("SELECT key, value FROM site_settings", ())
+            settings = {r["key"]: r["value"] for r in rows}
+    except Exception:
+        pass
+    return {
+        "user": u,
+        "unread_count": unread,
+        "pending_apps": pending_apps,
+        "blocked_ids": blocked_ids,
+        "app_categories": APP_CATEGORIES,
+        "site": settings,
+    }
 
 
 @app.template_filter("datetimeformat")
@@ -301,6 +358,13 @@ def normalize_post(p, viewer_id=None):
         try: refs = json.loads(refs)
         except Exception: refs = []
     p["refs"] = refs
+
+    pimgs = p.get("process_images") or []
+    if isinstance(pimgs, str):
+        try: pimgs = json.loads(pimgs)
+        except Exception: pimgs = []
+    p["process_images"] = pimgs
+
     p["visibility"] = p.get("visibility") or "public"
 
     is_owner = viewer_id and p.get("user_id") and str(viewer_id) == str(p["user_id"])
@@ -341,6 +405,7 @@ def index():
 
     u = current_user()
     viewer_id = u["id"] if u else None
+    blocked = get_blocked_ids(viewer_id)
 
     with db() as c:
         if viewer_id:
@@ -370,6 +435,9 @@ def index():
         if model:
             sql += " AND model = %s"
             params.append(model)
+        if blocked:
+            sql += " AND user_id != ALL(%s)"
+            params.append(list(blocked))
         sql += " ORDER BY likes DESC, created_at DESC" if sort == "popular" else " ORDER BY created_at DESC"
         sql += " LIMIT 120"
         posts = [normalize_post(r, viewer_id) for r in c.fetchall(sql, params)]
@@ -386,6 +454,7 @@ def index():
 def post_detail(post_id):
     u = current_user()
     viewer_id = u["id"] if u else None
+    blocked = get_blocked_ids(viewer_id)
     with db() as c:
         row = c.fetchone("SELECT * FROM posts WHERE id = %s", (post_id,))
         if not row:
@@ -393,12 +462,20 @@ def post_detail(post_id):
         if (row.get("visibility") or "public") == "private":
             if not viewer_id or str(viewer_id) != str(row["user_id"]):
                 abort(404)
+        if blocked and row["user_id"] in blocked:
+            abort(404)
         c.execute("UPDATE posts SET views = views + 1 WHERE id = %s", (post_id,))
         post = normalize_post(row, viewer_id)
-        comments = c.fetchall(
-            "SELECT * FROM comments WHERE post_id = %s ORDER BY created_at ASC",
-            (post_id,),
-        )
+        if blocked:
+            comments = c.fetchall(
+                "SELECT * FROM comments WHERE post_id = %s AND user_id != ALL(%s) ORDER BY created_at ASC",
+                (post_id, list(blocked)),
+            )
+        else:
+            comments = c.fetchall(
+                "SELECT * FROM comments WHERE post_id = %s ORDER BY created_at ASC",
+                (post_id,),
+            )
         comments = [dict(c_) for c_ in comments]
         for c_ in comments:
             c_["id"] = str(c_["id"])
@@ -442,6 +519,7 @@ def upload():
         tags_raw = (request.form.get("tags") or "").strip()
         visibility = (request.form.get("visibility") or "public").strip()
         source_url = (request.form.get("source_url") or "").strip()
+        process_text = (request.form.get("process_text") or "").strip()[:PROCESS_TEXT_MAX]
         if visibility not in ("public", "partial", "private"):
             visibility = "public"
 
@@ -505,15 +583,33 @@ def upload():
             except Exception:
                 continue
 
+        # 작업프로세스 이미지 업로드 (최대 PROCESS_IMAGES_MAX)
+        process_images = []
+        for proc_f in request.files.getlist("process_images"):
+            if not proc_f or not proc_f.filename:
+                continue
+            if len(process_images) >= PROCESS_IMAGES_MAX:
+                break
+            try:
+                p_ext = os.path.splitext(proc_f.filename)[1].lower()
+                if p_ext not in ALLOWED_IMG:
+                    continue
+                p_name = f"process/{new_id}-{len(process_images)}{p_ext}"
+                p_url = storage_upload(proc_f, p_name)
+                process_images.append({"url": p_url})
+            except Exception:
+                continue
+
         tags_clean = ",".join([t.lstrip("#").strip().lower() for t in tags_raw.replace(",", " ").split() if t.strip()])
 
         with db() as c:
             c.execute(
-                """INSERT INTO posts (id, user_id, title, media_path, media_type, prompt, negative_prompt, model, tags, author, created_at, refs, visibility, source_url)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                """INSERT INTO posts (id, user_id, title, media_path, media_type, prompt, negative_prompt, model, tags, author, created_at, refs, visibility, source_url, process_text, process_images)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                 (new_id, u["id"], title or None, public_url, media_type, prompt,
                  neg or None, model, tags_clean, u["username"], int(time.time()),
-                 Json(refs), visibility, source_url or None),
+                 Json(refs), visibility, source_url or None,
+                 process_text or None, Json(process_images)),
             )
         return redirect(url_for("post_detail", post_id=new_id))
 
@@ -659,6 +755,10 @@ def messages_inbox():
             t["recipient_id"] = str(t["recipient_id"])
             t["mine"] = t["sender_id"] == u["id"]
             t["unread"] = (not t["mine"]) and (t["read_at"] is None)
+        blocked = get_blocked_ids(u["id"])
+        if blocked:
+            blocked_str = {str(b) for b in blocked}
+            threads = [t for t in threads if t["other_id"] not in blocked_str]
     return render_template("messages_inbox.html", threads=threads)
 
 
@@ -673,6 +773,11 @@ def messages_thread(username):
         other_id = str(other["id"])
         if other_id == u["id"]:
             return redirect(url_for("messages_inbox"))
+
+        blocked = get_blocked_ids(u["id"])
+        if other["id"] in blocked:
+            return render_template("messages_thread.html",
+                                   other=dict(other), messages=[], blocked=True)
 
         if request.method == "POST":
             body = (request.form.get("body") or "").strip()
@@ -804,7 +909,297 @@ def health():
 init_db()
 
 
+# =================================================================
+# Admin
+# =================================================================
+@app.route("/admin")
+@admin_required
+def admin_dashboard():
+    with db() as c:
+        rows = c.fetchall("SELECT key, value FROM site_settings", ())
+        settings = {r["key"]: r["value"] for r in rows}
+        pending = c.fetchall(
+            "SELECT ap.*, u.username FROM app_posts ap "
+            "JOIN users u ON u.id = ap.user_id "
+            "WHERE ap.status = 'pending' ORDER BY ap.created_at ASC",
+            ()
+        )
+        pending = [dict(p) for p in pending]
+        for p in pending:
+            p["id"] = str(p["id"])
+        stats = c.fetchone("""
+            SELECT
+              (SELECT COUNT(*) FROM users) AS users_n,
+              (SELECT COUNT(*) FROM posts) AS posts_n,
+              (SELECT COUNT(*) FROM app_posts WHERE status = 'approved') AS apps_n,
+              (SELECT COUNT(*) FROM app_posts WHERE status = 'pending') AS pending_n
+        """, ())
+    return render_template("admin.html", settings=settings, pending=pending, stats=stats)
+
+
+@app.route("/admin/settings", methods=["POST"])
+@admin_required
+def admin_settings_update():
+    fields = {
+        "site_name": (request.form.get("site_name") or "").strip()[:80],
+        "site_tagline": (request.form.get("site_tagline") or "").strip()[:500],
+        "hero_enabled": "true" if request.form.get("hero_enabled") else "false",
+    }
+    logo_file = request.files.get("logo_file")
+    if logo_file and logo_file.filename:
+        ext = os.path.splitext(logo_file.filename)[1].lower()
+        if ext in ALLOWED_IMG:
+            name = f"branding/logo-{int(time.time())}{ext}"
+            url = storage_upload(logo_file, name)
+            fields["logo_url"] = url
+    hero_file = request.files.get("hero_file")
+    if hero_file and hero_file.filename:
+        ext = os.path.splitext(hero_file.filename)[1].lower()
+        if ext in ALLOWED_IMG | ALLOWED_VID:
+            name = f"branding/hero-{int(time.time())}{ext}"
+            url = storage_upload(hero_file, name)
+            fields["hero_image_url"] = url
+    if request.form.get("logo_url"):
+        fields["logo_url"] = request.form.get("logo_url").strip()
+    if request.form.get("hero_image_url"):
+        fields["hero_image_url"] = request.form.get("hero_image_url").strip()
+
+    with db() as c:
+        for k, v in fields.items():
+            c.execute(
+                "INSERT INTO site_settings (key, value, updated_at) VALUES (%s, %s, NOW()) "
+                "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()",
+                (k, v)
+            )
+    return redirect("/admin")
+
+
+# =================================================================
+# Profile editing
+# =================================================================
+@app.route("/settings", methods=["GET", "POST"])
+@login_required
+def user_settings():
+    u = current_user()
+    if request.method == "POST":
+        bio = (request.form.get("bio") or "").strip()[:500]
+        avatar_url = u.get("avatar_url")
+        avatar_file = request.files.get("avatar_file")
+        if avatar_file and avatar_file.filename:
+            ext = os.path.splitext(avatar_file.filename)[1].lower()
+            if ext in ALLOWED_IMG:
+                name = f"avatars/{u['id']}-{int(time.time())}{ext}"
+                avatar_url = storage_upload(avatar_file, name)
+        with db() as c:
+            c.execute(
+                "UPDATE users SET bio = %s, avatar_url = %s WHERE id = %s",
+                (bio, avatar_url, u["id"])
+            )
+        return redirect(f"/u/{u['username']}")
+    return render_template("settings.html")
+
+
+# =================================================================
+# Block / Unblock
+# =================================================================
+@app.route("/block/<username>", methods=["POST"])
+@login_required
+def block_user(username):
+    u = current_user()
+    with db() as c:
+        target = c.fetchone("SELECT id FROM users WHERE username = %s", (username,))
+        if not target:
+            abort(404)
+        if str(target["id"]) == str(u["id"]):
+            return jsonify({"error": "자기 자신을 차단할 수 없습니다"}), 400
+        c.execute(
+            "INSERT INTO blocks (blocker_id, blocked_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+            (u["id"], target["id"])
+        )
+    return redirect(request.referrer or "/")
+
+
+@app.route("/unblock/<username>", methods=["POST"])
+@login_required
+def unblock_user(username):
+    u = current_user()
+    with db() as c:
+        target = c.fetchone("SELECT id FROM users WHERE username = %s", (username,))
+        if not target:
+            abort(404)
+        c.execute(
+            "DELETE FROM blocks WHERE blocker_id = %s AND blocked_id = %s",
+            (u["id"], target["id"])
+        )
+    return redirect(request.referrer or "/")
+
+
+@app.route("/blocked")
+@login_required
+def blocked_list():
+    u = current_user()
+    with db() as c:
+        rows = c.fetchall(
+            "SELECT u.username, u.avatar_url, b.created_at "
+            "FROM blocks b JOIN users u ON u.id = b.blocked_id "
+            "WHERE b.blocker_id = %s ORDER BY b.created_at DESC",
+            (u["id"],)
+        )
+    return render_template("blocked.html", blocked=[dict(r) for r in rows])
+
+
+# =================================================================
+# APP 카테고리
+# =================================================================
+@app.route("/apps")
+def apps_index():
+    u = current_user()
+    viewer_id = u["id"] if u else None
+    blocked = get_blocked_ids(viewer_id)
+    category = request.args.get("category")
+
+    sql = """
+      SELECT ap.*, u.username, u.avatar_url, u.is_admin
+      FROM app_posts ap JOIN users u ON u.id = ap.user_id
+      WHERE ap.status = 'approved'
+    """
+    params = []
+    if blocked:
+        sql += " AND ap.user_id != ALL(%s)"
+        params.append(list(blocked))
+    if category:
+        sql += " AND ap.category = %s"
+        params.append(category)
+    sql += " ORDER BY u.is_admin DESC, ap.created_at DESC LIMIT 60"
+
+    with db() as c:
+        rows = c.fetchall(sql, params)
+        apps = [dict(r) for r in rows]
+        for a in apps:
+            a["id"] = str(a["id"])
+
+    return render_template("apps_index.html", apps=apps, current_category=category)
+
+
+@app.route("/apps/new", methods=["GET", "POST"])
+@login_required
+def app_new():
+    u = current_user()
+    if request.method == "POST":
+        title = (request.form.get("title") or "").strip()[:200]
+        app_name = (request.form.get("app_name") or "").strip()[:120]
+        app_url = (request.form.get("app_url") or "").strip()[:500]
+        category = (request.form.get("category") or "").strip()
+        content = (request.form.get("content") or "").strip()[:APP_CONTENT_MAX]
+        pros = (request.form.get("pros") or "").strip()[:2000]
+        cons = (request.form.get("cons") or "").strip()[:2000]
+        try:
+            rating = int(request.form.get("rating") or 0)
+        except ValueError:
+            rating = 0
+        rating = max(0, min(5, rating))
+
+        if not (title and app_name and content):
+            return render_template("app_new.html", error="제목/앱이름/본��은 필수예요"), 400
+
+        if app_url and not app_url.startswith(("http://", "https://")):
+            app_url = "https://" + app_url
+
+        thumb_url = None
+        thumb_file = request.files.get("thumbnail")
+        if thumb_file and thumb_file.filename:
+            ext = os.path.splitext(thumb_file.filename)[1].lower()
+            if ext in ALLOWED_IMG:
+                name = f"apps/{u['id']}-{int(time.time())}{ext}"
+                thumb_url = storage_upload(thumb_file, name)
+
+        status = "approved" if u.get("is_admin") else "pending"
+        approved_at_sql = "NOW()" if status == "approved" else "NULL"
+        approved_by = u["id"] if status == "approved" else None
+
+        with db() as c:
+            row = c.fetchone(
+                f"INSERT INTO app_posts "
+                f"(user_id, title, app_name, app_url, category, thumbnail_url, "
+                f" content, pros, cons, rating, status, approved_at, approved_by) "
+                f"VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,{approved_at_sql},%s) RETURNING id",
+                (u["id"], title, app_name, app_url, category, thumb_url,
+                 content, pros, cons, rating, status, approved_by)
+            )
+        if status == "approved":
+            return redirect(f"/apps/{row['id']}")
+        return render_template("app_new.html", submitted=True)
+    return render_template("app_new.html")
+
+
+@app.route("/apps/<app_id>")
+def app_detail(app_id):
+    u = current_user()
+    viewer_id = u["id"] if u else None
+    with db() as c:
+        row = c.fetchone(
+            "SELECT ap.*, u.username, u.avatar_url, u.is_admin "
+            "FROM app_posts ap JOIN users u ON u.id = ap.user_id "
+            "WHERE ap.id = %s", (app_id,)
+        )
+        if not row:
+            abort(404)
+        if row["status"] != "approved":
+            if not viewer_id:
+                abort(404)
+            if str(viewer_id) != str(row["user_id"]) and not (u and u.get("is_admin")):
+                abort(404)
+        c.execute("UPDATE app_posts SET view_count = view_count + 1 WHERE id = %s", (app_id,))
+    a = dict(row)
+    a["id"] = str(a["id"])
+    a["is_mine"] = viewer_id and str(viewer_id) == str(a["user_id"])
+    return render_template("app_detail.html", app_post=a)
+
+
+@app.route("/apps/<app_id>/approve", methods=["POST"])
+@admin_required
+def app_approve(app_id):
+    u = current_user()
+    with db() as c:
+        c.execute(
+            "UPDATE app_posts SET status = 'approved', approved_at = NOW(), approved_by = %s, reject_reason = NULL "
+            "WHERE id = %s",
+            (u["id"], app_id)
+        )
+    return redirect("/admin")
+
+
+@app.route("/apps/<app_id>/reject", methods=["POST"])
+@admin_required
+def app_reject(app_id):
+    reason = (request.form.get("reason") or "").strip()[:500]
+    with db() as c:
+        c.execute(
+            "UPDATE app_posts SET status = 'rejected', reject_reason = %s WHERE id = %s",
+            (reason, app_id)
+        )
+    return redirect("/admin")
+
+
+@app.route("/apps/<app_id>/delete", methods=["POST"])
+@login_required
+def app_delete(app_id):
+    u = current_user()
+    with db() as c:
+        row = c.fetchone("SELECT user_id FROM app_posts WHERE id = %s", (app_id,))
+        if not row:
+            abort(404)
+        if str(row["user_id"]) != str(u["id"]) and not u.get("is_admin"):
+            abort(403)
+        c.execute("DELETE FROM app_posts WHERE id = %s", (app_id,))
+    return redirect("/apps")
+
+
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
+
 
 

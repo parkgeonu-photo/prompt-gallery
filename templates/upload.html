@@ -123,9 +123,97 @@
     </p>
   </div>
 
+  <div>
+    <label>작업 프로세스 (선택)</label>
+    <textarea name="process_text" id="processText" maxlength="5000"
+              placeholder="어떤 흐름으로 이 작품을 만들었는지 단계별로 설명해주세요.&#10;&#10;예시:&#10;1. ChatGPT로 컨셉 정리 → 키워드 추출&#10;2. Midjourney v6에서 초안 4장 생성 (style raw, --ar 16:9)&#10;3. Photoshop에서 색감 보정 + 배경 합성&#10;4. Topaz Gigapixel로 업스케일 (4x)&#10;5. Lightroom 최종 그레이딩&#10;&#10;**굵게** 와 # 제목 같은 마크다운도 지원해요"
+              style="min-height: 180px; font-family: 'Space Grotesk', monospace; line-height: 1.6;"></textarea>
+    <p style="font-size:11px; color:var(--text-muted); margin-top:6px;">
+      🛠 작업 흐름·툴 조합·후처리 팁 등 자유롭게 적어주세요. 다른 사람들이 따라할 수 있게 도와줘요.
+    </p>
+    <p style="font-size:10px; color:var(--text-muted); margin-top:2px; text-align:right;">
+      <span id="processCount">0</span> / 5000
+    </p>
+  </div>
+
+  <div>
+    <label>작업 프로세스 이미지 (선택, 최대 8장)</label>
+    <div class="dnd-zone dnd-zone-sm" id="processDrop" tabindex="0" style="min-height: 80px;">
+      <input type="file" name="process_images" id="processInput"
+             accept="image/*" multiple style="display:none;">
+      <p style="font-size:13px; color:var(--text-muted);">
+        📸 스크린샷·중간 결과물·참고 이미지를 첨부 (드래그앤드롭 가능)
+      </p>
+    </div>
+    <div class="refs-thumbs" id="processThumbs"></div>
+  </div>
+
   <button type="submit" class="submit-btn" id="submitBtn">PUBLISH</button>
 </form>
 </div>
+
+<script>
+// 작업프로세스 글자수 카운터
+(function(){
+  const ta = document.getElementById('processText');
+  const cnt = document.getElementById('processCount');
+  if (!ta || !cnt) return;
+  const update = () => cnt.textContent = ta.value.length;
+  ta.addEventListener('input', update);
+  update();
+})();
+
+// 작업프로세스 이미지 드래그앤드롭
+(function(){
+  const zone = document.getElementById('processDrop');
+  const input = document.getElementById('processInput');
+  const thumbs = document.getElementById('processThumbs');
+  if (!zone || !input || !thumbs) return;
+
+  const MAX = 8;
+  let storedFiles = [];
+
+  function render() {
+    thumbs.innerHTML = '';
+    storedFiles.forEach((f, i) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'ref-thumb';
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(f);
+      wrap.appendChild(img);
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.textContent = '×';
+      x.className = 'ref-thumb-x';
+      x.onclick = () => { storedFiles.splice(i, 1); syncInput(); render(); };
+      wrap.appendChild(x);
+      thumbs.appendChild(wrap);
+    });
+  }
+  function syncInput() {
+    const dt = new DataTransfer();
+    storedFiles.forEach(f => dt.items.add(f));
+    input.files = dt.files;
+  }
+  function addFiles(files) {
+    for (const f of files) {
+      if (storedFiles.length >= MAX) break;
+      if (!f.type.startsWith('image/')) continue;
+      storedFiles.push(f);
+    }
+    syncInput(); render();
+  }
+  zone.addEventListener('click', () => input.click());
+  zone.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') input.click(); });
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag');
+    addFiles(e.dataTransfer.files);
+  });
+  input.addEventListener('change', e => addFiles(e.target.files));
+})();
+</script>
 
 <style>
 /* Drag & drop zones */
@@ -376,6 +464,7 @@ document.getElementById('uploadForm').addEventListener('submit', () => {
 });
 </script>
 {% endblock %}
+
 
 
 

@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .form-wrap { max-width: 720px; margin: 0 auto; }
+  .submitted-banner {
+    background: linear-gradient(135deg, #1c7c54 0%, #2a9968 100%);
+    color: white; padding: 24px; border-radius: 12px;
+    text-align: center; margin-bottom: 24px;
+  }
+  .submitted-banner h2 { margin: 0 0 6px; font-size: 18px; }
+  .admin-notice {
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+    color: #FFE84D; padding: 14px 18px; border-radius: 8px;
+    margin-bottom: 18px; font-size: 13px; border: 1px solid #444;
+  }
+  .pending-notice {
+    background: #2a2a2a; color: var(--text-muted);
+    padding: 14px 18px; border-radius: 8px; margin-bottom: 18px;
+    font-size: 13px; border: 1px solid var(--border);
+  }
+  .field-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; }
+  .field-row label { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--text-muted); }
+  .field-row input[type=text], .field-row input[type=url], .field-row select,
+  .field-row input[type=file], .field-row textarea {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 10px 12px; border-radius: 6px; font-family: inherit; font-size: 14px;
+  }
+  .field-row textarea { min-height: 180px; resize: vertical; line-height: 1.6; }
+  .field-row textarea.smaller { min-height: 80px; }
+  .field-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+  .field-row-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .submit-btn {
+    background: var(--text); color: var(--bg); border: none;
+    padding: 14px 32px; border-radius: 8px; font-weight: 800;
+    font-family: 'Archivo Black', sans-serif; letter-spacing: 1.5px;
+    cursor: pointer; font-size: 14px; width: 100%; margin-top: 10px;
+  }
+  .err-msg { background: #b33a3a; color: white; padding: 12px; border-radius: 6px; margin-bottom: 18px; font-size: 13px; }
+</style>
+
+<div class="page-heading">
+  <h1 class="page-title">📱 NEW APP POST</h1>
+  <p class="page-subtitle">추천하고 싶은 앱을 자유롭게 소개해주세요.</p>
+</div>
+
+<div class="form-wrap">
+
+  {% if submitted %}
+  <div class="submitted-banner">
+    <h2>✓ 제출 완료!</h2>
+    <p>주인장이 확인 후 승인하면 앱 페이지에 노출됩니다.</p>
+    <p style="margin-top:10px;"><a href="/apps" style="color:white;text-decoration:underline;">앱 목록으로 돌아가기 →</a></p>
+  </div>
+  {% else %}
+
+  {% if user.is_admin %}
+  <div class="admin-notice">
+    ✨ <strong>ADMIN</strong> — 작성하면 바로 발행됩니다.
+  </div>
+  {% else %}
+  <div class="pending-notice">
+    ℹ 가입자가 작성한 앱 소개는 <strong>주인장 승인 후</strong> 노출돼요.
+  </div>
+  {% endif %}
+
+  {% if error %}<div class="err-msg">{{ error }}</div>{% endif %}
+
+  <form method="post" enctype="multipart/form-data">
+    <div class="field-row">
+      <label>제목 *</label>
+      <input type="text" name="title" required maxlength="200" placeholder="예: 코딩할 때 진짜 좋은 노트 앱 — Notion 1년 후기">
+    </div>
+
+    <div class="field-row-grid">
+      <div class="field-row">
+        <label>앱 이름 *</label>
+        <input type="text" name="app_name" required maxlength="120" placeholder="Notion">
+      </div>
+      <div class="field-row">
+        <label>카테고리</label>
+        <select name="category">
+          <option value="">— 선택 —</option>
+          {% for cat in app_categories %}<option value="{{ cat }}">{{ cat }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <label>앱 공식 URL</label>
+      <input type="url" name="app_url" placeholder="https://www.notion.so">
+    </div>
+
+    <div class="field-row">
+      <label>썸네일 이미지</label>
+      <input type="file" name="thumbnail" accept="image/*">
+      <p class="field-hint">16:9 권장 (없으면 기본 이모지로 표시)</p>
+    </div>
+
+    <div class="field-row">
+      <label>본문 *</label>
+      <textarea name="content" required maxlength="20000"
+                placeholder="이 앱을 추천하는 이유, 어떻게 사용하는지, 어떤 경우에 좋은지 자유롭게 적어주세요..."></textarea>
+    </div>
+
+    <div class="field-row-grid">
+      <div class="field-row">
+        <label>👍 장점</label>
+        <textarea name="pros" class="smaller" maxlength="2000" placeholder="- 디자인이 깔끔하다&#10;- 동기화가 빠르다"></textarea>
+      </div>
+      <div class="field-row">
+        <label>👎 단점</label>
+        <textarea name="cons" class="smaller" maxlength="2000" placeholder="- 오프라인이 약하다"></textarea>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <label>평점 (1-5)</label>
+      <select name="rating">
+        <option value="0">선택 안 함</option>
+        {% for n in range(1,6) %}<option value="{{ n }}">{{ '★' * n }} ({{ n }})</option>{% endfor %}
+      </select>
+    </div>
+
+    <button type="submit" class="submit-btn">
+      {% if user.is_admin %}📝 PUBLISH{% else %}📤 SUBMIT FOR REVIEW{% endif %}
+    </button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
+

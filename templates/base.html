@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{% block title %}XAZINGA{% endblock %}</title>
-<link rel="icon" type="image/png" href="https://agwqkgjgskcotqiedohb.supabase.co/storage/v1/object/public/media/branding/xazinga-logo.png">
+<title>{% block title %}{{ site.site_name or 'XAZINGA' }}{% endblock %}</title>
+<link rel="icon" type="image/png" href="{{ site.logo_url or 'https://agwqkgjgskcotqiedohb.supabase.co/storage/v1/object/public/media/branding/xazinga-logo.png' }}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=Bebas+Neue&family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -560,11 +560,12 @@ select { cursor: pointer; }
 <header>
   <div class="header-inner">
     <a href="/" class="logo">
-      <span class="logo-mark"><img src="https://agwqkgjgskcotqiedohb.supabase.co/storage/v1/object/public/media/branding/xazinga-logo.png" alt="XAZINGA"></span>
-      <span>XAZINGA</span>
+      <span class="logo-mark"><img src="{{ site.logo_url or 'https://agwqkgjgskcotqiedohb.supabase.co/storage/v1/object/public/media/branding/xazinga-logo.png' }}" alt="{{ site.site_name or 'XAZINGA' }}"></span>
+      <span>{{ site.site_name or 'XAZINGA' }}</span>
     </a>
     <nav class="nav">
       <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">EXPLORE</a>
+      <a href="/apps" class="nav-link {% if request.path.startswith('/apps') %}active{% endif %}">APP</a>
       <a href="/search" class="nav-link {% if request.path == '/search' %}active{% endif %}">SEARCH</a>
       <a href="/character-sheet" class="nav-link {% if request.path == '/character-sheet' %}active{% endif %}">CHARACTER SHEET</a>
       {% if user %}
@@ -573,6 +574,12 @@ select { cursor: pointer; }
         {% if unread_count and unread_count > 0 %}<span class="nav-dot">{{ unread_count }}</span>{% endif %}
       </a>
       <a href="/u/{{ user.username }}" class="nav-link {% if request.path.startswith('/u/') %}active{% endif %}">MY PAGE</a>
+      {% if user.is_admin %}
+      <a href="/admin" class="nav-link {% if request.path.startswith('/admin') %}active{% endif %}" style="position: relative;">
+        ⚙ ADMIN
+        {% if pending_apps and pending_apps > 0 %}<span class="nav-dot">{{ pending_apps }}</span>{% endif %}
+      </a>
+      {% endif %}
       {% endif %}
     </nav>
     <div class="header-actions">
@@ -619,6 +626,10 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
+
+
+
 
 
 
