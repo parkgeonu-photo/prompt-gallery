@@ -186,13 +186,24 @@
     {% elif user %}
       <a href="/messages/{{ profile.username }}" class="btn btn-ghost">✉ MESSAGE</a>
       {% set is_blocked = blocked_ids and profile.id in (blocked_ids|map('string')|list) %}
+      {% set is_muted = muted_ids and profile.id in (muted_ids|map('string')|list) %}
       {% if is_blocked %}
         <form method="post" action="/unblock/{{ profile.username }}" style="display:inline;">
           <button type="submit" class="btn btn-ghost" style="color:#b33a3a;">UNBLOCK</button>
         </form>
       {% else %}
+        {% if is_muted %}
+          <form method="post" action="/unmute/{{ profile.username }}" style="display:inline;">
+            <button type="submit" class="btn btn-ghost" title="이 사용자를 다시 피드에 표시">👁 UNHIDE</button>
+          </form>
+        {% else %}
+          <form method="post" action="/mute/{{ profile.username }}" style="display:inline;"
+                onsubmit="return confirm('@{{ profile.username }}님을 피드에서 숨길까요?\n메시지/댓글은 그대로 받습니다.');">
+            <button type="submit" class="btn btn-ghost" title="이 사용자의 게시물을 피드에서 숨김">🙈 HIDE</button>
+          </form>
+        {% endif %}
         <form method="post" action="/block/{{ profile.username }}" style="display:inline;"
-              onsubmit="return confirm('@{{ profile.username }}님을 차단할까요?');">
+              onsubmit="return confirm('@{{ profile.username }}님을 차단할까요?\n글/댓글/메시지 모두 안 보입니다.');">
           <button type="submit" class="btn btn-ghost" style="color:#b33a3a;">🚫 BLOCK</button>
         </form>
       {% endif %}
@@ -364,5 +375,6 @@
 </div>
 {% endif %}
 {% endblock %}
+
 
 

@@ -39,8 +39,9 @@ ALLOWED_VID = {".mp4", ".webm", ".mov"}
 ALLOWED_AUDIO = {".mp3", ".wav", ".m4a", ".ogg", ".flac"}
 
 AI_MODELS = [
+    "Seedance", "Grok", "Kling",
     "Midjourney", "DALL-E 3", "Stable Diffusion", "Flux", "Nano Banana",
-    "Seedream", "Imagen", "Sora", "Veo", "Seedance", "Kling",
+    "Seedream", "Imagen", "Sora", "Veo",
     "Runway", "Pika", "Higgsfield", "기타 (직접 입력)"
 ]
 
@@ -276,12 +277,32 @@ def get_blocked_ids(viewer_id):
         return {r["uid"] for r in rows}
 
 
+def get_muted_ids(viewer_id):
+    """일방향 숨김 — 내가 숨긴 사용자만 (피드에서만 안 보임, 메시지/댓글은 그대로)."""
+    if not viewer_id:
+        return set()
+    with db() as c:
+        rows = c.fetchall(
+            "SELECT muted_id AS uid FROM user_mutes WHERE muter_id = %s",
+            (viewer_id,)
+        )
+        return {r["uid"] for r in rows}
+
+
+def get_hidden_ids(viewer_id):
+    """피드 + 댓글에서 숨길 모든 사용자 = 차단 + 숨김 합집합."""
+    if not viewer_id:
+        return set()
+    return get_blocked_ids(viewer_id) | get_muted_ids(viewer_id)
+
+
 @app.context_processor
 def inject_user():
     u = current_user()
     unread = 0
     pending_apps = 0
     blocked_ids = set()
+    muted_ids = set()
     settings = {}
     if u:
         with db() as c:
@@ -297,6 +318,8 @@ def inject_user():
                 pending_apps = row["n"] if row else 0
             rows = c.fetchall("SELECT blocked_id FROM blocks WHERE blocker_id = %s", (u["id"],))
             blocked_ids = {r["blocked_id"] for r in rows}
+            rows = c.fetchall("SELECT muted_id FROM user_mutes WHERE muter_id = %s", (u["id"],))
+            muted_ids = {r["muted_id"] for r in rows}
     try:
         with db() as c:
             rows = c.fetchall("SELECT key, value FROM site_settings", ())
@@ -308,6 +331,7 @@ def inject_user():
         "unread_count": unread,
         "pending_apps": pending_apps,
         "blocked_ids": blocked_ids,
+        "muted_ids": muted_ids,
         "app_categories": APP_CATEGORIES,
         "site": settings,
     }
@@ -417,7 +441,7 @@ def index():
 
     u = current_user()
     viewer_id = u["id"] if u else None
-    blocked = get_blocked_ids(viewer_id)
+    blocked = get_hidden_ids(viewer_id)
 
     with db() as c:
         if viewer_id:
@@ -468,7 +492,7 @@ def index():
 def post_detail(post_id):
     u = current_user()
     viewer_id = u["id"] if u else None
-    blocked = get_blocked_ids(viewer_id)
+    blocked = get_hidden_ids(viewer_id)
     with db() as c:
         row = c.fetchone("SELECT * FROM posts WHERE id = %s", (post_id,))
         if not row:
@@ -506,17 +530,29 @@ def post_delete(post_id):
         row = c.fetchone("SELECT * FROM posts WHERE id = %s", (post_id,))
         if not row:
             abort(404)
-        if str(row["user_id"]) != str(u["id"]):
+        # 본인 또는 어드민만 삭제 가능
+        is_owner = str(row["user_id"]) == str(u["id"])
+        is_admin = u.get("is_admin", False)
+        if not (is_owner or is_admin):
             abort(403)
-        storage_delete(row["media_path"])
+        try:
+            storage_delete(row["media_path"])
+        except Exception:
+            pass
         refs = row.get("refs") or []
         if isinstance(refs, str):
             try: refs = json.loads(refs)
             except Exception: refs = []
         for r in refs:
-            storage_delete(r.get("url", ""))
+            try:
+                storage_delete(r.get("url", ""))
+            except Exception:
+                pass
         c.execute("DELETE FROM posts WHERE id = %s", (post_id,))
-    return redirect(url_for("user_page", username=u["username"]))
+    # 어드민이 남의 글 삭제하면 갤러리로, 본인 글 삭제하면 마이페이지로
+    if is_owner:
+        return redirect(url_for("user_page", username=u["username"]))
+    return redirect("/explore")
 
 
 @app.route("/upload", methods=["GET", "POST"])
@@ -910,7 +946,7 @@ def signup():
         if not username.replace("_", "").replace("-", "").isalnum():
             return render_template("signup.html", error="사용자명은 영문/숫자/_/- 만 가능합니다"), 400
         if len(password) < 6:
-            return render_template("signup.html", error="비밀번호는 6자 이상이어야 합니다"), 400
+            return render_template("signup.html", error="비밀번호는 6자 이상���어야 합니다"), 400
         with db() as c:
             existing = c.fetchone("SELECT id FROM users WHERE username = %s", (username,))
             if existing:
@@ -1174,13 +1210,62 @@ def blocked_list():
 
 
 # =================================================================
+# Mute / Unmute (가벼운 숨김 — 피드에서만 안 보임)
+# =================================================================
+@app.route("/mute/<username>", methods=["POST"])
+@login_required
+def mute_user(username):
+    u = current_user()
+    with db() as c:
+        target = c.fetchone("SELECT id FROM users WHERE username = %s", (username,))
+        if not target:
+            abort(404)
+        if str(target["id"]) == str(u["id"]):
+            return jsonify({"error": "자기 자신을 숨길 수 없습니다"}), 400
+        c.execute(
+            "INSERT INTO user_mutes (muter_id, muted_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+            (u["id"], target["id"])
+        )
+    return redirect(request.referrer or "/")
+
+
+@app.route("/unmute/<username>", methods=["POST"])
+@login_required
+def unmute_user(username):
+    u = current_user()
+    with db() as c:
+        target = c.fetchone("SELECT id FROM users WHERE username = %s", (username,))
+        if not target:
+            abort(404)
+        c.execute(
+            "DELETE FROM user_mutes WHERE muter_id = %s AND muted_id = %s",
+            (u["id"], target["id"])
+        )
+    return redirect(request.referrer or "/")
+
+
+@app.route("/muted")
+@login_required
+def muted_list():
+    u = current_user()
+    with db() as c:
+        rows = c.fetchall(
+            "SELECT u.username, u.avatar_url, u.bio, m.created_at "
+            "FROM user_mutes m JOIN users u ON u.id = m.muted_id "
+            "WHERE m.muter_id = %s ORDER BY m.created_at DESC",
+            (u["id"],)
+        )
+    return render_template("muted.html", muted=[dict(r) for r in rows])
+
+
+# =================================================================
 # APP 카테고리
 # =================================================================
 @app.route("/apps")
 def apps_index():
     u = current_user()
     viewer_id = u["id"] if u else None
-    blocked = get_blocked_ids(viewer_id)
+    blocked = get_hidden_ids(viewer_id)
     category = request.args.get("category")
 
     sql = """
@@ -1324,6 +1409,13 @@ def app_delete(app_id):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
+
+
+
+
+
+
 
 
 

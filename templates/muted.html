@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .muted-wrap { max-width: 560px; margin: 0 auto; }
+  .muted-card {
+    background: var(--bg-elev); padding: 28px; border-radius: 12px;
+    border: 1px solid var(--border);
+  }
+  .muted-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 14px; border-radius: 8px;
+    background: var(--bg); margin-bottom: 8px;
+    border: 1px solid var(--border);
+  }
+  .muted-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    object-fit: cover; background: var(--bg-elev);
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800;
+  }
+  .muted-info { flex: 1; min-width: 0; }
+  .muted-username { font-weight: 700; font-size: 14px; }
+  .muted-meta { font-size: 11px; color: var(--text-muted); }
+  .unmute-btn {
+    background: transparent; color: var(--text);
+    border: 1px solid var(--border); padding: 6px 12px;
+    border-radius: 6px; font-size: 11px; font-weight: 700;
+    cursor: pointer; letter-spacing: 1px;
+  }
+  .unmute-btn:hover { background: var(--bg-elev); }
+  .empty-msg { color: var(--text-muted); text-align: center; padding: 24px; font-size: 13px; }
+  .tab-bar {
+    display: flex; gap: 6px; justify-content: center;
+    margin-bottom: 24px;
+  }
+  .tab-pill {
+    padding: 8px 16px; border-radius: 999px;
+    background: var(--bg-elev); color: var(--text-muted);
+    border: 1px solid var(--border); font-size: 12px;
+    font-weight: 700; letter-spacing: 0.5px;
+    text-decoration: none;
+  }
+  .tab-pill.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+</style>
+
+<div class="page-heading">
+  <h1 class="page-title">🙈 HIDDEN USERS</h1>
+  <p class="page-subtitle">숨긴 사용자의 게시물은 피드에서 안 보여요. 메시지·댓글은 받아요.</p>
+</div>
+
+<div class="muted-wrap">
+  <div class="tab-bar">
+    <a href="/muted" class="tab-pill active">🙈 숨김 ({{ muted|length }})</a>
+    <a href="/blocked" class="tab-pill">🚫 차단</a>
+  </div>
+
+  <div class="muted-card">
+    {% if muted %}
+      {% for m in muted %}
+      <div class="muted-row">
+        {% if m.avatar_url %}
+        <img src="{{ m.avatar_url }}" class="muted-avatar" alt="">
+        {% else %}
+        <div class="muted-avatar">{{ m.username[0]|upper }}</div>
+        {% endif %}
+        <div class="muted-info">
+          <div class="muted-username">@{{ m.username }}</div>
+          <div class="muted-meta">{% if m.created_at %}{{ m.created_at.strftime('%Y-%m-%d') }} 숨김{% endif %}</div>
+        </div>
+        <form method="post" action="/unmute/{{ m.username }}" style="display:inline">
+          <button type="submit" class="unmute-btn">UNHIDE</button>
+        </form>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-msg">숨긴 사용자가 없어요.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+

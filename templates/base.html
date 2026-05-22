@@ -307,6 +307,23 @@ main { max-width: 100%; margin: 0 auto; padding: 32px clamp(24px, 3vw, 56px); }
   vertical-align: middle;
 }
 .card-vis-private { background: rgba(214,51,51,0.85); }
+
+/* 어드민 X 삭제 버튼 (호버 시만 표시) */
+.admin-x-btn {
+  position: absolute; top: 8px; right: 8px; z-index: 5;
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(214, 51, 51, 0.95); color: #fff;
+  border: 2px solid #fff;
+  font-size: 16px; font-weight: 800; line-height: 1;
+  cursor: pointer; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.15s, transform 0.15s;
+  font-family: inherit;
+}
+.card:hover .admin-x-btn { opacity: 1; }
+.admin-x-btn:hover { transform: scale(1.1); background: rgb(214, 51, 51); }
+.card { position: relative; }
+
 .card-stats {
   position: absolute; bottom: 12px; left: 12px;
   display: flex; gap: 10px; align-items: center;
@@ -745,6 +762,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 

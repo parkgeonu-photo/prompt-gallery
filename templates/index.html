@@ -59,6 +59,14 @@
 <div class="masonry">
   {% for post in posts %}
   <a href="/post/{{ post.id }}" class="card">
+    {% if user and user.is_admin and post.author != user.username %}
+    <button type="button" class="admin-x-btn" title="⚙ 어드민 삭제"
+      onclick="event.preventDefault();event.stopPropagation();
+               if(confirm('⚙ 어드민 권한으로 @' + this.dataset.author + '님의 \\'' + (this.dataset.title || '게시물') + '\\'를 삭제할까요?')){
+                 const f=document.createElement('form');f.method='POST';f.action='/post/' + this.dataset.id + '/delete';document.body.appendChild(f);f.submit();
+               }"
+      data-id="{{ post.id }}" data-author="{{ post.author }}" data-title="{{ post.title|e }}">×</button>
+    {% endif %}
     <div class="card-media">
       {% if post.media_type == 'video' %}
       <video src="{{ post.media_path }}" muted playsinline preload="metadata" loop></video>
@@ -102,6 +110,7 @@
 </div>
 {% endif %}
 {% endblock %}
+
 
 
 
