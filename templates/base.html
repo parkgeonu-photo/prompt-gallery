@@ -11,30 +11,27 @@
 <meta property="og:title" content="{% block og_title %}{{ site.site_name or 'XAZINGA' }}{% endblock %}">
 <meta property="og:description" content="{% block og_description %}{{ site.site_tagline or 'AI로 만든 작품과 사용한 프롬프트를 함께 아카이브하는 갤러리' }}{% endblock %}">
 <meta property="og:url" content="{{ request.url }}">
-{% block og_media %}
+{# 항상 website 타입 — Threads/카카오/Slack에서 og:image를 큰 미리보기로 띄움 #}
+<meta property="og:type" content="website">
+{% if site.og_image_url or site.logo_url %}
+<meta property="og:image" content="{{ site.og_image_url or site.logo_url }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="{{ site.site_name or 'XAZINGA' }}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="{{ site.og_image_url or site.logo_url }}">
+{% else %}
+<meta name="twitter:card" content="summary_large_image">
+{% endif %}
+{# 영상은 X(트위터)에서만 player로 렌더되며, og:image는 그대로 큰 미리보기로 유지 #}
 {% if site.og_video_url %}
-<meta property="og:type" content="video.other">
 <meta property="og:video" content="{{ site.og_video_url }}">
 <meta property="og:video:url" content="{{ site.og_video_url }}">
 <meta property="og:video:secure_url" content="{{ site.og_video_url }}">
 <meta property="og:video:type" content="video/mp4">
 <meta property="og:video:width" content="1280">
 <meta property="og:video:height" content="720">
-<meta name="twitter:card" content="player">
-<meta name="twitter:player" content="{{ site.og_video_url }}">
-<meta name="twitter:player:width" content="1280">
-<meta name="twitter:player:height" content="720">
-{% else %}
-<meta property="og:type" content="website">
-<meta name="twitter:card" content="summary_large_image">
 {% endif %}
-{% if site.og_image_url or site.logo_url %}
-<meta property="og:image" content="{{ site.og_image_url or site.logo_url }}">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:image" content="{{ site.og_image_url or site.logo_url }}">
-{% endif %}
-{% endblock %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=Bebas+Neue&family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -745,6 +742,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 
