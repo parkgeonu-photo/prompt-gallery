@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}{{ site.site_name or 'XAZINGA' }}{% endblock %}</title>
-<link rel="icon" type="image/png" href="{{ site.logo_url or 'https://agwqkgjgskcotqiedohb.supabase.co/storage/v1/object/public/media/branding/xazinga-logo.png' }}">
+<link rel="icon" type="image/jpeg" href="{{ site.logo_url or 'https://agwqkgjgskcotqiedohb.supabase.co/storage/v1/object/public/media/branding/xazinga-logo.png' }}">
+<link rel="shortcut icon" href="{{ site.logo_url or 'https://agwqkgjgskcotqiedohb.supabase.co/storage/v1/object/public/media/branding/xazinga-logo.png' }}">
+<link rel="apple-touch-icon" href="{{ site.logo_url or 'https://agwqkgjgskcotqiedohb.supabase.co/storage/v1/object/public/media/branding/xazinga-logo.png' }}">
+<link rel="apple-touch-icon" sizes="180x180" href="{{ site.logo_url or 'https://agwqkgjgskcotqiedohb.supabase.co/storage/v1/object/public/media/branding/xazinga-logo.png' }}">
 
 {# Open Graph + Twitter 카드 — 카톡/X/Discord 등 링크 미리보기 #}
 <meta property="og:site_name" content="{{ site.site_name or 'XAZINGA' }}">
@@ -742,6 +745,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
 
 
 
