@@ -66,6 +66,13 @@
   <p class="page-subtitle">사이트 설정과 승인 대기 게시물을 관리하세요.</p>
 </div>
 
+{% if request.args.get('saved') %}
+<div style="max-width:960px;margin:0 auto 18px;padding:14px 20px;background:linear-gradient(135deg,#1c7c54 0%,#2a9968 100%);color:white;border-radius:10px;font-size:13px;font-weight:700;display:flex;justify-content:space-between;align-items:center;">
+  <span>✓ 저장 완료 — 헤더가 새 로고로 바뀌었어요. (안 보이면 Ctrl + F5로 새로고침)</span>
+  <a href="/admin" style="color:white;opacity:0.7;text-decoration:none;font-size:18px;">×</a>
+</div>
+{% endif %}
+
 <div class="admin-grid">
 
   <div class="admin-section">
@@ -100,7 +107,12 @@
           {% endif %}
           <input type="file" name="logo_file" accept="image/*">
         </div>
-        <input type="url" name="logo_url" value="{{ settings.logo_url or '' }}" placeholder="또는 URL 직접 입력">
+        {% if settings.logo_url %}
+        <p style="font-size:10px;color:var(--text-muted);word-break:break-all;margin-top:4px;">
+          현재: <code style="font-size:10px;">{{ settings.logo_url }}</code>
+        </p>
+        {% endif %}
+        <input type="url" name="logo_url" placeholder="또는 URL 직접 입력 (파일을 선택하면 이 칸은 무시됨)">
       </div>
 
       <div class="field-row">
@@ -119,7 +131,12 @@
           {% endif %}
           <input type="file" name="hero_file" accept="image/*,video/mp4,video/webm">
         </div>
-        <input type="url" name="hero_image_url" value="{{ settings.hero_image_url or '' }}" placeholder="또는 URL 직접 입력 (.gif 가능)">
+        {% if settings.hero_image_url %}
+        <p style="font-size:10px;color:var(--text-muted);word-break:break-all;margin-top:4px;">
+          현재: <code style="font-size:10px;">{{ settings.hero_image_url }}</code>
+        </p>
+        {% endif %}
+        <input type="url" name="hero_image_url" placeholder="또는 URL 직접 입력 .gif 가능 (파일을 선택하면 이 칸은 무시됨)">
       </div>
 
       <button type="submit" class="save-btn">💾 SAVE</button>
@@ -160,4 +177,7 @@
 
 </div>
 {% endblock %}
+
+
+
 

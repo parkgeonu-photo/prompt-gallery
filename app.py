@@ -860,7 +860,7 @@ def signup():
         username = (request.form.get("username") or "").strip().lower()
         password = request.form.get("password") or ""
         if not username or len(username) < 2:
-            return render_template("signup.html", error="사용자명은 2자 이상이어야 합니다"), 400
+            return render_template("signup.html", error="사용자명은 2����� 이상이어야 합니다"), 400
         if not username.replace("_", "").replace("-", "").isalnum():
             return render_template("signup.html", error="사용자명은 영문/숫자/_/- 만 가능합니다"), 400
         if len(password) < 6:
@@ -951,24 +951,42 @@ def admin_settings_update():
         "site_tagline": (request.form.get("site_tagline") or "").strip()[:500],
         "hero_enabled": "true" if request.form.get("hero_enabled") else "false",
     }
+    # 파일 업로드가 있으면 그게 우선 (URL 입력칸은 무시)
+    logo_uploaded = False
     logo_file = request.files.get("logo_file")
     if logo_file and logo_file.filename:
         ext = os.path.splitext(logo_file.filename)[1].lower()
         if ext in ALLOWED_IMG:
             name = f"branding/logo-{int(time.time())}{ext}"
-            url = storage_upload(logo_file, name)
-            fields["logo_url"] = url
+            try:
+                url = storage_upload(logo_file, name)
+                fields["logo_url"] = url
+                logo_uploaded = True
+            except Exception as e:
+                app.logger.error(f"Logo upload failed: {e}")
+
+    hero_uploaded = False
     hero_file = request.files.get("hero_file")
     if hero_file and hero_file.filename:
         ext = os.path.splitext(hero_file.filename)[1].lower()
         if ext in ALLOWED_IMG | ALLOWED_VID:
             name = f"branding/hero-{int(time.time())}{ext}"
-            url = storage_upload(hero_file, name)
-            fields["hero_image_url"] = url
-    if request.form.get("logo_url"):
-        fields["logo_url"] = request.form.get("logo_url").strip()
-    if request.form.get("hero_image_url"):
-        fields["hero_image_url"] = request.form.get("hero_image_url").strip()
+            try:
+                url = storage_upload(hero_file, name)
+                fields["hero_image_url"] = url
+                hero_uploaded = True
+            except Exception as e:
+                app.logger.error(f"Hero upload failed: {e}")
+
+    # 파일 업로드가 없을 때만 URL 입력칸 사용 (그리고 비어있지 않을 때만)
+    if not logo_uploaded:
+        lu = (request.form.get("logo_url") or "").strip()
+        if lu:
+            fields["logo_url"] = lu
+    if not hero_uploaded:
+        hu = (request.form.get("hero_image_url") or "").strip()
+        if hu:
+            fields["hero_image_url"] = hu
 
     with db() as c:
         for k, v in fields.items():
@@ -977,7 +995,7 @@ def admin_settings_update():
                 "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()",
                 (k, v)
             )
-    return redirect("/admin")
+    return redirect("/admin?saved=1")
 
 
 # =================================================================
@@ -1260,6 +1278,8 @@ def app_delete(app_id):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
+
 
 
 
