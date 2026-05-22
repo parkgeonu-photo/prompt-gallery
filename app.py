@@ -18,7 +18,7 @@ from psycopg2.extras import RealDictCursor, Json
 from psycopg2.pool import SimpleConnectionPool
 from flask import (
     Flask, request, render_template, redirect, url_for,
-    jsonify, abort, session, g
+    jsonify, abort, session, g, make_response
 )
 
 # =================================================================
@@ -421,14 +421,21 @@ def normalize_post(p, viewer_id=None):
 # =================================================================
 @app.route("/")
 def start():
-    """깔끔한 시작 페이지 — 흰 배경 + 고양이 + ENTER 버튼."""
+    """첫 방문에만 시작 페이지를 보여줌. 이후엔 자동으로 갤러리로."""
+    # 이미 시작 페이지를 본 적 있거나, 명시적으로 /?force=1 이 아니면 갤러리로
+    if request.cookies.get("seen_start") and not request.args.get("force"):
+        return redirect("/explore")
+
     with db() as c:
         rows = c.fetchall("SELECT key, value FROM site_settings", ())
         s = {r["key"]: r["value"] for r in rows}
-    # start_cat_url은 우선순위: site_settings.start_cat_url -> logo_url -> 기본
     cat_url = s.get("start_cat_url") or s.get("logo_url") or \
               "https://d2ol7oe51mr4n9.cloudfront.net/user_34ctFqCBIuenEEsMCqyrHXc4WX1/c598945a-597e-4392-bb17-a70a218961ae.jpg"
-    return render_template("start.html", start_cat_url=cat_url)
+
+    resp = make_response(render_template("start.html", start_cat_url=cat_url))
+    # 1년간 시작 페이지 다시 안 봐도 됨
+    resp.set_cookie("seen_start", "1", max_age=60*60*24*365, samesite="Lax")
+    return resp
 
 
 @app.route("/explore")
@@ -942,11 +949,11 @@ def signup():
         username = (request.form.get("username") or "").strip().lower()
         password = request.form.get("password") or ""
         if not username or len(username) < 2:
-            return render_template("signup.html", error="사용자명은 2����� 이상이어야 합니다"), 400
+            return render_template("signup.html", error="사용자명은 2����� 이상이어야 합��다"), 400
         if not username.replace("_", "").replace("-", "").isalnum():
             return render_template("signup.html", error="사용자명은 영문/숫자/_/- 만 가능합니다"), 400
         if len(password) < 6:
-            return render_template("signup.html", error="비밀번호는 6자 이상���어야 합니다"), 400
+            return render_template("signup.html", error="비밀번호는 6자 ���상���어야 합니다"), 400
         with db() as c:
             existing = c.fetchone("SELECT id FROM users WHERE username = %s", (username,))
             if existing:
@@ -1409,6 +1416,8 @@ def app_delete(app_id):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
+
 
 
 
