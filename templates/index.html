@@ -114,35 +114,6 @@
 </div>
 {% endif %}
 
-<style>
-.card { position: relative; display:flex; flex-direction:column; background:#fff; transition:transform .15s; }
-.card-media { display:block; position:relative; overflow:hidden; background:#000; cursor:pointer; text-decoration:none; }
-.card-media:hover { opacity:.96; }
-.card-actions {
-  display:flex; align-items:center; justify-content:space-between;
-  padding: 8px 10px; gap: 8px;
-  font-family:'JetBrains Mono',monospace; font-size:12px;
-}
-.card-like-btn {
-  display:inline-flex; align-items:center; gap:5px;
-  background:none; border:none; padding:4px 8px; cursor:pointer;
-  font-family:'JetBrains Mono',monospace; font-size:12px;
-  color:#000; transition:transform .1s, color .15s;
-  -webkit-tap-highlight-color: transparent;
-}
-.card-like-btn:hover { transform:scale(1.08); }
-.card-like-btn .heart { font-size:15px; line-height:1; }
-.card-like-btn.liked { color:#e91e63; }
-.card-like-btn.liked .heart { animation:popHeart .25s ease; }
-@keyframes popHeart { 0%{transform:scale(.85);} 60%{transform:scale(1.35);} 100%{transform:scale(1);} }
-.card-author-link {
-  color:#666; text-decoration:none; font-weight:600;
-  padding:4px 6px; border-radius:2px;
-  transition:color .12s, background .12s;
-}
-.card-author-link:hover { color:#000; background:#f0f0f0; }
-</style>
-
 <script>
 // 카드 좋아요 토글 — 페이지 이동 없이 즉시 반영
 document.querySelectorAll('.card-like-btn').forEach(btn => {
@@ -177,6 +148,7 @@ document.querySelectorAll('.card-like-btn').forEach(btn => {
 });
 </script>
 {% endblock %}
+
 
 
 

@@ -216,41 +216,43 @@ main { max-width: 100%; margin: 0 auto; padding: 32px clamp(24px, 3vw, 56px); }
 .chip:hover { color: var(--text); border-color: var(--border-hover); }
 .chip.active { background: var(--text); color: var(--accent-text); border-color: var(--text); font-weight: 600; }
 
-/* ============ Card grid (가로 우선, 끝에서 다음 줄) ============ */
+/* ============ Masonry — column-fill (Higgsfield style, 빈 공간 없음) ============ */
 .masonry {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 14px;
-  align-items: start;
+  column-width: 320px;
+  column-gap: 10px;
 }
-@media (max-width: 700px)  { .masonry { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 460px)  { .masonry { grid-template-columns: 1fr; } }
+@media (max-width: 900px)  { .masonry { column-count: 3; column-width: auto; } }
+@media (max-width: 700px)  { .masonry { column-count: 2; column-width: auto; } }
+@media (max-width: 460px)  { .masonry { column-count: 1; column-width: auto; } }
 
 .card {
   display: block;
-  background: var(--bg-card); border-radius: 14px; overflow: hidden;
-  border: 1px solid var(--border);
-  transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+  break-inside: avoid;
+  margin-bottom: 10px;
+  background: var(--bg-card); border-radius: 10px; overflow: hidden;
   position: relative;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 .card:hover {
-  border-color: var(--border-hover);
   transform: translateY(-3px);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
 }
 
 .card-media {
   overflow: hidden; position: relative;
   background: var(--bg-elev);
+  display: block;
+  cursor: pointer;
+  text-decoration: none;
 }
 .card-media img,
 .card-media video {
-  width: 100%; height: 100%; object-fit: cover;
+  width: 100%; height: auto; object-fit: cover;
   display: block;
   transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .card:hover .card-media img,
-.card:hover .card-media video { transform: scale(1.06); }
+.card:hover .card-media video { transform: scale(1.04); }
 
 .card-overlay {
   position: absolute; inset: 0;
@@ -323,17 +325,40 @@ main { max-width: 100%; margin: 0 auto; padding: 32px clamp(24px, 3vw, 56px); }
 }
 .card:hover .admin-x-btn { opacity: 1; }
 .admin-x-btn:hover { transform: scale(1.1); background: rgb(214, 51, 51); }
-.card { position: relative; }
 
-.card-stats {
-  position: absolute; bottom: 12px; left: 12px;
-  display: flex; gap: 10px; align-items: center;
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 11px; font-weight: 600; color: #fff;
-  pointer-events: none;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.7);
-  z-index: 2;
+/* ============ Card overlay actions (♥ + @author, 카드 안쪽 하단) ============ */
+.card-actions {
+  position: absolute;
+  bottom: 8px; left: 8px; right: 8px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; pointer-events: none;
+  z-index: 3;
 }
+.card-actions > * { pointer-events: auto; }
+.card-like-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(0,0,0,0.62);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  border: none; padding: 5px 10px; border-radius: 999px; cursor: pointer;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  color: #fff; transition: transform 0.1s, background 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.card-like-btn:hover { background: rgba(0,0,0,0.8); transform: scale(1.05); }
+.card-like-btn .heart { font-size: 14px; line-height: 1; }
+.card-like-btn.liked { color: #ff6b9d; background: rgba(0,0,0,0.72); }
+.card-like-btn.liked .heart { animation: popHeart 0.25s ease; }
+@keyframes popHeart { 0%{transform:scale(.85);} 60%{transform:scale(1.4);} 100%{transform:scale(1);} }
+.card-author-link {
+  color: #fff; text-decoration: none; font-weight: 600;
+  font-family: 'JetBrains Mono', monospace; font-size: 12px;
+  padding: 5px 10px; border-radius: 999px;
+  background: rgba(0,0,0,0.62);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  transition: background 0.12s, transform 0.1s;
+  max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.card-author-link:hover { background: rgba(0,0,0,0.85); transform: scale(1.05); }
 
 .grid {
   display: grid; gap: 12px;
@@ -763,6 +788,10 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
+
+
+
 
 
 
