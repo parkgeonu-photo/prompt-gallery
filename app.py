@@ -70,6 +70,27 @@ app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
 app.secret_key = os.environ.get("SECRET_KEY", "dev-" + secrets.token_hex(16))
 
 
+@app.after_request
+def add_no_cache_headers(resp):
+    """HTML 응답에 캐싱 방지 헤더 — 코드 업데이트가 즉시 반영되도록."""
+    ct = resp.headers.get("Content-Type", "")
+    if "text/html" in ct:
+        resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+    return resp
+
+
+@app.route("/_build")
+def build_info():
+    """빌드 추적용 — 어떤 커밋이 서빙 중인지 확인."""
+    return {
+        "commit": os.environ.get("RENDER_GIT_COMMIT", "local"),
+        "build": "characters-dnd-v2",
+        "char_max_mb": CHARACTER_IMG_MAX_BYTES // (1024*1024),
+    }
+
+
 # =================================================================
 # Connection pool
 # =================================================================
@@ -1729,6 +1750,7 @@ def api_my_characters():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
