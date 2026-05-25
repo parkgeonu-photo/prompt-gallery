@@ -514,11 +514,22 @@ def index():
         sql += " LIMIT 120"
         posts = [normalize_post(r, viewer_id) for r in c.fetchall(sql, params)]
 
+        # viewer가 좋아요한 게시물 id 셋 — 카드 좋아요 버튼 상태 표시용
+        liked_ids = set()
+        if viewer_id and posts:
+            pids = [p["id"] for p in posts]
+            liked_rows = c.fetchall(
+                "SELECT post_id FROM post_likes WHERE user_id = %s AND post_id = ANY(%s)",
+                (viewer_id, pids)
+            )
+            liked_ids = {str(r["post_id"]) for r in liked_rows}
+
     return render_template(
         "index.html",
         posts=posts, models=AI_MODELS,
         current_model=model, current_sort=sort, current_type=media_filter,
         image_count=image_count, video_count=video_count, all_count=all_count,
+        liked_ids=liked_ids,
     )
 
 
@@ -554,6 +565,73 @@ def post_detail(post_id):
             c_["user_id"] = str(c_["user_id"])
             c_["is_mine"] = (viewer_id and str(viewer_id) == c_["user_id"])
     return render_template("detail.html", post=post, comments=comments)
+
+
+@app.route("/post/<post_id>/edit", methods=["GET", "POST"])
+@login_required
+def post_edit(post_id):
+    """게시물 수정 — 소유자만. 미디어 파일 자체는 교체 불가 (재업로드 권장).
+    수정 가능 항목: title, prompt, negative_prompt, model, tags, visibility, source_url, process_text."""
+    u = current_user()
+    with db() as c:
+        row = c.fetchone("SELECT * FROM posts WHERE id = %s", (post_id,))
+        if not row:
+            abort(404)
+        if str(row["user_id"]) != str(u["id"]):
+            abort(403)
+    post = dict(row)
+    post["id"] = str(post["id"])
+
+    if request.method == "POST":
+        title = (request.form.get("title") or "").strip()
+        prompt = (request.form.get("prompt") or "").strip()
+        model_choice = request.form.get("model") or "기타 (직접 입력)"
+        model_custom = (request.form.get("model_custom") or "").strip()
+        neg = (request.form.get("negative_prompt") or "").strip()
+        tags_raw = (request.form.get("tags") or "").strip()
+        visibility = (request.form.get("visibility") or "public").strip()
+        source_url = (request.form.get("source_url") or "").strip()
+        process_text = (request.form.get("process_text") or "").strip()[:PROCESS_TEXT_MAX]
+
+        if visibility not in ("public", "partial", "private"):
+            visibility = "public"
+        if model_choice.startswith("기타"):
+            model = model_custom or "기타"
+        else:
+            model = model_custom or model_choice
+        if not prompt:
+            return render_template("post_edit.html", post=post, models=AI_MODELS, error="프롬프트는 필수입니다"), 400
+
+        if source_url:
+            if not (source_url.startswith("http://") or source_url.startswith("https://")):
+                source_url = "https://" + source_url
+            if len(source_url) > 500:
+                source_url = source_url[:500]
+
+        # 비공개로 바꾸려면 개수 제한 확인 (현재 비공개가 아닌 경우만)
+        if visibility == "private" and (post.get("visibility") or "public") != "private":
+            with db() as c:
+                cnt = c.fetchone(
+                    "SELECT COUNT(*) AS n FROM posts WHERE user_id = %s AND visibility = 'private'",
+                    (u["id"],),
+                )
+                if cnt and cnt["n"] >= PRIVATE_POST_LIMIT:
+                    return render_template(
+                        "post_edit.html", post=post, models=AI_MODELS,
+                        error=f"비공개는 최대 {PRIVATE_POST_LIMIT}개까지만 가능합니다. (현재 {cnt['n']}개)"
+                    ), 400
+
+        with db() as c:
+            c.execute(
+                """UPDATE posts SET title = %s, prompt = %s, negative_prompt = %s, model = %s,
+                   tags = %s, visibility = %s, source_url = %s, process_text = %s
+                   WHERE id = %s""",
+                (title or None, prompt, neg or None, model, tags_raw or None,
+                 visibility, source_url or None, process_text or None, post_id)
+            )
+        return redirect(url_for("post_detail", post_id=post_id))
+
+    return render_template("post_edit.html", post=post, models=AI_MODELS)
 
 
 @app.route("/post/<post_id>/delete", methods=["POST"])
@@ -742,18 +820,33 @@ def search():
 
 @app.route("/like/<post_id>", methods=["POST"])
 def like(post_id):
+    """좋아요 토글 — 로그인 필수. 같은 게시물에 두 번 누르면 해제."""
     u = current_user()
-    viewer_id = u["id"] if u else None
+    if not u:
+        return jsonify({"error": "login_required"}), 401
+    viewer_id = u["id"]
     with db() as c:
         row = c.fetchone("SELECT user_id, visibility FROM posts WHERE id = %s", (post_id,))
         if not row:
             return jsonify({"likes": 0}), 404
         if (row.get("visibility") or "public") == "private":
-            if not viewer_id or str(viewer_id) != str(row["user_id"]):
+            if str(viewer_id) != str(row["user_id"]):
                 return jsonify({"likes": 0}), 403
-        c.execute("UPDATE posts SET likes = likes + 1 WHERE id = %s", (post_id,))
+        # 토글
+        existing = c.fetchone(
+            "SELECT 1 FROM post_likes WHERE post_id = %s AND user_id = %s",
+            (post_id, viewer_id)
+        )
+        if existing:
+            c.execute("DELETE FROM post_likes WHERE post_id = %s AND user_id = %s", (post_id, viewer_id))
+            c.execute("UPDATE posts SET likes = GREATEST(likes - 1, 0) WHERE id = %s", (post_id,))
+            liked = False
+        else:
+            c.execute("INSERT INTO post_likes (post_id, user_id) VALUES (%s, %s)", (post_id, viewer_id))
+            c.execute("UPDATE posts SET likes = likes + 1 WHERE id = %s", (post_id,))
+            liked = True
         cnt = c.fetchone("SELECT likes FROM posts WHERE id = %s", (post_id,))
-    return jsonify({"likes": cnt["likes"] if cnt else 0})
+    return jsonify({"likes": cnt["likes"] if cnt else 0, "liked": liked})
 
 
 # =================================================================
@@ -1263,7 +1356,7 @@ def blocked_list():
 
 
 # =================================================================
-# Mute / Unmute (가벼운 숨김 — 피드에서만 안 보임)
+# Mute / Unmute (가벼�� 숨김 — 피드에서만 안 보임)
 # =================================================================
 @app.route("/mute/<username>", methods=["POST"])
 @login_required
@@ -1750,6 +1843,9 @@ def api_my_characters():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
+
+
 
 
 

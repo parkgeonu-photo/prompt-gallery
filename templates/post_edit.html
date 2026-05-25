@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}EDIT POST — XAZINGA{% endblock %}
+
+{% block content %}
+<style>
+.edit-wrap { max-width: 720px; margin: 0 auto; padding: 32px 24px 80px; }
+.edit-wrap h1 { font-family:'Archivo Black',sans-serif; font-size:36px; letter-spacing:-1px; margin:0 0 6px; }
+.edit-sub { color:#888; font-size:12px; font-family:'JetBrains Mono',monospace; letter-spacing:0.4px; margin-bottom:28px; }
+.media-preview { background:#000; max-height:420px; overflow:hidden; display:flex; align-items:center; justify-content:center; margin-bottom:24px; }
+.media-preview img, .media-preview video { max-width:100%; max-height:420px; display:block; }
+.field { margin-bottom:22px; }
+.field label { display:block; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:12px; letter-spacing:1.2px; text-transform:uppercase; margin-bottom:8px; color:#000; }
+.field label .opt { color:#aaa; font-weight:500; letter-spacing:0.3px; margin-left:6px; text-transform:none; font-size:11px; }
+.field input[type=text], .field input[type=url], .field textarea, .field select {
+  width:100%; padding:13px 14px; border:1.5px solid #e0e0e0; background:#fff;
+  font-family:'Space Grotesk',sans-serif; font-size:15px; color:#000;
+}
+.field input:focus, .field textarea:focus, .field select:focus { outline:none; border-color:#000; }
+.field textarea { min-height:120px; resize:vertical; line-height:1.5; font-family:'JetBrains Mono',monospace; font-size:13px; }
+.field .hint { font-size:12px; color:#888; margin-top:6px; font-family:'JetBrains Mono',monospace; }
+.vis-row { display:flex; gap:8px; flex-wrap:wrap; }
+.vis-row label { flex:1 1 180px; padding:14px 16px; border:1.5px solid #e0e0e0; cursor:pointer; transition:all .12s; }
+.vis-row label:hover { border-color:#000; }
+.vis-row label:has(input:checked) { border-color:#000; background:#000; color:#fff; }
+.vis-row .vis-title { font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13px; letter-spacing:0.5px; }
+.vis-row .vis-desc { font-size:11px; opacity:.7; margin-top:4px; line-height:1.4; }
+.vis-row input { display:none; }
+.actions { display:flex; gap:10px; margin-top:30px; align-items:center; flex-wrap:wrap; }
+.btn-save { background:#000; color:#fff; padding:15px 36px; font-family:'Archivo Black',sans-serif; letter-spacing:1.2px; font-size:14px; border:2px solid #000; cursor:pointer; transition:all .15s; }
+.btn-save:hover { background:#fff; color:#000; }
+.btn-cancel { padding:15px 24px; color:#666; text-decoration:none; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px; letter-spacing:0.5px; }
+.btn-cancel:hover { color:#000; }
+.err { background:#fff0f0; border:1px solid #ffcccc; color:#c00; padding:14px 16px; margin-bottom:20px; font-size:14px; }
+.locked-notice { background:#fafafa; border-left:3px solid #888; padding:10px 14px; font-size:12px; color:#666; margin-bottom:24px; font-family:'JetBrains Mono',monospace; line-height:1.6; }
+</style>
+
+<div class="edit-wrap">
+  <h1>EDIT POST</h1>
+  <div class="edit-sub">// 본인이 올린 게시물 수정 — 미디어 파일 자체는 교체 불가 (필요 시 다시 업로드 후 기존 글 삭제)</div>
+
+  {% if error %}<div class="err">⚠ {{ error }}</div>{% endif %}
+
+  <div class="media-preview">
+    {% if post.media_type == 'video' %}
+      <video src="{{ post.media_path }}" controls preload="metadata"></video>
+    {% else %}
+      <img src="{{ post.media_path }}" alt="">
+    {% endif %}
+  </div>
+
+  <div class="locked-notice">🔒 미디어 파일(이미지/영상)은 교체할 수 없어요. 다른 파일로 교체하려면 새로 업로드한 뒤 기존 글을 삭제해주세요.</div>
+
+  <form method="POST">
+    <div class="field">
+      <label>제목<span class="opt">선택</span></label>
+      <input type="text" name="title" maxlength="120" value="{{ post.title or '' }}">
+    </div>
+
+    <div class="field">
+      <label>프롬프트</label>
+      <textarea name="prompt" required>{{ post.prompt }}</textarea>
+    </div>
+
+    <div class="field">
+      <label>네거티브 프롬프트<span class="opt">선택</span></label>
+      <textarea name="negative_prompt">{{ post.negative_prompt or '' }}</textarea>
+    </div>
+
+    <div class="field">
+      <label>모델</label>
+      {% set current_model = post.model %}
+      {% set is_listed = current_model in models %}
+      <select name="model" id="modelSelect">
+        {% for m in models %}
+          <option value="{{ m }}" {% if m == current_model %}selected{% endif %}>{{ m }}</option>
+        {% endfor %}
+        {% if not is_listed %}
+          <option value="기타 (직접 입력)" selected>기타 (직접 입력)</option>
+        {% endif %}
+      </select>
+      <input type="text" name="model_custom" id="modelCustom" placeholder="모델명 직접 입력 (예: Midjourney v7)"
+             value="{% if not is_listed %}{{ current_model }}{% endif %}"
+             style="margin-top:8px; {% if is_listed and not current_model.startswith('기타') %}display:none;{% endif %}">
+    </div>
+
+    <div class="field">
+      <label>태그<span class="opt">쉼표 또는 공백 구분</span></label>
+      <input type="text" name="tags" value="{{ post.tags or '' }}" placeholder="예: 풍경, 사이버펑크, 야경">
+    </div>
+
+    <div class="field">
+      <label>참고 영상/링크 URL<span class="opt">선택</span></label>
+      <input type="url" name="source_url" value="{{ post.source_url or '' }}" maxlength="500" placeholder="https://www.youtube.com/watch?v=...">
+    </div>
+
+    <div class="field">
+      <label>작업 프로세스 (텍스트)<span class="opt">선택 · 최대 2000자</span></label>
+      <textarea name="process_text" maxlength="2000" placeholder="이 작품을 어떻게 만들었는지 작업 과정을 기록해두세요.">{{ post.process_text or '' }}</textarea>
+    </div>
+
+    <div class="field">
+      <label>공개 범위</label>
+      <div class="vis-row">
+        <label>
+          <input type="radio" name="visibility" value="public" {% if post.visibility == 'public' or not post.visibility %}checked{% endif %}>
+          <div class="vis-title">🌐 공개</div>
+          <div class="vis-desc">누구나 프롬프트까지 볼 수 있음</div>
+        </label>
+        <label>
+          <input type="radio" name="visibility" value="partial" {% if post.visibility == 'partial' %}checked{% endif %}>
+          <div class="vis-title">◐ 일부공개</div>
+          <div class="vis-desc">미디어는 공개, 프롬프트 일부 블러</div>
+        </label>
+        <label>
+          <input type="radio" name="visibility" value="private" {% if post.visibility == 'private' %}checked{% endif %}>
+          <div class="vis-title">🔒 비공개</div>
+          <div class="vis-desc">본인만 볼 수 있음</div>
+        </label>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="btn-save">SAVE CHANGES</button>
+      <a href="{{ url_for('post_detail', post_id=post.id) }}" class="btn-cancel">취소</a>
+    </div>
+  </form>
+</div>
+
+<script>
+const sel = document.getElementById('modelSelect');
+const cust = document.getElementById('modelCustom');
+function syncCustom() {
+  if (sel.value.startsWith('기타')) {
+    cust.style.display = 'block';
+    cust.placeholder = '모델명을 직접 입력하세요';
+  } else {
+    cust.style.display = 'none';
+    cust.value = '';
+  }
+}
+sel.addEventListener('change', syncCustom);
+</script>
+{% endblock %}
+

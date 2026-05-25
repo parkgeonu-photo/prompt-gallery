@@ -164,6 +164,7 @@
       <a href="/messages/{{ post.author }}" class="btn btn-ghost" style="font-size: 11px; padding: 6px 12px;">✉ MESSAGE</a>
       {% endif %}
       {% if user and post.user_id == user.id %}
+      <a href="/post/{{ post.id }}/edit" class="btn btn-ghost" style="font-size: 11px; padding: 6px 12px;">✎ EDIT</a>
       <form method="POST" action="/post/{{ post.id }}/delete" class="inline-form" onsubmit="return confirm('정말 삭제하시겠습니까?');">
         <button type="submit" class="btn btn-danger" style="font-size: 11px; padding: 6px 12px;">DELETE</button>
       </form>
@@ -379,6 +380,7 @@ if (cBody && cLen) {
 }
 </script>
 {% endblock %}
+
 
 
 

@@ -58,7 +58,7 @@
 {% if posts %}
 <div class="masonry">
   {% for post in posts %}
-  <a href="/post/{{ post.id }}" class="card">
+  <div class="card" data-post-id="{{ post.id }}">
     {% if user and user.is_admin and post.author != user.username %}
     <button type="button" class="admin-x-btn" title="⚙ 어드민 삭제"
       onclick="event.preventDefault();event.stopPropagation();
@@ -67,7 +67,7 @@
                }"
       data-id="{{ post.id }}" data-author="{{ post.author }}" data-title="{{ post.title|e }}">×</button>
     {% endif %}
-    <div class="card-media">
+    <a class="card-media" href="/post/{{ post.id }}">
       {% if post.media_type == 'video' %}
       <video src="{{ post.media_path }}" muted playsinline preload="metadata" loop></video>
       {% else %}
@@ -84,10 +84,6 @@
       {% if post.media_type == 'video' %}
       <span class="video-badge">▶ VIDEO</span>
       {% endif %}
-      <div class="card-stats">
-        <span>♥ {{ post.likes }}</span>
-        <span>· @{{ post.author }}</span>
-      </div>
       <div class="card-overlay">
         {% if post.title %}<div class="card-overlay-title">{{ post.title }}</div>{% endif %}
         {% if post.prompt_truncated %}
@@ -96,8 +92,16 @@
           <p class="card-prompt-preview">{{ post.prompt }}</p>
         {% endif %}
       </div>
+    </a>
+    <div class="card-actions">
+      <button type="button" class="card-like-btn {% if liked_ids and post.id|string in liked_ids %}liked{% endif %}"
+              data-post-id="{{ post.id }}" title="좋아요">
+        <span class="heart">{% if liked_ids and post.id|string in liked_ids %}♥{% else %}♡{% endif %}</span>
+        <span class="count">{{ post.likes }}</span>
+      </button>
+      <a class="card-author-link" href="/u/{{ post.author }}">@{{ post.author }}</a>
     </div>
-  </a>
+  </div>
   {% endfor %}
 </div>
 {% else %}
@@ -109,7 +113,74 @@
   <p class="empty-hint">첫 번째 작품을 업로드해보세요</p>
 </div>
 {% endif %}
+
+<style>
+.card { position: relative; display:flex; flex-direction:column; background:#fff; transition:transform .15s; }
+.card-media { display:block; position:relative; overflow:hidden; background:#000; cursor:pointer; text-decoration:none; }
+.card-media:hover { opacity:.96; }
+.card-actions {
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 8px 10px; gap: 8px;
+  font-family:'JetBrains Mono',monospace; font-size:12px;
+}
+.card-like-btn {
+  display:inline-flex; align-items:center; gap:5px;
+  background:none; border:none; padding:4px 8px; cursor:pointer;
+  font-family:'JetBrains Mono',monospace; font-size:12px;
+  color:#000; transition:transform .1s, color .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.card-like-btn:hover { transform:scale(1.08); }
+.card-like-btn .heart { font-size:15px; line-height:1; }
+.card-like-btn.liked { color:#e91e63; }
+.card-like-btn.liked .heart { animation:popHeart .25s ease; }
+@keyframes popHeart { 0%{transform:scale(.85);} 60%{transform:scale(1.35);} 100%{transform:scale(1);} }
+.card-author-link {
+  color:#666; text-decoration:none; font-weight:600;
+  padding:4px 6px; border-radius:2px;
+  transition:color .12s, background .12s;
+}
+.card-author-link:hover { color:#000; background:#f0f0f0; }
+</style>
+
+<script>
+// 카드 좋아요 토글 — 페이지 이동 없이 즉시 반영
+document.querySelectorAll('.card-like-btn').forEach(btn => {
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const pid = btn.dataset.postId;
+    const heart = btn.querySelector('.heart');
+    const count = btn.querySelector('.count');
+    try {
+      const res = await fetch('/like/' + pid, { method: 'POST', headers: {'Accept':'application/json'} });
+      if (res.status === 401) {
+        if (confirm('좋아요를 누르려면 로그인이 필요합니다. 로그인 페이지로 이동할까요?')) {
+          window.location.href = '/login';
+        }
+        return;
+      }
+      if (!res.ok) throw new Error('like failed');
+      const data = await res.json();
+      count.textContent = data.likes;
+      if (data.liked) {
+        btn.classList.add('liked');
+        heart.textContent = '♥';
+      } else {
+        btn.classList.remove('liked');
+        heart.textContent = '♡';
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  });
+});
+</script>
 {% endblock %}
+
+
+
+
 
 
 
