@@ -258,18 +258,18 @@ main { max-width: 100%; margin: 0 auto; padding: 32px clamp(24px, 3vw, 56px); }
   position: absolute; inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(0,0,0,0.55) 0%,
-    rgba(0,0,0,0.15) 25%,
+    rgba(0,0,0,0.45) 0%,
+    rgba(0,0,0,0.1) 25%,
     rgba(0,0,0,0) 45%,
     rgba(0,0,0,0) 60%,
-    rgba(0,0,0,0.85) 100%
+    rgba(0,0,0,0.8) 100%
   );
   display: flex; flex-direction: column; justify-content: flex-end;
   padding: 14px 14px 44px;
   opacity: 0; transition: opacity 0.22s ease;
   pointer-events: none;
 }
-.card:hover .card-overlay { opacity: 1; }
+.card:hover .card-overlay { opacity: 0.5; }
 
 /* 터치 디바이스 fallback — 호버가 없으므로 항상 보이게 */
 @media (hover: none) {
@@ -297,17 +297,17 @@ main { max-width: 100%; margin: 0 auto; padding: 32px clamp(24px, 3vw, 56px); }
   font-family: 'Space Grotesk', sans-serif;
   font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
   display: flex; align-items: center; gap: 4px;
-  opacity: 0.5; transition: opacity 0.22s ease;
+  opacity: 0; transition: opacity 0.22s ease;
   pointer-events: none;
 }
-.card:hover .video-badge { opacity: 1; }
+.card:hover .video-badge { opacity: 0.5; }
 
 .card-meta-bar {
   position: absolute; top: 10px; left: 10px;
   pointer-events: none;
-  opacity: 0.5; transition: opacity 0.22s ease;
+  opacity: 0; transition: opacity 0.22s ease;
 }
-.card:hover .card-meta-bar { opacity: 1; }
+.card:hover .card-meta-bar { opacity: 0.5; }
 
 .card-model-badge {
   background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
@@ -349,10 +349,11 @@ main { max-width: 100%; margin: 0 auto; padding: 32px clamp(24px, 3vw, 56px); }
   display: flex; align-items: center; justify-content: space-between;
   gap: 8px; pointer-events: none;
   z-index: 3;
-  opacity: 0.5; transform: translateY(0);
-  transition: opacity 0.22s ease, transform 0.22s ease;
+  opacity: 0;
+  transition: opacity 0.22s ease;
 }
-.card:hover .card-actions { opacity: 1; }
+.card:hover .card-actions { opacity: 0.5; }
+.card-actions:hover { opacity: 1 !important; }  /* 액션바 직접 호버 시 또렷 (클릭하기 쉽게) */
 .card-actions > * { pointer-events: auto; }
 .card-like-btn {
   display: inline-flex; align-items: center; gap: 5px;
@@ -807,6 +808,9 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
+
+
 
 
 
