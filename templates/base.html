@@ -297,7 +297,7 @@ main { max-width: 100%; margin: 0 auto; padding: 32px clamp(24px, 3vw, 56px); }
   font-family: 'Space Grotesk', sans-serif;
   font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
   display: flex; align-items: center; gap: 4px;
-  opacity: 0; transition: opacity 0.22s ease;
+  opacity: 0.5; transition: opacity 0.22s ease;
   pointer-events: none;
 }
 .card:hover .video-badge { opacity: 1; }
@@ -305,7 +305,7 @@ main { max-width: 100%; margin: 0 auto; padding: 32px clamp(24px, 3vw, 56px); }
 .card-meta-bar {
   position: absolute; top: 10px; left: 10px;
   pointer-events: none;
-  opacity: 0; transition: opacity 0.22s ease;
+  opacity: 0.5; transition: opacity 0.22s ease;
 }
 .card:hover .card-meta-bar { opacity: 1; }
 
@@ -342,17 +342,17 @@ main { max-width: 100%; margin: 0 auto; padding: 32px clamp(24px, 3vw, 56px); }
 .card:hover .admin-x-btn { opacity: 1; }
 .admin-x-btn:hover { transform: scale(1.1); background: rgb(214, 51, 51); }
 
-/* ============ Card overlay actions (♥ + @author, 카드 안쪽 하단, 호버 시에만) ============ */
+/* ============ Card overlay actions (♥ + @author, 카드 안쪽 하단) ============ */
 .card-actions {
   position: absolute;
   bottom: 8px; left: 8px; right: 8px;
   display: flex; align-items: center; justify-content: space-between;
   gap: 8px; pointer-events: none;
   z-index: 3;
-  opacity: 0; transform: translateY(4px);
+  opacity: 0.5; transform: translateY(0);
   transition: opacity 0.22s ease, transform 0.22s ease;
 }
-.card:hover .card-actions { opacity: 1; transform: translateY(0); }
+.card:hover .card-actions { opacity: 1; }
 .card-actions > * { pointer-events: auto; }
 .card-like-btn {
   display: inline-flex; align-items: center; gap: 5px;
@@ -807,6 +807,8 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
+
 
 
 
