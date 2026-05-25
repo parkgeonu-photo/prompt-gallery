@@ -101,7 +101,12 @@
   </div>
 
   <div>
-    <label>REFERENCES (선택, 최대 10개)</label>
+    <label style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+      <span>REFERENCES (선택, 최대 10개)</span>
+      <button type="button" id="loadCharBtn" style="background:#000;color:#fff;border:none;padding:7px 14px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:11px;letter-spacing:0.6px;cursor:pointer;">
+        🎭 내 캐릭터 불러오기
+      </button>
+    </label>
     <div class="dnd-zone dnd-zone-sm" id="refsDrop" tabindex="0">
       <input type="file" name="refs[]" id="refsInput" accept="image/*,video/*,audio/*" multiple hidden>
       <div class="dnd-default">
@@ -462,8 +467,119 @@ document.getElementById('uploadForm').addEventListener('submit', () => {
   btn.disabled = true;
   btn.textContent = 'UPLOADING...';
 });
+
+// ===== 내 캐릭터 불러오기 모달 =====
+const charBtn = document.getElementById('loadCharBtn');
+const charModal = document.createElement('div');
+charModal.id = 'charModal';
+charModal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:none;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto;';
+charModal.innerHTML = `
+  <div style="background:#fff;max-width:980px;width:100%;border:2px solid #000;padding:24px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;padding-bottom:14px;border-bottom:1.5px solid #000;">
+      <div>
+        <div style="font-family:'Archivo Black',sans-serif;font-size:22px;letter-spacing:-0.5px;">🎭 MY CHARACTERS</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#888;margin-top:4px;letter-spacing:0.4px;">// 이미지를 클릭하면 레퍼런스에 추가됩니다 (1장씩)</div>
+      </div>
+      <button type="button" id="charClose" style="background:none;border:none;font-size:30px;cursor:pointer;line-height:1;">×</button>
+    </div>
+    <div id="charCats" style="display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;"></div>
+    <div id="charBody" style="min-height:200px;"></div>
+  </div>
+`;
+document.body.appendChild(charModal);
+
+let charsData = [];
+let charCurrentCat = 'ALL';
+
+async function loadCharacters() {
+  try {
+    const res = await fetch('/api/my-characters');
+    if (!res.ok) throw new Error('failed');
+    const data = await res.json();
+    charsData = data.characters || [];
+    renderCharBody();
+  } catch (e) {
+    document.getElementById('charBody').innerHTML = '<div style="text-align:center;padding:40px;color:#c00;">캐릭터를 불러올 수 없어요. 로그인 상태를 확인해주세요.</div>';
+  }
+}
+
+function renderCharBody() {
+  const cats = ['ALL', '남자', '여자', '동물', '기타'];
+  document.getElementById('charCats').innerHTML = cats.map(c =>
+    `<button type="button" data-cat="${c}" class="char-cat-btn" style="padding:8px 16px;border:none;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12px;letter-spacing:0.5px;background:${charCurrentCat===c?'#000':'#f0f0f0'};color:${charCurrentCat===c?'#fff':'#000'};">${c}</button>`
+  ).join('');
+  document.querySelectorAll('.char-cat-btn').forEach(b => {
+    b.addEventListener('click', () => { charCurrentCat = b.dataset.cat; renderCharBody(); });
+  });
+
+  const filtered = charCurrentCat === 'ALL' ? charsData : charsData.filter(c => c.category === charCurrentCat);
+  const body = document.getElementById('charBody');
+  if (filtered.length === 0) {
+    body.innerHTML = `<div style="text-align:center;padding:50px 0;color:#888;font-family:'JetBrains Mono',monospace;font-size:13px;">// 이 카테고리에는 캐릭터가 없어요</div>`;
+    return;
+  }
+
+  body.innerHTML = filtered.map(ch => {
+    if (!ch.images || ch.images.length === 0) {
+      return `<div style="margin-bottom:24px;">
+        <div style="font-family:'Archivo Black',sans-serif;font-size:15px;margin-bottom:8px;">${escapeHtml(ch.name)} <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#888;font-weight:400;">// ${ch.category}</span></div>
+        <div style="color:#aaa;font-size:12px;font-family:'JetBrains Mono',monospace;">이미지 없음</div>
+      </div>`;
+    }
+    const thumbs = ch.images.map(img =>
+      `<div class="cmod-thumb" data-url="${img.url}" style="aspect-ratio:1/1;background:#f0f0f0;cursor:pointer;overflow:hidden;position:relative;transition:transform .1s;">
+         <img src="${img.url}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block;">
+         <div class="cmod-add" style="position:absolute;inset:0;background:rgba(0,0,0,.55);color:#fff;display:none;align-items:center;justify-content:center;font-family:'Archivo Black',sans-serif;letter-spacing:1px;font-size:13px;">+ ADD</div>
+       </div>`
+    ).join('');
+    return `<div style="margin-bottom:28px;">
+      <div style="font-family:'Archivo Black',sans-serif;font-size:15px;margin-bottom:10px;">${escapeHtml(ch.name)} <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#888;font-weight:400;">// ${ch.category} · ${ch.images.length}장</span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;">${thumbs}</div>
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('.cmod-thumb').forEach(t => {
+    t.addEventListener('mouseenter', () => { t.querySelector('.cmod-add').style.display = 'flex'; });
+    t.addEventListener('mouseleave', () => { t.querySelector('.cmod-add').style.display = 'none'; });
+    t.addEventListener('click', async () => {
+      if (selectedRefs.length >= MAX_REFS) {
+        alert(`레퍼런스는 최대 ${MAX_REFS}개까지 첨부 가능합니다.`);
+        return;
+      }
+      const url = t.dataset.url;
+      try {
+        const r = await fetch(url);
+        const blob = await r.blob();
+        const fname = url.split('/').pop().split('?')[0] || 'character.jpg';
+        const file = new File([blob], fname, { type: blob.type || 'image/jpeg' });
+        selectedRefs.push(file);
+        rebuildRefsInput();
+        renderRefsThumbs();
+        // 추가 시각 피드백
+        t.style.outline = '3px solid #00c853';
+        setTimeout(() => { t.style.outline = ''; }, 600);
+      } catch (e) {
+        alert('이미지를 가져올 수 없어요: ' + e.message);
+      }
+    });
+  });
+}
+
+function escapeHtml(s) {
+  return (s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+charBtn.addEventListener('click', () => {
+  charModal.style.display = 'flex';
+  loadCharacters();
+});
+document.getElementById('charClose').addEventListener('click', () => { charModal.style.display = 'none'; });
+charModal.addEventListener('click', e => { if (e.target === charModal) charModal.style.display = 'none'; });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && charModal.style.display === 'flex') charModal.style.display = 'none'; });
 </script>
 {% endblock %}
+
+
 
 
 

@@ -290,6 +290,53 @@
     background: var(--text); flex-shrink: 0;
   }
 </style>
+<style>
+  .characters-section {
+    margin: 32px auto 0;
+    max-width: 1100px;
+    padding: 0 20px;
+  }
+  .cs-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+  .cs-title { font-family: 'Archivo Black', sans-serif; font-size:18px; letter-spacing:-0.3px; }
+  .cs-title .badge { background:#000; color:#fff; font-size:10px; padding:2px 8px; margin-left:6px; font-family:'JetBrains Mono',monospace; letter-spacing:0.4px; }
+  .cs-all { font-size:11px; color:var(--text-muted); text-decoration:none; font-weight:700; letter-spacing:0.5px; }
+  .cs-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px; }
+  .cs-card { text-decoration:none; color:inherit; display:block; background:#fafafa; transition:transform .12s; }
+  .cs-card:hover { transform:translateY(-2px); }
+  .cs-thumb { aspect-ratio:1/1; background:#f0f0f0; overflow:hidden; position:relative; }
+  .cs-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+  .cs-thumb .ph { display:flex; align-items:center; justify-content:center; height:100%; color:#bbb; font-size:32px; }
+  .cs-thumb .ct-cnt { position:absolute; top:6px; right:6px; background:rgba(0,0,0,.78); color:#fff; padding:2px 7px; font-size:10px; font-family:'JetBrains Mono',monospace; font-weight:600; }
+  .cs-name { padding:8px 10px 10px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13px; letter-spacing:-0.2px; word-break:break-all; line-height:1.3; }
+  .cs-empty { text-align:center; padding:24px 0; color:var(--text-muted); font-size:12px; font-family:'JetBrains Mono',monospace; }
+  .cs-empty a { color:#000; font-weight:700; text-decoration:underline; }
+</style>
+<div class="characters-section">
+  <div class="cs-header">
+    <div class="cs-title">🎭 MY CHARACTERS {% if my_chars_total %}<span class="badge">{{ my_chars_total }} / 30</span>{% endif %}</div>
+    <a href="{{ url_for('my_characters') }}" class="cs-all">MANAGE →</a>
+  </div>
+  {% if my_chars_preview %}
+  <div class="cs-grid">
+    {% for ch in my_chars_preview %}
+    <a href="{{ url_for('character_detail', char_id=ch.id) }}" class="cs-card">
+      <div class="cs-thumb">
+        {% if ch.images and ch.images|length > 0 %}
+          <img src="{{ ch.images[0].url }}" loading="lazy" alt="">
+          <span class="ct-cnt">{{ ch.images|length }}</span>
+        {% else %}
+          <div class="ph">📷</div>
+        {% endif %}
+      </div>
+      <div class="cs-name">{{ ch.name }}</div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="cs-empty">아직 저장한 캐릭터가 없어요 — <a href="{{ url_for('character_new') }}">첫 캐릭터 만들기 →</a></div>
+  {% endif %}
+</div>
+
 <div class="messages-section">
   <div class="ms-header">
     <div class="ms-title">✉ MESSAGES{% if unread_count and unread_count > 0 %} <span style="background:var(--text);color:var(--bg);font-size:9px;padding:2px 6px;border-radius:99px;margin-left:4px;">{{ unread_count }} new</span>{% endif %}</div>
@@ -375,6 +422,7 @@
 </div>
 {% endif %}
 {% endblock %}
+
 
 
 

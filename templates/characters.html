@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}MY CHARACTERS — XAZINGA{% endblock %}
+
+{% block content %}
+<style>
+.chars-wrap { max-width: 1400px; margin: 0 auto; padding: 32px 24px 80px; }
+.chars-header { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:32px; flex-wrap:wrap; gap:16px; }
+.chars-header h1 { font-family:'Archivo Black','Bebas Neue',sans-serif; font-size:42px; letter-spacing:-1px; margin:0; }
+.chars-header .sub { color:#999; font-size:13px; letter-spacing:0.5px; margin-top:6px; font-family:'JetBrains Mono',monospace; }
+.btn-new { background:#000; color:#fff; padding:14px 28px; font-family:'Archivo Black',sans-serif; letter-spacing:1px; text-decoration:none; font-size:14px; border:2px solid #000; transition:all .15s; }
+.btn-new:hover { background:#fff; color:#000; }
+.btn-new.disabled { opacity:.4; pointer-events:none; }
+.cat-tabs { display:flex; gap:6px; margin-bottom:28px; flex-wrap:wrap; }
+.cat-tab { padding:9px 18px; background:#f4f4f4; color:#000; text-decoration:none; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13px; letter-spacing:0.3px; border:1px solid transparent; transition:all .12s; }
+.cat-tab:hover { background:#e8e8e8; }
+.cat-tab.active { background:#000; color:#fff; }
+.chars-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:18px; }
+.char-card { background:#fff; border:1px solid #e5e5e5; text-decoration:none; color:#000; transition:all .15s; position:relative; display:block; }
+.char-card:hover { border-color:#000; transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,.08); }
+.char-thumb { aspect-ratio:1/1; background:#f0f0f0; position:relative; overflow:hidden; }
+.char-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+.char-thumb .empty { display:flex; align-items:center; justify-content:center; height:100%; color:#bbb; font-size:48px; }
+.char-thumb .count-badge { position:absolute; top:8px; right:8px; background:rgba(0,0,0,.78); color:#fff; padding:4px 10px; font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.5px; font-weight:600; }
+.char-info { padding:14px 16px 16px; }
+.char-name { font-family:'Archivo Black',sans-serif; font-size:17px; letter-spacing:-0.3px; margin:0 0 4px; word-break:break-all; line-height:1.25; }
+.char-cat { font-family:'JetBrains Mono',monospace; font-size:11px; color:#888; letter-spacing:0.4px; }
+.empty-state { padding:60px 0; text-align:center; color:#888; }
+.empty-state h2 { font-family:'Archivo Black',sans-serif; font-size:22px; color:#000; margin:0 0 10px; }
+.empty-state p { font-size:14px; margin:0 0 24px; line-height:1.6; }
+</style>
+
+<div class="chars-wrap">
+  <div class="chars-header">
+    <div>
+      <h1>MY CHARACTERS</h1>
+      <div class="sub">// 본인만 볼 수 있는 캐릭터 저장소 — {{ total_count }} / {{ max_chars }}</div>
+    </div>
+    <a href="{{ url_for('character_new') }}"
+       class="btn-new {% if total_count >= max_chars %}disabled{% endif %}">
+      + NEW CHARACTER
+    </a>
+  </div>
+
+  <div class="cat-tabs">
+    <a href="{{ url_for('my_characters') }}" class="cat-tab {% if not current_category %}active{% endif %}">ALL</a>
+    {% for cat in ['남자','여자','동물','기타'] %}
+      <a href="{{ url_for('my_characters', category=cat) }}" class="cat-tab {% if current_category == cat %}active{% endif %}">{{ cat }}</a>
+    {% endfor %}
+  </div>
+
+  {% if characters %}
+  <div class="chars-grid">
+    {% for ch in characters %}
+    <a href="{{ url_for('character_detail', char_id=ch.id) }}" class="char-card">
+      <div class="char-thumb">
+        {% if ch.images and ch.images|length > 0 %}
+          <img src="{{ ch.images[0].url }}" loading="lazy" alt="">
+          <span class="count-badge">{{ ch.images|length }} / 30</span>
+        {% else %}
+          <div class="empty">📷</div>
+          <span class="count-badge">0 / 30</span>
+        {% endif %}
+      </div>
+      <div class="char-info">
+        <h3 class="char-name">{{ ch.name }}</h3>
+        <div class="char-cat">{{ ch.category }}</div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <h2>아직 저장된 캐릭터가 없어요</h2>
+    <p>같은 캐릭터의 여러 컨셉 이미지를 한곳에 모아두세요.<br>업로드할 때 "내 캐릭터 불러오기"로 바로 가져올 수 있어요.</p>
+    <a href="{{ url_for('character_new') }}" class="btn-new">+ FIRST CHARACTER</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+

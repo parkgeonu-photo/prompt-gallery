@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}{% if char %}EDIT{% else %}NEW{% endif %} CHARACTER — XAZINGA{% endblock %}
+
+{% block content %}
+<style>
+.form-wrap { max-width: 720px; margin: 0 auto; padding: 32px 24px 80px; }
+.form-wrap h1 { font-family:'Archivo Black',sans-serif; font-size:36px; letter-spacing:-1px; margin:0 0 8px; }
+.form-wrap .sub { color:#888; font-size:13px; font-family:'JetBrains Mono',monospace; margin-bottom:32px; letter-spacing:0.4px; }
+.field { margin-bottom:22px; }
+.field label { display:block; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:12px; letter-spacing:1.2px; text-transform:uppercase; margin-bottom:8px; color:#000; }
+.field label .opt { color:#aaa; font-weight:500; letter-spacing:0.3px; margin-left:6px; text-transform:none; font-size:11px; }
+.field input[type=text], .field textarea, .field select {
+  width:100%; padding:13px 14px; border:1.5px solid #e0e0e0; background:#fff; font-family:'Space Grotesk',sans-serif; font-size:15px; color:#000; transition:border-color .12s;
+}
+.field input[type=text]:focus, .field textarea:focus, .field select:focus { outline:none; border-color:#000; }
+.field textarea { min-height:100px; resize:vertical; line-height:1.5; }
+.field .hint { font-size:12px; color:#888; margin-top:6px; font-family:'JetBrains Mono',monospace; }
+.cat-radio { display:flex; gap:8px; flex-wrap:wrap; }
+.cat-radio label { display:inline-block; padding:11px 22px; background:#f4f4f4; cursor:pointer; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px; letter-spacing:0.5px; transition:all .12s; border:2px solid transparent; }
+.cat-radio label:hover { background:#e8e8e8; }
+.cat-radio input { display:none; }
+.cat-radio input:checked + span { }
+.cat-radio label:has(input:checked) { background:#000; color:#fff; border-color:#000; }
+.file-zone { border:2px dashed #d0d0d0; padding:30px; text-align:center; background:#fafafa; transition:all .15s; cursor:pointer; }
+.file-zone:hover { border-color:#000; background:#f0f0f0; }
+.file-zone input { display:none; }
+.file-zone .icon { font-size:36px; margin-bottom:8px; }
+.file-zone .txt { font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px; }
+.file-zone .sub-txt { font-size:12px; color:#888; margin-top:4px; font-family:'JetBrains Mono',monospace; }
+.file-preview { display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:8px; margin-top:14px; }
+.file-preview img { aspect-ratio:1/1; object-fit:cover; width:100%; border:1px solid #e0e0e0; }
+.err { background:#fff0f0; border:1px solid #ffcccc; color:#c00; padding:14px 16px; margin-bottom:20px; font-size:14px; }
+.actions { display:flex; gap:10px; margin-top:30px; align-items:center; }
+.btn-submit { background:#000; color:#fff; padding:15px 36px; font-family:'Archivo Black',sans-serif; letter-spacing:1.2px; font-size:14px; border:2px solid #000; cursor:pointer; transition:all .15s; }
+.btn-submit:hover { background:#fff; color:#000; }
+.btn-cancel { padding:15px 24px; color:#666; text-decoration:none; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px; letter-spacing:0.5px; }
+.btn-cancel:hover { color:#000; }
+</style>
+
+<div class="form-wrap">
+  <h1>{% if char %}EDIT CHARACTER{% else %}NEW CHARACTER{% endif %}</h1>
+  <div class="sub">
+    {% if char %}// 이름·카테고리·프롬프트 수정 (이미지 추가/삭제는 디테일 페이지)
+    {% else %}// 캐릭터 카드 1개 생성 — 이후 이미지 30장까지 추가 가능
+    {% endif %}
+  </div>
+
+  {% if error %}<div class="err">⚠ {{ error }}</div>{% endif %}
+
+  <form method="POST" enctype="multipart/form-data">
+    <div class="field">
+      <label>캐릭터 이름</label>
+      <input type="text" name="name" maxlength="80" value="{{ char.name if char else '' }}" required autofocus placeholder="예: 주연이, 검은고양이, 사이버펑크 소녀">
+    </div>
+
+    <div class="field">
+      <label>카테고리</label>
+      <div class="cat-radio">
+        {% set cur_cat = char.category if char else '기타' %}
+        {% for cat in ['남자','여자','동물','기타'] %}
+        <label>
+          <input type="radio" name="category" value="{{ cat }}" {% if cur_cat == cat %}checked{% endif %}>
+          <span>{{ cat }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="field">
+      <label>주 프롬프트<span class="opt">선택</span></label>
+      <textarea name="prompt" maxlength="5000" placeholder="이 캐릭터를 만들 때 따라쓰는 핵심 프롬프트를 적어두세요.&#10;예: a young korean man, sharp jawline, black hair, cinematic lighting...">{{ char.prompt if char and char.prompt else '' }}</textarea>
+      <div class="hint">최대 5000자 — 캐릭터 외형·스타일·디테일</div>
+    </div>
+
+    {% if not char %}
+    <div class="field">
+      <label>이미지 업로드<span class="opt">선택 — 나중에 추가 가능</span></label>
+      <label class="file-zone" for="img-input">
+        <div class="icon">📸</div>
+        <div class="txt">클릭해서 이미지 선택 (여러 장 가능)</div>
+        <div class="sub-txt">JPG · PNG · WEBP · 1장당 최대 5MB · 최대 30장</div>
+        <input type="file" id="img-input" name="images" accept="image/*" multiple>
+      </label>
+      <div class="file-preview" id="preview"></div>
+    </div>
+    {% endif %}
+
+    <div class="actions">
+      <button type="submit" class="btn-submit">{% if char %}SAVE{% else %}CREATE{% endif %}</button>
+      <a href="{% if char %}{{ url_for('character_detail', char_id=char.id) }}{% else %}{{ url_for('my_characters') }}{% endif %}" class="btn-cancel">취소</a>
+    </div>
+  </form>
+</div>
+
+<script>
+const fi = document.getElementById('img-input');
+if (fi) {
+  fi.addEventListener('change', e => {
+    const pv = document.getElementById('preview');
+    pv.innerHTML = '';
+    const files = Array.from(e.target.files).slice(0, 30);
+    files.forEach(f => {
+      if (f.size > 5 * 1024 * 1024) return;
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(f);
+      pv.appendChild(img);
+    });
+  });
+}
+</script>
+{% endblock %}
+

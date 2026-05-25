@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}{{ char.name }} — XAZINGA{% endblock %}
+
+{% block content %}
+<style>
+.cd-wrap { max-width: 1400px; margin: 0 auto; padding: 32px 24px 80px; }
+.cd-back { display:inline-flex; align-items:center; gap:6px; color:#666; text-decoration:none; font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.4px; margin-bottom:18px; }
+.cd-back:hover { color:#000; }
+.cd-header { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap; padding-bottom:24px; border-bottom:1.5px solid #000; margin-bottom:28px; }
+.cd-title h1 { font-family:'Archivo Black',sans-serif; font-size:42px; letter-spacing:-1px; margin:0 0 6px; word-break:break-all; line-height:1.1; }
+.cd-meta { display:flex; gap:12px; align-items:center; font-family:'JetBrains Mono',monospace; font-size:12px; color:#666; letter-spacing:0.4px; }
+.cd-cat { background:#000; color:#fff; padding:3px 10px; font-weight:600; }
+.cd-actions { display:flex; gap:8px; }
+.cd-btn { padding:10px 18px; font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:13px; letter-spacing:0.5px; text-decoration:none; border:1.5px solid #000; background:#fff; color:#000; cursor:pointer; transition:all .12s; }
+.cd-btn:hover { background:#000; color:#fff; }
+.cd-btn.danger { border-color:#c00; color:#c00; }
+.cd-btn.danger:hover { background:#c00; color:#fff; }
+.prompt-box { background:#fafafa; border:1px solid #eee; padding:16px 18px; margin-bottom:24px; font-family:'JetBrains Mono',monospace; font-size:13px; line-height:1.65; white-space:pre-wrap; word-break:break-word; color:#222; position:relative; }
+.prompt-box .copy { position:absolute; top:10px; right:10px; background:#000; color:#fff; border:none; padding:5px 12px; font-size:11px; font-family:'Space Grotesk',sans-serif; letter-spacing:0.5px; cursor:pointer; }
+.prompt-box .copy:hover { background:#333; }
+.upload-zone { border:2px dashed #d0d0d0; padding:22px; text-align:center; background:#fafafa; cursor:pointer; margin-bottom:28px; transition:all .15s; }
+.upload-zone:hover { border-color:#000; background:#f0f0f0; }
+.upload-zone input { display:none; }
+.upload-zone .icon { font-size:30px; margin-bottom:4px; }
+.upload-zone .txt { font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:14px; }
+.upload-zone .sub { font-size:11px; color:#888; margin-top:4px; font-family:'JetBrains Mono',monospace; letter-spacing:0.4px; }
+.upload-zone.disabled { opacity:.4; pointer-events:none; }
+.img-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; }
+.img-cell { position:relative; aspect-ratio:1/1; background:#f0f0f0; overflow:hidden; }
+.img-cell img { width:100%; height:100%; object-fit:cover; display:block; cursor:pointer; transition:transform .25s; }
+.img-cell:hover img { transform:scale(1.04); }
+.img-cell .delete-btn { position:absolute; top:8px; right:8px; width:30px; height:30px; background:rgba(0,0,0,.8); color:#fff; border:none; cursor:pointer; opacity:0; transition:opacity .15s; font-size:16px; }
+.img-cell:hover .delete-btn { opacity:1; }
+.img-cell .delete-btn:hover { background:#c00; }
+.empty { text-align:center; padding:60px 0; color:#999; font-family:'JetBrains Mono',monospace; font-size:13px; }
+/* lightbox */
+.lb { position:fixed; inset:0; background:rgba(0,0,0,.92); z-index:999; display:none; align-items:center; justify-content:center; padding:20px; }
+.lb.open { display:flex; }
+.lb img { max-width:96vw; max-height:92vh; object-fit:contain; }
+.lb .close { position:absolute; top:18px; right:22px; color:#fff; font-size:36px; cursor:pointer; background:none; border:none; }
+</style>
+
+<div class="cd-wrap">
+  <a href="{{ url_for('my_characters') }}" class="cd-back">← MY CHARACTERS</a>
+
+  <div class="cd-header">
+    <div class="cd-title">
+      <h1>{{ char.name }}</h1>
+      <div class="cd-meta">
+        <span class="cd-cat">{{ char.category }}</span>
+        <span>{{ char.images|length }} / {{ max_images }} images</span>
+      </div>
+    </div>
+    <div class="cd-actions">
+      <a href="{{ url_for('character_edit', char_id=char.id) }}" class="cd-btn">✎ EDIT</a>
+      <form method="POST" action="{{ url_for('character_delete', char_id=char.id) }}"
+            onsubmit="return confirm('이 캐릭터와 모든 이미지를 삭제할까요? (복구 불가)');" style="display:inline;">
+        <button type="submit" class="cd-btn danger">DELETE</button>
+      </form>
+    </div>
+  </div>
+
+  {% if char.prompt %}
+  <div class="prompt-box">
+    <button class="copy" onclick="copyPrompt(this)">COPY</button>
+    {{ char.prompt }}
+  </div>
+  {% endif %}
+
+  {% if char.images|length < max_images %}
+  <form method="POST" action="{{ url_for('character_images_add', char_id=char.id) }}" enctype="multipart/form-data" id="add-form">
+    <label class="upload-zone" for="add-input">
+      <div class="icon">＋</div>
+      <div class="txt">이미지 추가 (여러 장 가능)</div>
+      <div class="sub">남은 슬롯 {{ max_images - char.images|length }}장 · 1장당 최대 5MB</div>
+      <input type="file" id="add-input" name="images" accept="image/*" multiple onchange="document.getElementById('add-form').submit()">
+    </label>
+  </form>
+  {% else %}
+  <div class="upload-zone disabled">
+    <div class="icon">🚫</div>
+    <div class="txt">최대치 30장 도달 — 기존 이미지를 삭제하면 추가 가능</div>
+  </div>
+  {% endif %}
+
+  {% if char.images %}
+  <div class="img-grid">
+    {% for img in char.images %}
+    <div class="img-cell">
+      <img src="{{ img.url }}" loading="lazy" alt="" onclick="openLb('{{ img.url }}')">
+      <form method="POST" action="{{ url_for('character_image_delete', char_id=char.id, image_id=img.id) }}" style="display:inline;" onsubmit="return confirm('이 이미지를 삭제할까요?');">
+        <button type="submit" class="delete-btn" title="삭제">×</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">// 아직 이미지가 없어요 — 위쪽 박스를 클릭해서 추가하세요</div>
+  {% endif %}
+</div>
+
+<div class="lb" id="lb" onclick="closeLb(event)">
+  <button class="close" onclick="closeLb()">×</button>
+  <img id="lb-img" src="" alt="">
+</div>
+
+<script>
+function copyPrompt(btn) {
+  const txt = btn.parentElement.textContent.replace(/COPY/, '').trim();
+  navigator.clipboard.writeText(txt).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ COPIED';
+    setTimeout(() => btn.textContent = orig, 1500);
+  });
+}
+function openLb(url) {
+  document.getElementById('lb-img').src = url;
+  document.getElementById('lb').classList.add('open');
+}
+function closeLb(e) {
+  if (e && e.target.tagName === 'IMG') return;
+  document.getElementById('lb').classList.remove('open');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLb(); });
+</script>
+{% endblock %}
+

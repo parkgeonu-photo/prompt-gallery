@@ -54,6 +54,12 @@ PROCESS_TEXT_MAX = 5000
 PROCESS_IMAGES_MAX = 8
 AVATAR_MAX_BYTES = 5 * 1024 * 1024
 
+# Characters
+MAX_CHARACTERS_PER_USER = 30
+MAX_IMAGES_PER_CHARACTER = 30
+CHARACTER_IMG_MAX_BYTES = 5 * 1024 * 1024  # 5MB per image
+CHARACTER_CATEGORIES = ["남자", "여자", "동물", "기타"]
+
 APP_CATEGORIES = [
     "생산성", "디자인", "AI 도구", "개발", "영상/사진",
     "음악", "게임", "교육", "라이프스타일", "유틸리티", "기타"
@@ -360,7 +366,7 @@ def _relativetime(ts):
         diff = int(time.time()) - int(ts)
         if diff < 60: return "방금 전"
         if diff < 3600: return f"{diff // 60}분 전"
-        if diff < 86400: return f"{diff // 3600}시간 전"
+        if diff < 86400: return f"{diff // 3600}���간 전"
         if diff < 86400 * 7: return f"{diff // 86400}일 전"
         from datetime import datetime, timezone, timedelta
         kst = timezone(timedelta(hours=9))
@@ -938,9 +944,28 @@ def user_page(username):
             blocked_str = {str(b) for b in blocked} if blocked else set()
             my_threads = [t for t in tlist if t["other_id"] not in blocked_str][:8]
 
+    # 본인 마이페이지에서 캐릭터 미리보기 (최대 6개)
+    my_chars_preview = []
+    my_chars_total = 0
+    if is_self:
+        with db() as c:
+            rows = c.fetchall(
+                "SELECT id, name, category, images FROM characters WHERE user_id = %s ORDER BY created_at DESC LIMIT 6",
+                (u["id"],)
+            )
+            for r in rows:
+                d = dict(r)
+                d["id"] = str(d["id"])
+                d["images"] = _parse_char_images(d.get("images"))
+                my_chars_preview.append(d)
+            cnt = c.fetchone("SELECT COUNT(*) AS n FROM characters WHERE user_id = %s", (u["id"],))
+            my_chars_total = cnt["n"] if cnt else 0
+
     return render_template("profile.html", profile=profile, posts=posts,
                            total_likes=total_likes, total_views=total_views,
-                           is_self=is_self, my_threads=my_threads)
+                           is_self=is_self, my_threads=my_threads,
+                           my_chars_preview=my_chars_preview,
+                           my_chars_total=my_chars_total)
 
 
 @app.route("/signup", methods=["GET", "POST"])
@@ -1414,8 +1439,281 @@ def app_delete(app_id):
 
 
 
+# =================================================================
+# 캐릭터 저장소 (마이페이지 안, 본인만)
+# =================================================================
+def _parse_char_images(raw):
+    """images JSONB → list[{url, id, created_at}]."""
+    if isinstance(raw, list):
+        return raw
+    if isinstance(raw, str):
+        try: return json.loads(raw) or []
+        except Exception: return []
+    return raw or []
+
+
+@app.route("/characters")
+@login_required
+def my_characters():
+    u = current_user()
+    category = request.args.get("category")
+    with db() as c:
+        if category and category in CHARACTER_CATEGORIES:
+            rows = c.fetchall(
+                "SELECT * FROM characters WHERE user_id = %s AND category = %s ORDER BY created_at DESC",
+                (u["id"], category)
+            )
+        else:
+            rows = c.fetchall(
+                "SELECT * FROM characters WHERE user_id = %s ORDER BY created_at DESC",
+                (u["id"],)
+            )
+        characters = []
+        for r in rows:
+            d = dict(r)
+            d["id"] = str(d["id"])
+            d["images"] = _parse_char_images(d.get("images"))
+            characters.append(d)
+        total = c.fetchone(
+            "SELECT COUNT(*) AS n FROM characters WHERE user_id = %s", (u["id"],)
+        )
+    return render_template(
+        "characters.html",
+        characters=characters,
+        current_category=category,
+        total_count=total["n"] if total else 0,
+        max_chars=MAX_CHARACTERS_PER_USER,
+    )
+
+
+@app.route("/characters/new", methods=["GET", "POST"])
+@login_required
+def character_new():
+    u = current_user()
+
+    # 카운트 체크
+    with db() as c:
+        row = c.fetchone("SELECT COUNT(*) AS n FROM characters WHERE user_id = %s", (u["id"],))
+        cur_count = row["n"] if row else 0
+    if cur_count >= MAX_CHARACTERS_PER_USER:
+        return render_template(
+            "character_form.html", char=None, error=f"캐릭터는 최대 {MAX_CHARACTERS_PER_USER}개까지 저장 가능해요. (현재 {cur_count}개)",
+            cur_count=cur_count
+        ), 400
+
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()[:80]
+        category = (request.form.get("category") or "기타").strip()
+        if category not in CHARACTER_CATEGORIES:
+            category = "기타"
+        prompt = (request.form.get("prompt") or "").strip()[:5000]
+
+        if not name:
+            return render_template("character_form.html", char=None, error="캐릭터 이름은 필수예요", cur_count=cur_count), 400
+
+        # 이미지 업로드
+        char_id = str(uuid.uuid4())
+        images = []
+        for f in request.files.getlist("images"):
+            if not f or not f.filename:
+                continue
+            if len(images) >= MAX_IMAGES_PER_CHARACTER:
+                break
+            ext = os.path.splitext(f.filename)[1].lower()
+            if ext not in ALLOWED_IMG:
+                continue
+            # 5MB 체크
+            f.stream.seek(0, 2)
+            size = f.stream.tell()
+            f.stream.seek(0)
+            if size > CHARACTER_IMG_MAX_BYTES:
+                continue
+            try:
+                name_path = f"characters/{u['id']}/{char_id}/{len(images)}{ext}"
+                url = storage_upload(f, name_path)
+                images.append({"url": url, "id": str(uuid.uuid4())})
+            except Exception:
+                continue
+
+        with db() as c:
+            c.execute(
+                "INSERT INTO characters (id, user_id, name, category, prompt, images) VALUES (%s,%s,%s,%s,%s,%s)",
+                (char_id, u["id"], name, category, prompt or None, Json(images))
+            )
+        return redirect(url_for("character_detail", char_id=char_id))
+
+    return render_template("character_form.html", char=None, cur_count=cur_count)
+
+
+@app.route("/characters/<char_id>")
+@login_required
+def character_detail(char_id):
+    u = current_user()
+    with db() as c:
+        row = c.fetchone(
+            "SELECT * FROM characters WHERE id = %s AND user_id = %s",
+            (char_id, u["id"])
+        )
+        if not row:
+            abort(404)
+    char = dict(row)
+    char["id"] = str(char["id"])
+    char["images"] = _parse_char_images(char.get("images"))
+    return render_template("character_detail.html", char=char,
+                           max_images=MAX_IMAGES_PER_CHARACTER)
+
+
+@app.route("/characters/<char_id>/edit", methods=["GET", "POST"])
+@login_required
+def character_edit(char_id):
+    u = current_user()
+    with db() as c:
+        row = c.fetchone(
+            "SELECT * FROM characters WHERE id = %s AND user_id = %s",
+            (char_id, u["id"])
+        )
+        if not row:
+            abort(404)
+    char = dict(row)
+    char["id"] = str(char["id"])
+    char["images"] = _parse_char_images(char.get("images"))
+
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()[:80] or char["name"]
+        category = (request.form.get("category") or char["category"]).strip()
+        if category not in CHARACTER_CATEGORIES:
+            category = "기타"
+        prompt = (request.form.get("prompt") or "").strip()[:5000]
+
+        with db() as c:
+            c.execute(
+                "UPDATE characters SET name = %s, category = %s, prompt = %s, updated_at = NOW() WHERE id = %s",
+                (name, category, prompt or None, char_id)
+            )
+        return redirect(url_for("character_detail", char_id=char_id))
+
+    return render_template("character_form.html", char=char, cur_count=None)
+
+
+@app.route("/characters/<char_id>/images/add", methods=["POST"])
+@login_required
+def character_images_add(char_id):
+    """이미지 추가 — 캐릭터 디테일 페이지에서 드래그앤드롭."""
+    u = current_user()
+    with db() as c:
+        row = c.fetchone(
+            "SELECT * FROM characters WHERE id = %s AND user_id = %s",
+            (char_id, u["id"])
+        )
+        if not row:
+            abort(404)
+    existing = _parse_char_images(row.get("images"))
+    if len(existing) >= MAX_IMAGES_PER_CHARACTER:
+        return redirect(url_for("character_detail", char_id=char_id))
+
+    added = 0
+    for f in request.files.getlist("images"):
+        if not f or not f.filename:
+            continue
+        if len(existing) + added >= MAX_IMAGES_PER_CHARACTER:
+            break
+        ext = os.path.splitext(f.filename)[1].lower()
+        if ext not in ALLOWED_IMG:
+            continue
+        f.stream.seek(0, 2)
+        size = f.stream.tell()
+        f.stream.seek(0)
+        if size > CHARACTER_IMG_MAX_BYTES:
+            continue
+        try:
+            idx = len(existing) + added
+            name_path = f"characters/{u['id']}/{char_id}/{idx}-{int(time.time())}{ext}"
+            url = storage_upload(f, name_path)
+            existing.append({"url": url, "id": str(uuid.uuid4())})
+            added += 1
+        except Exception:
+            continue
+
+    if added > 0:
+        with db() as c:
+            c.execute(
+                "UPDATE characters SET images = %s, updated_at = NOW() WHERE id = %s",
+                (Json(existing), char_id)
+            )
+    return redirect(url_for("character_detail", char_id=char_id))
+
+
+@app.route("/characters/<char_id>/images/<image_id>/delete", methods=["POST"])
+@login_required
+def character_image_delete(char_id, image_id):
+    u = current_user()
+    with db() as c:
+        row = c.fetchone(
+            "SELECT * FROM characters WHERE id = %s AND user_id = %s",
+            (char_id, u["id"])
+        )
+        if not row:
+            abort(404)
+        images = _parse_char_images(row.get("images"))
+        target = next((i for i in images if i.get("id") == image_id), None)
+        if target:
+            try:
+                storage_delete(target.get("url", ""))
+            except Exception:
+                pass
+            images = [i for i in images if i.get("id") != image_id]
+            c.execute(
+                "UPDATE characters SET images = %s, updated_at = NOW() WHERE id = %s",
+                (Json(images), char_id)
+            )
+    return redirect(url_for("character_detail", char_id=char_id))
+
+
+@app.route("/characters/<char_id>/delete", methods=["POST"])
+@login_required
+def character_delete(char_id):
+    u = current_user()
+    with db() as c:
+        row = c.fetchone(
+            "SELECT * FROM characters WHERE id = %s AND user_id = %s",
+            (char_id, u["id"])
+        )
+        if not row:
+            abort(404)
+        images = _parse_char_images(row.get("images"))
+        for img in images:
+            try:
+                storage_delete(img.get("url", ""))
+            except Exception:
+                pass
+        c.execute("DELETE FROM characters WHERE id = %s", (char_id,))
+    return redirect(url_for("my_characters"))
+
+
+# 업로드 페이지 "내 캐릭터 불러오기" 모달용 JSON API
+@app.route("/api/my-characters")
+@login_required
+def api_my_characters():
+    u = current_user()
+    with db() as c:
+        rows = c.fetchall(
+            "SELECT id, name, category, images FROM characters WHERE user_id = %s ORDER BY created_at DESC",
+            (u["id"],)
+        )
+    out = []
+    for r in rows:
+        d = dict(r)
+        d["id"] = str(d["id"])
+        d["images"] = _parse_char_images(d.get("images"))
+        out.append(d)
+    return jsonify({"characters": out})
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
+
+
 
 
 
