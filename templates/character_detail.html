@@ -60,6 +60,15 @@
     </div>
   </div>
 
+  {% if skipped %}
+  <div style="background:#fff0f0;border:1px solid #ffcccc;padding:14px 16px;margin-bottom:24px;">
+    <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;color:#c00;margin-bottom:8px;letter-spacing:0.4px;">⚠ 일부 이미지가 업로드되지 않았어요</div>
+    {% for fn, reason in skipped %}
+    <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#900;line-height:1.6;">• {{ fn }} — {{ reason }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   {% if char.prompt %}
   <div class="prompt-box">
     <button class="copy" onclick="copyPrompt(this)">COPY</button>
@@ -69,11 +78,11 @@
 
   {% if char.images|length < max_images %}
   <form method="POST" action="{{ url_for('character_images_add', char_id=char.id) }}" enctype="multipart/form-data" id="add-form">
-    <label class="upload-zone" for="add-input">
+    <label class="upload-zone" for="add-input" id="addDropZone">
       <div class="icon">＋</div>
-      <div class="txt">이미지 추가 (여러 장 가능)</div>
-      <div class="sub">남은 슬롯 {{ max_images - char.images|length }}장 · 1장당 최대 5MB</div>
-      <input type="file" id="add-input" name="images" accept="image/*" multiple onchange="document.getElementById('add-form').submit()">
+      <div class="txt">클릭 또는 드래그앤드롭으로 이미지 추가</div>
+      <div class="sub">남은 슬롯 {{ max_images - char.images|length }}장 · 1장당 최대 10MB</div>
+      <input type="file" id="add-input" name="images" accept="image/*" multiple>
     </label>
   </form>
   {% else %}
@@ -104,6 +113,10 @@
   <img id="lb-img" src="" alt="">
 </div>
 
+<style>
+.upload-zone.dragover { border-color:#000 !important; background:#000 !important; color:#fff; }
+.upload-zone.dragover .txt, .upload-zone.dragover .sub { color:#fff !important; }
+</style>
 <script>
 function copyPrompt(btn) {
   const txt = btn.parentElement.textContent.replace(/COPY/, '').trim();
@@ -122,6 +135,38 @@ function closeLb(e) {
   document.getElementById('lb').classList.remove('open');
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLb(); });
+
+// 드래그앤드롭 — 이미지 추가
+const addForm = document.getElementById('add-form');
+const addInput = document.getElementById('add-input');
+const addDz = document.getElementById('addDropZone');
+if (addInput && addForm) {
+  addInput.addEventListener('change', () => {
+    if (addInput.files && addInput.files.length > 0) addForm.submit();
+  });
+}
+if (addDz) {
+  ['dragenter','dragover'].forEach(ev => {
+    addDz.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); addDz.classList.add('dragover'); });
+  });
+  ['dragleave','drop'].forEach(ev => {
+    addDz.addEventListener(ev, e => { e.preventDefault(); e.stopPropagation(); addDz.classList.remove('dragover'); });
+  });
+  addDz.addEventListener('drop', e => {
+    const files = e.dataTransfer && e.dataTransfer.files;
+    if (files && files.length && addInput) {
+      const dt = new DataTransfer();
+      Array.from(files).filter(f => f.type.startsWith('image/')).forEach(f => dt.items.add(f));
+      addInput.files = dt.files;
+      if (dt.files.length > 0) addForm.submit();
+    }
+  });
+}
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => { if (!e.target.closest('#addDropZone')) e.preventDefault(); });
 </script>
 {% endblock %}
+
+
+
 

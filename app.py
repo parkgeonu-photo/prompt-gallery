@@ -57,7 +57,7 @@ AVATAR_MAX_BYTES = 5 * 1024 * 1024
 # Characters
 MAX_CHARACTERS_PER_USER = 30
 MAX_IMAGES_PER_CHARACTER = 30
-CHARACTER_IMG_MAX_BYTES = 5 * 1024 * 1024  # 5MB per image
+CHARACTER_IMG_MAX_BYTES = 10 * 1024 * 1024  # 10MB per image (캐릭터시트 합성 이미지 고려)
 CHARACTER_CATEGORIES = ["남자", "여자", "동물", "기타"]
 
 APP_CATEGORIES = [
@@ -1514,25 +1514,30 @@ def character_new():
         # 이미지 업로드
         char_id = str(uuid.uuid4())
         images = []
+        skipped = []  # [(filename, reason), ...]
         for f in request.files.getlist("images"):
             if not f or not f.filename:
                 continue
             if len(images) >= MAX_IMAGES_PER_CHARACTER:
+                skipped.append((f.filename, f"최대 {MAX_IMAGES_PER_CHARACTER}장 초과"))
                 break
             ext = os.path.splitext(f.filename)[1].lower()
             if ext not in ALLOWED_IMG:
+                skipped.append((f.filename, f"지원하지 않는 형식 ({ext or '확장자 없음'})"))
                 continue
-            # 5MB 체크
+            # 크기 체크
             f.stream.seek(0, 2)
             size = f.stream.tell()
             f.stream.seek(0)
             if size > CHARACTER_IMG_MAX_BYTES:
+                skipped.append((f.filename, f"{size/1024/1024:.1f}MB — 최대 10MB"))
                 continue
             try:
                 name_path = f"characters/{u['id']}/{char_id}/{len(images)}{ext}"
                 url = storage_upload(f, name_path)
                 images.append({"url": url, "id": str(uuid.uuid4())})
-            except Exception:
+            except Exception as e:
+                skipped.append((f.filename, f"업로드 실패: {str(e)[:80]}"))
                 continue
 
         with db() as c:
@@ -1540,6 +1545,10 @@ def character_new():
                 "INSERT INTO characters (id, user_id, name, category, prompt, images) VALUES (%s,%s,%s,%s,%s,%s)",
                 (char_id, u["id"], name, category, prompt or None, Json(images))
             )
+
+        if skipped:
+            # flash로 다음 페이지에 표시
+            session["char_upload_skipped"] = skipped
         return redirect(url_for("character_detail", char_id=char_id))
 
     return render_template("character_form.html", char=None, cur_count=cur_count)
@@ -1559,8 +1568,10 @@ def character_detail(char_id):
     char = dict(row)
     char["id"] = str(char["id"])
     char["images"] = _parse_char_images(char.get("images"))
+    skipped = session.pop("char_upload_skipped", None)
     return render_template("character_detail.html", char=char,
-                           max_images=MAX_IMAGES_PER_CHARACTER)
+                           max_images=MAX_IMAGES_PER_CHARACTER,
+                           skipped=skipped)
 
 
 @app.route("/characters/<char_id>/edit", methods=["GET", "POST"])
@@ -1612,18 +1623,22 @@ def character_images_add(char_id):
         return redirect(url_for("character_detail", char_id=char_id))
 
     added = 0
+    skipped = []
     for f in request.files.getlist("images"):
         if not f or not f.filename:
             continue
         if len(existing) + added >= MAX_IMAGES_PER_CHARACTER:
+            skipped.append((f.filename, f"최대 {MAX_IMAGES_PER_CHARACTER}장 초과"))
             break
         ext = os.path.splitext(f.filename)[1].lower()
         if ext not in ALLOWED_IMG:
+            skipped.append((f.filename, f"지원하지 않는 형식 ({ext or '확장자 없음'})"))
             continue
         f.stream.seek(0, 2)
         size = f.stream.tell()
         f.stream.seek(0)
         if size > CHARACTER_IMG_MAX_BYTES:
+            skipped.append((f.filename, f"{size/1024/1024:.1f}MB — 최대 10MB"))
             continue
         try:
             idx = len(existing) + added
@@ -1631,7 +1646,8 @@ def character_images_add(char_id):
             url = storage_upload(f, name_path)
             existing.append({"url": url, "id": str(uuid.uuid4())})
             added += 1
-        except Exception:
+        except Exception as e:
+            skipped.append((f.filename, f"업로드 실패: {str(e)[:80]}"))
             continue
 
     if added > 0:
@@ -1640,6 +1656,8 @@ def character_images_add(char_id):
                 "UPDATE characters SET images = %s, updated_at = NOW() WHERE id = %s",
                 (Json(existing), char_id)
             )
+    if skipped:
+        session["char_upload_skipped"] = skipped
     return redirect(url_for("character_detail", char_id=char_id))
 
 
@@ -1711,6 +1729,11 @@ def api_my_characters():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
+
+
+
+
 
 
 
