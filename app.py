@@ -448,21 +448,14 @@ def normalize_post(p, viewer_id=None):
 # =================================================================
 @app.route("/")
 def start():
-    """첫 방문에만 시작 페이지를 보여줌. 이후엔 자동으로 갤러리로."""
-    # 이미 시작 페이지를 본 적 있거나, 명시적으로 /?force=1 이 아니면 갤러리로
-    if request.cookies.get("seen_start") and not request.args.get("force"):
-        return redirect("/explore")
-
+    """매번 시작 페이지(ENTER 화면)를 보여줌. ENTER 누르면 /explore로 이동."""
     with db() as c:
         rows = c.fetchall("SELECT key, value FROM site_settings", ())
         s = {r["key"]: r["value"] for r in rows}
     cat_url = s.get("start_cat_url") or s.get("logo_url") or \
               "https://d2ol7oe51mr4n9.cloudfront.net/user_34ctFqCBIuenEEsMCqyrHXc4WX1/c598945a-597e-4392-bb17-a70a218961ae.jpg"
 
-    resp = make_response(render_template("start.html", start_cat_url=cat_url))
-    # 1년간 시작 페이지 다시 안 봐도 됨
-    resp.set_cookie("seen_start", "1", max_age=60*60*24*365, samesite="Lax")
-    return resp
+    return render_template("start.html", start_cat_url=cat_url)
 
 
 @app.route("/explore")
@@ -1843,6 +1836,7 @@ def api_my_characters():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
