@@ -12,7 +12,7 @@
 </div>
 
 <div class="category-tabs">
-  <a href="/?type=all{% if current_model %}&model={{ current_model }}{% endif %}{% if current_sort == 'popular' %}&sort=popular{% endif %}"
+  <a href="/explore?type=all{% if current_model %}&model={{ current_model }}{% endif %}{% if current_sort == 'popular' %}&sort=popular{% endif %}"
      class="category-tab {% if current_type == 'all' %}active{% endif %}">
     <div class="category-tab-icon">⊞</div>
     <div class="category-tab-content">
@@ -20,7 +20,7 @@
       <div class="category-tab-count">{{ all_count }} works</div>
     </div>
   </a>
-  <a href="/?type=video{% if current_model %}&model={{ current_model }}{% endif %}{% if current_sort == 'popular' %}&sort=popular{% endif %}"
+  <a href="/explore?type=video{% if current_model %}&model={{ current_model }}{% endif %}{% if current_sort == 'popular' %}&sort=popular{% endif %}"
      class="category-tab {% if current_type == 'video' %}active{% endif %}">
     <div class="category-tab-icon">▶</div>
     <div class="category-tab-content">
@@ -28,7 +28,7 @@
       <div class="category-tab-count">{{ video_count }} works</div>
     </div>
   </a>
-  <a href="/?type=image{% if current_model %}&model={{ current_model }}{% endif %}{% if current_sort == 'popular' %}&sort=popular{% endif %}"
+  <a href="/explore?type=image{% if current_model %}&model={{ current_model }}{% endif %}{% if current_sort == 'popular' %}&sort=popular{% endif %}"
      class="category-tab {% if current_type == 'image' %}active{% endif %}">
     <div class="category-tab-icon">◧</div>
     <div class="category-tab-content">
@@ -40,16 +40,16 @@
 
 <div class="filters">
   <div class="sort-tabs">
-    <a href="/?type={{ current_type }}{% if current_model %}&model={{ current_model }}{% endif %}"
+    <a href="/explore?type={{ current_type }}{% if current_model %}&model={{ current_model }}{% endif %}"
        class="sort-tab {% if current_sort != 'popular' %}active{% endif %}">LATEST</a>
-    <a href="/?type={{ current_type }}&sort=popular{% if current_model %}&model={{ current_model }}{% endif %}"
+    <a href="/explore?type={{ current_type }}&sort=popular{% if current_model %}&model={{ current_model }}{% endif %}"
        class="sort-tab {% if current_sort == 'popular' %}active{% endif %}">POPULAR</a>
   </div>
   <div class="chip-row">
-    <a href="/?type={{ current_type }}{% if current_sort == 'popular' %}&sort=popular{% endif %}"
+    <a href="/explore?type={{ current_type }}{% if current_sort == 'popular' %}&sort=popular{% endif %}"
        class="chip {% if not current_model %}active{% endif %}">ALL MODELS</a>
     {% for m in models %}
-    <a href="/?type={{ current_type }}&model={{ m }}{% if current_sort == 'popular' %}&sort=popular{% endif %}"
+    <a href="/explore?type={{ current_type }}&model={{ m }}{% if current_sort == 'popular' %}&sort=popular{% endif %}"
        class="chip {% if current_model == m %}active{% endif %}">{{ m }}</a>
     {% endfor %}
   </div>
