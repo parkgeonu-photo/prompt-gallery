@@ -258,17 +258,26 @@ main { max-width: 100%; margin: 0 auto; padding: 32px clamp(24px, 3vw, 56px); }
   position: absolute; inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(0,0,0,0.25) 0%,
-    rgba(0,0,0,0) 30%,
-    rgba(0,0,0,0) 50%,
-    rgba(0,0,0,0.92) 100%
+    rgba(0,0,0,0.55) 0%,
+    rgba(0,0,0,0.15) 25%,
+    rgba(0,0,0,0) 45%,
+    rgba(0,0,0,0) 60%,
+    rgba(0,0,0,0.85) 100%
   );
   display: flex; flex-direction: column; justify-content: flex-end;
-  padding: 14px;
-  opacity: 0; transition: opacity 0.25s ease;
+  padding: 14px 14px 44px;
+  opacity: 0; transition: opacity 0.22s ease;
   pointer-events: none;
 }
 .card:hover .card-overlay { opacity: 1; }
+
+/* 터치 디바이스 fallback — 호버가 없으므로 항상 보이게 */
+@media (hover: none) {
+  .card-overlay,
+  .card-actions,
+  .card-meta-bar,
+  .video-badge { opacity: 1 !important; transform: none !important; }
+}
 .card-overlay-title {
   font-family: 'Space Grotesk', 'Inter', sans-serif;
   font-size: 14px; font-weight: 700; color: #fff;
@@ -288,11 +297,18 @@ main { max-width: 100%; margin: 0 auto; padding: 32px clamp(24px, 3vw, 56px); }
   font-family: 'Space Grotesk', sans-serif;
   font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
   display: flex; align-items: center; gap: 4px;
+  opacity: 0; transition: opacity 0.22s ease;
+  pointer-events: none;
 }
+.card:hover .video-badge { opacity: 1; }
+
 .card-meta-bar {
   position: absolute; top: 10px; left: 10px;
   pointer-events: none;
+  opacity: 0; transition: opacity 0.22s ease;
 }
+.card:hover .card-meta-bar { opacity: 1; }
+
 .card-model-badge {
   background: rgba(0,0,0,0.7); backdrop-filter: blur(10px);
   color: #fff; padding: 4px 9px; border-radius: 4px;
@@ -326,14 +342,17 @@ main { max-width: 100%; margin: 0 auto; padding: 32px clamp(24px, 3vw, 56px); }
 .card:hover .admin-x-btn { opacity: 1; }
 .admin-x-btn:hover { transform: scale(1.1); background: rgb(214, 51, 51); }
 
-/* ============ Card overlay actions (♥ + @author, 카드 안쪽 하단) ============ */
+/* ============ Card overlay actions (♥ + @author, 카드 안쪽 하단, 호버 시에만) ============ */
 .card-actions {
   position: absolute;
   bottom: 8px; left: 8px; right: 8px;
   display: flex; align-items: center; justify-content: space-between;
   gap: 8px; pointer-events: none;
   z-index: 3;
+  opacity: 0; transform: translateY(4px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
 }
+.card:hover .card-actions { opacity: 1; transform: translateY(0); }
 .card-actions > * { pointer-events: auto; }
 .card-like-btn {
   display: inline-flex; align-items: center; gap: 5px;
@@ -788,6 +807,10 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 </body>
 </html>
+
+
+
+
 
 
 
