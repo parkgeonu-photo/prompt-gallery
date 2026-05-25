@@ -517,9 +517,9 @@ def index():
         # viewer가 좋아요한 게시물 id 셋 — 카드 좋아요 버튼 상태 표시용
         liked_ids = set()
         if viewer_id and posts:
-            pids = [p["id"] for p in posts]
+            pids = [str(p["id"]) for p in posts]
             liked_rows = c.fetchall(
-                "SELECT post_id FROM post_likes WHERE user_id = %s AND post_id = ANY(%s)",
+                "SELECT post_id FROM post_likes WHERE user_id = %s AND post_id = ANY(%s::uuid[])",
                 (viewer_id, pids)
             )
             liked_ids = {str(r["post_id"]) for r in liked_rows}
@@ -1843,6 +1843,7 @@ def api_my_characters():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 
