@@ -668,7 +668,7 @@ def upload():
     if request.method == "POST":
         f = request.files.get("file")
         prompt = (request.form.get("prompt") or "").strip()
-        model_choice = request.form.get("model") or "기타 (직접 입력)"
+        model_choice = request.form.get("model") or "기타 (직접 ���력)"
         model_custom = (request.form.get("model_custom") or "").strip()
         title = (request.form.get("title") or "").strip()
         neg = (request.form.get("negative_prompt") or "").strip()
@@ -1965,8 +1965,46 @@ def api_my_characters():
     return jsonify({"characters": out})
 
 
+# 프롬프트 번역 API — Google Translate 공개 엔드포인트 사용 (무료, 키 불필요)
+@app.route("/api/translate", methods=["POST"])
+def api_translate():
+    """텍스트 번역. POST {text, target: 'ko'|'en'|'zh-CN'}"""
+    data = request.get_json(silent=True) or {}
+    text = (data.get("text") or "").strip()
+    target = (data.get("target") or "ko").strip()
+    if target not in ("ko", "en", "zh-CN"):
+        return jsonify({"error": "지원하지 않는 언어"}), 400
+    if not text:
+        return jsonify({"translated": ""})
+    if len(text) > 5000:
+        text = text[:5000]
+    try:
+        # Google Translate 무료 엔드포인트
+        r = requests.get(
+            "https://translate.googleapis.com/translate_a/single",
+            params={
+                "client": "gtx",
+                "sl": "auto",
+                "tl": target,
+                "dt": "t",
+                "q": text,
+            },
+            timeout=15,
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        r.raise_for_status()
+        data = r.json()
+        # 응답 구조: [[[translated, original, ...], [translated2, original2, ...], ...], ...]
+        translated = "".join(seg[0] for seg in data[0] if seg and len(seg) > 0 and seg[0])
+        detected = data[2] if len(data) > 2 else None
+        return jsonify({"translated": translated, "source": detected})
+    except Exception as e:
+        return jsonify({"error": f"번역 실패: {str(e)[:120]}"}), 500
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 

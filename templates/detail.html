@@ -138,6 +138,24 @@
   }
   .login-prompt a { color: var(--text); font-weight: 700; }
   .login-prompt a:hover { text-decoration: underline; }
+/* 번역 버튼 */
+.translate-bar { font-family: 'JetBrains Mono', monospace; }
+.tr-btn {
+  background: transparent;
+  border: 1px solid var(--border, #e5e5e5);
+  padding: 5px 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text, #000);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.12s ease;
+  letter-spacing: 0.3px;
+}
+.tr-btn:hover { background: #f0f0f0; border-color: #000; }
+.tr-btn.active { background: #000; color: #fff; border-color: #000; }
+
 </style>
 
 <div class="detail-grid">
@@ -185,20 +203,26 @@
     </div>
 
     <div class="section-block">
-      <div class="section-header">
+      <div class="section-header" style="flex-wrap:wrap; gap:8px;">
         <span class="section-label">PROMPT</span>
-        {% if not post.prompt_truncated %}
-        <button class="copy-btn" id="copyBtn" data-text="{{ post.prompt|e }}">📋 COPY</button>
-        {% endif %}
+        <div class="translate-bar" style="display:flex; gap:4px; align-items:center; margin-left:auto;">
+          <button class="tr-btn" data-target="original" title="원본 보기">원본</button>
+          <button class="tr-btn" data-target="ko" title="한국어로 번역">🇰🇷 한국어</button>
+          <button class="tr-btn" data-target="en" title="영어로 번역">🇺🇸 EN</button>
+          <button class="tr-btn" data-target="zh-CN" title="중국어로 번역">🇨🇳 中文</button>
+          {% if not post.prompt_truncated %}
+          <button class="copy-btn" id="copyBtn" data-text="{{ post.prompt|e }}" style="margin-left:6px;">📋 COPY</button>
+          {% endif %}
+        </div>
       </div>
       {% if post.prompt_truncated %}
-        <p class="prompt-text">{{ post.prompt_visible }}<span class="blurred-text" aria-hidden="true">{{ post.prompt_hidden }}</span></p>
+        <p class="prompt-text" id="promptText" data-original="{{ post.prompt_visible|e }}">{{ post.prompt_visible }}<span class="blurred-text" aria-hidden="true">{{ post.prompt_hidden }}</span></p>
         <div class="partial-notice">
           <span class="partial-icon">◐</span>
           <span><strong>일부공개 게시물</strong> · 처음 200자만 공개 · 작성자만 전체 프롬프트를 볼 수 있어요</span>
         </div>
       {% else %}
-        <p class="prompt-text">{{ post.prompt }}</p>
+        <p class="prompt-text" id="promptText" data-original="{{ post.prompt|e }}">{{ post.prompt }}</p>
       {% endif %}
     </div>
 
@@ -378,8 +402,42 @@ const cLen = document.getElementById('commentLen');
 if (cBody && cLen) {
   cBody.addEventListener('input', () => { cLen.textContent = cBody.value.length; });
 }
+
+// ===== 프롬프트 번역 =====
+document.querySelectorAll('.tr-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const target = btn.dataset.target;
+    const promptEl = document.getElementById('promptText');
+    if (!promptEl) return;
+    const original = promptEl.dataset.original || '';
+    document.querySelectorAll('.tr-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    if (target === 'original') {
+      promptEl.textContent = original;
+      return;
+    }
+    promptEl.innerHTML = '<span style="opacity:0.5; font-style:italic;">번역 중...</span>';
+    try {
+      const res = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: original, target })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      promptEl.textContent = data.translated || original;
+    } catch (e) {
+      promptEl.innerHTML = '<span style="color:#c00;">번역 실패 — ' + (e.message || '잠시 후 다시 시도') + '</span>';
+      setTimeout(() => { promptEl.textContent = original; }, 2000);
+    }
+  });
+});
 </script>
 {% endblock %}
+
+
+
 
 
 
