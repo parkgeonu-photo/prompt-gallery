@@ -86,8 +86,9 @@ def build_info():
     """빌드 추적용 — 어떤 커밋이 서빙 중인지 확인."""
     return {
         "commit": os.environ.get("RENDER_GIT_COMMIT", "local"),
-        "build": "characters-dnd-v2",
+        "build": "google-oauth-v1",
         "char_max_mb": CHARACTER_IMG_MAX_BYTES // (1024*1024),
+        "google_oauth": bool(os.environ.get("GOOGLE_CLIENT_ID") and os.environ.get("GOOGLE_CLIENT_SECRET")),
     }
 
 
@@ -1107,7 +1108,8 @@ def login():
         password = request.form.get("password") or ""
         with db() as c:
             row = c.fetchone("SELECT * FROM users WHERE username = %s", (username,))
-        if not row or not verify_password(password, row["password_hash"]):
+        # 비밀번호 없는 구글 가입자는 일반 로그인 차단
+        if not row or not row.get("password_hash") or not verify_password(password, row["password_hash"]):
             return render_template("login.html", error="사용자명 또는 비밀번호가 잘못되었습니다"), 400
         session["user_id"] = str(row["id"])
         return redirect(request.args.get("next") or url_for("index"))
@@ -1118,6 +1120,135 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("index"))
+
+
+# =================================================================
+# Google OAuth
+# =================================================================
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "https://www.xazinga.com/auth/google/callback")
+
+
+def _google_oauth_enabled():
+    return bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
+
+
+def _unique_username_from_email(email):
+    """email 앞부분을 username으로 변환, 중복 시 숫자 붙임."""
+    base = (email.split("@")[0] if email else "user").lower()
+    base = "".join(c for c in base if c.isalnum() or c in "_-")[:20] or "user"
+    candidate = base
+    i = 1
+    with db() as c:
+        while c.fetchone("SELECT 1 FROM users WHERE username = %s", (candidate,)):
+            i += 1
+            candidate = f"{base}{i}"
+            if i > 9999:
+                candidate = base + secrets.token_hex(3)
+                break
+    return candidate
+
+
+@app.route("/auth/google/login")
+def google_login():
+    if not _google_oauth_enabled():
+        return "Google OAuth가 설정되지 않았습니다. 관리자에게 문의하세요.", 503
+    # CSRF state
+    state = secrets.token_urlsafe(24)
+    session["google_oauth_state"] = state
+    session["google_oauth_next"] = request.args.get("next") or url_for("index")
+    params = {
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": GOOGLE_REDIRECT_URI,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "access_type": "online",
+        "prompt": "select_account",
+        "state": state,
+    }
+    qs = "&".join(f"{k}={requests.utils.quote(str(v), safe='')}" for k, v in params.items())
+    return redirect(f"https://accounts.google.com/o/oauth2/v2/auth?{qs}")
+
+
+@app.route("/auth/google/callback")
+def google_callback():
+    if not _google_oauth_enabled():
+        return "Google OAuth가 설정되지 않았습니다.", 503
+
+    error = request.args.get("error")
+    if error:
+        return render_template("login.html", error=f"Google 로그인 실패: {error}"), 400
+
+    code = request.args.get("code")
+    state = request.args.get("state")
+    expected_state = session.pop("google_oauth_state", None)
+    next_url = session.pop("google_oauth_next", "/")
+    if not code or not state or state != expected_state:
+        return render_template("login.html", error="잘못된 인증 요청입니다 (state 불일치)"), 400
+
+    # 1) code → access token
+    try:
+        tok = requests.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": code,
+                "client_id": GOOGLE_CLIENT_ID,
+                "client_secret": GOOGLE_CLIENT_SECRET,
+                "redirect_uri": GOOGLE_REDIRECT_URI,
+                "grant_type": "authorization_code",
+            },
+            timeout=15,
+        )
+        tok.raise_for_status()
+        access_token = tok.json().get("access_token")
+    except Exception as e:
+        return render_template("login.html", error=f"토큰 교환 실패: {str(e)[:120]}"), 400
+
+    # 2) userinfo 호출
+    try:
+        ui = requests.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"},
+            timeout=15,
+        )
+        ui.raise_for_status()
+        info = ui.json()
+    except Exception as e:
+        return render_template("login.html", error=f"사용자 정보 조회 실패: {str(e)[:120]}"), 400
+
+    google_id = info.get("sub")
+    email = (info.get("email") or "").lower()
+    name = info.get("name") or ""
+    picture = info.get("picture") or ""
+
+    if not google_id:
+        return render_template("login.html", error="Google 계정 정보가 부족합니다"), 400
+
+    # 3) 기존 유저 찾기: google_id 우선, 없으면 email 매칭
+    with db() as c:
+        row = c.fetchone("SELECT * FROM users WHERE google_id = %s", (google_id,))
+        if not row and email:
+            # 이메일 일치 시 기존 계정에 google_id 연결
+            row = c.fetchone("SELECT * FROM users WHERE email = %s", (email,))
+            if row:
+                c.execute("UPDATE users SET google_id = %s WHERE id = %s", (google_id, row["id"]))
+        if not row:
+            # 신규 가입 — username 자동 생성
+            uname = _unique_username_from_email(email or name)
+            uid = str(uuid.uuid4())
+            c.execute(
+                """INSERT INTO users (id, username, password_hash, google_id, email, avatar_url, created_at)
+                   VALUES (%s, %s, NULL, %s, %s, %s, %s)""",
+                (uid, uname, google_id, email, picture or None, int(time.time()))
+            )
+            row = c.fetchone("SELECT * FROM users WHERE id = %s", (uid,))
+
+    session["user_id"] = str(row["id"])
+    # 안전한 redirect (외부 URL 차단)
+    if not next_url or not next_url.startswith("/"):
+        next_url = "/"
+    return redirect(next_url)
 
 
 @app.route("/character-sheet")
@@ -1836,6 +1967,8 @@ def api_my_characters():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
+
 
 
 
