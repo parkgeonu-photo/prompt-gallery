@@ -56,7 +56,7 @@ AVATAR_MAX_BYTES = 5 * 1024 * 1024
 
 # Characters
 MAX_CHARACTERS_PER_USER = 30
-MAX_IMAGES_PER_CHARACTER = 30
+MAX_IMAGES_PER_CHARACTER = 60
 CHARACTER_IMG_MAX_BYTES = 10 * 1024 * 1024  # 10MB per image (캐릭터시트 합성 이미지 고려)
 CHARACTER_CATEGORIES = ["남자", "여자", "동물", "기타"]
 
@@ -1836,6 +1836,7 @@ def api_my_characters():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=False)
+
 
 
 

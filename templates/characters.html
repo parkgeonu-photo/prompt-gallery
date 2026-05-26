@@ -55,10 +55,10 @@
       <div class="char-thumb">
         {% if ch.images and ch.images|length > 0 %}
           <img src="{{ ch.images[0].url }}" loading="lazy" alt="">
-          <span class="count-badge">{{ ch.images|length }} / 30</span>
+          <span class="count-badge">{{ ch.images|length }} / 60</span>
         {% else %}
           <div class="empty">📷</div>
-          <span class="count-badge">0 / 30</span>
+          <span class="count-badge">0 / 60</span>
         {% endif %}
       </div>
       <div class="char-info">
