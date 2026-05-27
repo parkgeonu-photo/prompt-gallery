@@ -2381,6 +2381,94 @@ v1.6 — 포트폴리오 & NOTICE ← 지금!
     return jsonify({"ok": True, "msg": "첫 NOTICE 게시글 생성 완료!"})
 
 
+@app.route("/api/seed-about", methods=["POST"])
+@admin_required
+def seed_about():
+    """사이트 소개 공지글 시드 (1회용)."""
+    u = current_user()
+    with db() as c:
+        existing = c.fetchone(
+            "SELECT id FROM app_posts WHERE user_id = %s AND title LIKE %s",
+            (u["id"], "%XAZINGA에 오신 것을 환영합니다%")
+        )
+        if existing:
+            return jsonify({"ok": False, "msg": "이미 존재합니다"}), 400
+
+        content = """XAZINGA는 AI로 만든 이미지와 영상을 프롬프트와 함께 아카이브하는 갤러리 커뮤니티입니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+XAZINGA는 뭐하는 곳인가요?
+
+요즘 Midjourney, DALL-E, Stable Diffusion, Seedance, Kling 같은 AI 도구로 놀라운 이미지와 영상을 만드는 분들이 정말 많아졌습니다. 그런데 막상 만들고 나면 프롬프트는 어디에 저장하셨나요?
+
+XAZINGA는 그 문제를 해결합니다.
+
+작품을 올리면서 사용한 프롬프트, 네거티브 프롬프트, 모델명, 작업 과정까지 함께 기록할 수 있습니다. 나중에 다시 찾아보기도 쉽고, 다른 사람들의 프롬프트를 참고해서 새로운 영감을 얻을 수도 있어요.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+주요 기능
+
+PROMPT — 메인 갤러리
+AI로 만든 이미지/영상을 프롬프트와 함께 업로드할 수 있는 핵심 공간이에요. 모델 태그, 네거티브 프롬프트, 작업 과정 이미지, 참고 자료까지 한 게시물에 담을 수 있습니다. 공개/일부공개/비공개 설정도 가능해서 아직 완성되지 않은 작업도 안심하고 저장할 수 있어요.
+
+PORTFOLIO — 크리에이터 포트폴리오
+자신의 작품을 체계적으로 모아두는 공간입니다. 이미지 최대 8장(장당 5MB)과 영상 1개(50MB)를 하나의 게시물로 올릴 수 있고, 1인당 총 5GB까지 사용 가능합니다. 신청 후 승인을 받으면 사용할 수 있어요.
+
+MY CHARACTERS — 캐릭터 저장소
+AI 이미지 생성에 자주 쓰는 캐릭터의 프롬프트와 레퍼런스 이미지를 저장하는 본인 전용 공간이에요. 캐릭터당 60장, 계정당 30개까지 만들 수 있고 드래그앤드롭으로 편하게 이미지를 추가할 수 있습니다.
+
+NOTICE — 공지 & 앱 소개
+지금 보고 계신 이 공간입니다. 사이트 업데이트 내역, 공지사항, 유용한 AI 도구 소개 등을 올립니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+커뮤니티 기능
+
+DM — 마음에 드는 크리에이터에게 1:1 메시지를 보낼 수 있어요.
+좋아요 — 마음에 드는 작품에 하트를 눌러주세요.
+댓글 — 작품에 대한 피드백이나 질문을 남길 수 있어요.
+검색 — Cmd+K (Ctrl+K)를 누르면 어디서든 검색할 수 있습니다.
+프롬프트 번역 — 한국어/영어/중국어 간 번역을 지원합니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+지원하는 AI 모델
+
+현재 프롬프트 업로드 시 선택할 수 있는 모델은 다음과 같습니다.
+
+Seedance · Grok · Kling · Midjourney · DALL-E 3 · Stable Diffusion · Flux · Nano Banana · Seedream · Imagen · Sora · Veo · Runway · Pika · Higgsfield · 기타 (직접 입력)
+
+목록에 없는 모델은 '기타'를 선택하고 직접 입력하시면 됩니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+이용 안내
+
+가입은 일반 회원가입 또는 Google 계정으로 할 수 있습니다. 가입 즉시 프롬프트 갤러리 업로드, 댓글, DM 등 대부분의 기능을 사용할 수 있어요.
+
+포트폴리오는 신청 후 승인제로 운영됩니다. 승인 요청을 보내시면 빠르게 확인하겠습니다.
+
+현재 XAZINGA는 초기 단계이며 지속적으로 기능을 추가하고 있습니다. 불편한 점이나 건의사항이 있으시면 DM으로 편하게 보내주세요.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+만든 사람: @xazinga
+사이트: https://www.xazinga.com"""
+
+        c.execute(
+            "INSERT INTO app_posts "
+            "(user_id, title, app_name, app_url, category, thumbnail_url, "
+            " content, pros, cons, rating, status, approved_at, approved_by) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW(),%s) RETURNING id",
+            (u["id"], "XAZINGA에 오신 것을 환영합니다 — 사이트 소개",
+             "XAZINGA", "https://www.xazinga.com", "공지", None,
+             content, None, None, 0, "approved", u["id"])
+        )
+    return jsonify({"ok": True, "msg": "사이트 소개 공지글 생성 완료!"})
+
+
 @app.route("/api/translate", methods=["POST"])
 def api_translate():
     """텍스트 번역. POST {text, target: 'ko'|'en'|'zh-CN'}"""
