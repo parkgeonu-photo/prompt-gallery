@@ -60,9 +60,8 @@ MAX_IMAGES_PER_CHARACTER = 60
 CHARACTER_IMG_MAX_BYTES = 10 * 1024 * 1024  # 10MB per image (캐릭터시트 합성 이미지 고려)
 CHARACTER_CATEGORIES = ["남자", "여자", "동물", "기타"]
 
-APP_CATEGORIES = [
-    "생산성", "디자인", "AI 도구", "개발", "영상/사진",
-    "음악", "게임", "교육", "라이프스타일", "유틸리티", "기타"
+NOTICE_CATEGORIES = [
+    "업데이트", "공지", "앱 소개", "팁/가이드", "기타"
 ]
 
 # Portfolio
@@ -398,7 +397,7 @@ def inject_user():
         "pending_apps": pending_apps,
         "blocked_ids": blocked_ids,
         "muted_ids": muted_ids,
-        "app_categories": APP_CATEGORIES,
+        "app_categories": NOTICE_CATEGORIES,
         "site": settings,
     }
 
@@ -1576,7 +1575,7 @@ def muted_list():
 
 
 # =================================================================
-# APP 카테고리
+# APP 카테고리 → Notice
 # =================================================================
 @app.route("/apps")
 def apps_index():
@@ -2304,6 +2303,84 @@ def portfolio_reject(member_id):
 
 
 # 프롬프트 번역 API — Google Translate 공개 엔드포인트 사용 (무료, 키 불필요)
+@app.route("/api/seed-notice", methods=["POST"])
+@admin_required
+def seed_notice():
+    """첫 NOTICE 게시글 시드 (1회용)."""
+    u = current_user()
+    with db() as c:
+        existing = c.fetchone(
+            "SELECT id FROM app_posts WHERE user_id = %s AND title LIKE %s",
+            (u["id"], "%XAZINGA 업데이트 히스토리%")
+        )
+        if existing:
+            return jsonify({"ok": False, "msg": "이미 존재합니다"}), 400
+
+        content = """XAZINGA가 처음 만들어진 날부터 지금까지의 모든 업데이트를 기록합니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+v1.0 — 초기 런칭
+• 갤러리(PROMPT) 페이지 오픈
+• 게시물 업로드 (이미지/영상 + 프롬프트 + 모델 태그)
+• 좋아요, 댓글
+• 회원가입/로그인 시스템
+• 마이페이지 (아바타, BIO)
+
+v1.1 — 커뮤니티 기능
+• DM (1:1 메시지)
+• 차단 / 숨김 분리
+• 검색 기능 (Cmd+K 모달)
+• 게시물 수정/삭제
+• 게시물 공개/일부공개/비공개 설정
+
+v1.2 — APP 카테고리 & 어드민
+• APP 카테고리 (어드민 승인제)
+• 어드민 대시보드
+• 사이트 설정 (로고, 태그라인, 히어로 이미지)
+
+v1.3 — 캐릭터 저장소
+• MY CHARACTERS (캐릭터당 60장, 계정당 30개)
+• 드래그앤드롭 이미지 업로드
+• 캐릭터 시트 페이지
+
+v1.4 — 디자인 & UX 개선
+• 시작 페이지 (ENTER 화면)
+• Higgsfield 스타일 masonry 레이아웃
+• 카드 호버 시 메타 정보 50% 투명도
+• 유저 프로필 SNS 링크 (인스타, X, 유튜브, 틱톡)
+
+v1.5 — 인증 & 번역
+• Google OAuth 로그인/가입
+• 프롬프트 번역 기능 (한국어/영어/중국어)
+• 작업 프로세스 이미지 업로드
+
+v1.6 — 포트폴리오 & NOTICE ← 지금!
+• PORTFOLIO 카테고리 추가 (승인제)
+  — 이미지 8장(장당 5MB) + 영상 1개(50MB)
+  — 1인당 총 5GB 제한
+• APP → NOTICE로 전환 (업데이트/공지/앱소개 통합)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+앞으로도 계속 업데이트됩니다."""
+
+        c.execute(
+            "INSERT INTO app_posts "
+            "(user_id, title, app_name, app_url, category, thumbnail_url, "
+            " content, pros, cons, rating, status, approved_at, approved_by) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW(),%s) RETURNING id",
+            (u["id"], "XAZINGA 업데이트 히스토리 — v1.0 ~ v1.6",
+             "XAZINGA", "https://www.xazinga.com", "업데이트", None,
+             content,
+             "• 지속적인 기능 추가\n• 미니멀 디자인 유지\n• 커뮤니티 기반 성장",
+             "• 아직 알림 시스템 미구현\n• 팔로우 기능 예정",
+             0, "approved", u["id"])
+        )
+        row = c.fetchone("SELECT 1")
+    return jsonify({"ok": True, "msg": "첫 NOTICE 게시글 생성 완료!"})
+
+
 @app.route("/api/translate", methods=["POST"])
 def api_translate():
     """텍스트 번역. POST {text, target: 'ko'|'en'|'zh-CN'}"""

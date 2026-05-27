@@ -14,7 +14,7 @@
     margin-bottom: 18px; font-size: 13px; border: 1px solid #444;
   }
   .pending-notice {
-    background: #2a2a2a; color: var(--text-muted);
+    background: var(--bg-elev); color: var(--text-muted);
     padding: 14px 18px; border-radius: 8px; margin-bottom: 18px;
     font-size: 13px; border: 1px solid var(--border);
   }
@@ -39,8 +39,8 @@
 </style>
 
 <div class="page-heading">
-  <h1 class="page-title">📱 NEW APP POST</h1>
-  <p class="page-subtitle">추천하고 싶은 앱을 자유롭게 소개해주세요.</p>
+  <h1 class="page-title">NEW POST</h1>
+  <p class="page-subtitle">업데이트 소식, 공지, 앱 소개 등 자유롭게 작성하세요.</p>
 </div>
 
 <div class="form-wrap">
@@ -48,8 +48,8 @@
   {% if submitted %}
   <div class="submitted-banner">
     <h2>✓ 제출 완료!</h2>
-    <p>주인장이 확인 후 승인하면 앱 페이지에 노출됩니다.</p>
-    <p style="margin-top:10px;"><a href="/apps" style="color:white;text-decoration:underline;">앱 목록으로 돌아가기 →</a></p>
+    <p>주인장이 확인 후 승인하면 NOTICE 페이지에 노출됩니다.</p>
+    <p style="margin-top:10px;"><a href="/apps" style="color:white;text-decoration:underline;">NOTICE 목록으로 돌아가기 →</a></p>
   </div>
   {% else %}
 
@@ -59,7 +59,7 @@
   </div>
   {% else %}
   <div class="pending-notice">
-    ℹ 가입자가 작성한 앱 소개는 <strong>주인장 승인 후</strong> 노출돼요.
+    가입자가 작성한 글은 주인장 승인 후 노출돼요.
   </div>
   {% endif %}
 
@@ -68,13 +68,13 @@
   <form method="post" enctype="multipart/form-data">
     <div class="field-row">
       <label>제목 *</label>
-      <input type="text" name="title" required maxlength="200" placeholder="예: 코딩할 때 진짜 좋은 노트 앱 — Notion 1년 후기">
+      <input type="text" name="title" required maxlength="200" placeholder="예: v1.2 업데이트 — 포트폴리오 기능 추가">
     </div>
 
     <div class="field-row-grid">
       <div class="field-row">
-        <label>앱 이름 *</label>
-        <input type="text" name="app_name" required maxlength="120" placeholder="Notion">
+        <label>앱/서비스 이름 *</label>
+        <input type="text" name="app_name" required maxlength="120" placeholder="XAZINGA" value="XAZINGA">
       </div>
       <div class="field-row">
         <label>카테고리</label>
@@ -86,35 +86,35 @@
     </div>
 
     <div class="field-row">
-      <label>앱 공식 URL</label>
-      <input type="url" name="app_url" placeholder="https://www.notion.so">
+      <label>관련 URL (선택)</label>
+      <input type="url" name="app_url" placeholder="https://...">
     </div>
 
     <div class="field-row">
       <label>썸네일 이미지</label>
       <input type="file" name="thumbnail" accept="image/*">
-      <p class="field-hint">16:9 권장 (없으면 기본 이모지로 표시)</p>
+      <p class="field-hint">16:9 권장 (없으면 기본 아이콘 표시)</p>
     </div>
 
     <div class="field-row">
       <label>본문 *</label>
       <textarea name="content" required maxlength="20000"
-                placeholder="이 앱을 추천하는 이유, 어떻게 사용하는지, 어떤 경우에 좋은지 자유롭게 적어주세요..."></textarea>
+                placeholder="업데이트 내용, 공지사항, 앱 소개 등을 자유롭게 적어주세요..."></textarea>
     </div>
 
     <div class="field-row-grid">
       <div class="field-row">
-        <label>👍 장점</label>
-        <textarea name="pros" class="smaller" maxlength="2000" placeholder="- 디자인이 깔끔하다&#10;- 동기화가 빠르다"></textarea>
+        <label>장점 / 하이라이트</label>
+        <textarea name="pros" class="smaller" maxlength="2000" placeholder="- 주요 변경점&#10;- 새 기능"></textarea>
       </div>
       <div class="field-row">
-        <label>👎 단점</label>
-        <textarea name="cons" class="smaller" maxlength="2000" placeholder="- 오프라인이 약하다"></textarea>
+        <label>알려진 이슈 / 참고</label>
+        <textarea name="cons" class="smaller" maxlength="2000" placeholder="- 알려진 버그&#10;- 예정된 변경"></textarea>
       </div>
     </div>
 
     <div class="field-row">
-      <label>평점 (1-5)</label>
+      <label>평점 (앱 소개 시, 선택)</label>
       <select name="rating">
         <option value="0">선택 안 함</option>
         {% for n in range(1,6) %}<option value="{{ n }}">{{ '★' * n }} ({{ n }})</option>{% endfor %}
@@ -122,10 +122,9 @@
     </div>
 
     <button type="submit" class="submit-btn">
-      {% if user.is_admin %}📝 PUBLISH{% else %}📤 SUBMIT FOR REVIEW{% endif %}
+      {% if user.is_admin %}PUBLISH{% else %}SUBMIT FOR REVIEW{% endif %}
     </button>
   </form>
   {% endif %}
 </div>
 {% endblock %}
-

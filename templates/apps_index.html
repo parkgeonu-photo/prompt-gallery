@@ -73,11 +73,11 @@
 </style>
 
 <div class="apps-hero">
-  <h1>📱 APP</h1>
-  <p>주인장이 직접 써본 추천앱과 가입자들의 앱 소개를 만나보세요.</p>
+  <h1>NOTICE</h1>
+  <p>업데이트 소식, 공지사항, 추천 앱 소개를 확인하세요.</p>
   {% if user %}
   <div class="apps-actions">
-    <a href="/apps/new" class="new-app-btn">+ 앱 소개 글 쓰기</a>
+    <a href="/apps/new" class="new-app-btn">+ 글 쓰기</a>
   </div>
   {% endif %}
 </div>
@@ -96,7 +96,7 @@
       {% if a.thumbnail_url %}
       <img src="{{ a.thumbnail_url }}" class="app-thumb" alt="">
       {% else %}
-      <div class="app-thumb">📱</div>
+      <div class="app-thumb">✦</div>
       {% endif %}
       <div class="app-body">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
@@ -119,9 +119,9 @@
     {% endfor %}
   {% else %}
     <div class="empty-msg">
-      <div style="font-size:48px;margin-bottom:12px;">🎯</div>
-      <p>아직 추천 앱이 없어요.</p>
-      {% if user %}<p style="margin-top:8px;font-size:12px;">첫 번째 앱 소개 글의 주인공이 되어보세요!</p>{% endif %}
+      <div style="font-size:48px;margin-bottom:12px;">✦</div>
+      <p>아직 게시물이 없어요.</p>
+      {% if user %}<p style="margin-top:8px;font-size:12px;">첫 번째 글을 작성해보세요!</p>{% endif %}
     </div>
   {% endif %}
 </div>

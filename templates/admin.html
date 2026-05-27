@@ -80,7 +80,7 @@
     <div class="stat-row">
       <div class="stat-card"><div class="stat-num">{{ stats.users_n }}</div><div class="stat-label">USERS</div></div>
       <div class="stat-card"><div class="stat-num">{{ stats.posts_n }}</div><div class="stat-label">POSTS</div></div>
-      <div class="stat-card"><div class="stat-num">{{ stats.apps_n }}</div><div class="stat-label">APPS</div></div>
+      <div class="stat-card"><div class="stat-num">{{ stats.apps_n }}</div><div class="stat-label">NOTICE</div></div>
       <div class="stat-card"><div class="stat-num">{{ stats.pending_n }}</div><div class="stat-label">PENDING</div></div>
     </div>
   </div>
@@ -144,7 +144,7 @@
   </div>
 
   <div class="admin-section">
-    <h2>📱 PENDING APP POSTS ({{ pending|length }})</h2>
+    <h2>PENDING NOTICE ({{ pending|length }})</h2>
     {% if pending %}
       {% for p in pending %}
       <div class="pending-card">
@@ -171,7 +171,7 @@
       </div>
       {% endfor %}
     {% else %}
-      <div class="empty-msg">승인 대기 중인 앱 게시물이 없어요.</div>
+      <div class="empty-msg">승인 대기 중인 글이 없어요.</div>
     {% endif %}
   </div>
 

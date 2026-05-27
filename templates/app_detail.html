@@ -132,13 +132,13 @@
   <div style="text-align:center;margin:32px 0;">
     <a href="{{ app_post.app_url }}" target="_blank" rel="noopener nofollow"
        style="background:var(--text);color:var(--bg);padding:14px 32px;border-radius:8px;font-family:'Archivo Black',sans-serif;letter-spacing:1.5px;text-decoration:none;display:inline-block;font-size:13px;">
-      🔗 VISIT APP →
+      🔗 VISIT LINK →
     </a>
   </div>
   {% endif %}
 
   <div class="footer-actions">
-    <a href="/apps">← BACK TO APPS</a>
+    <a href="/apps">← BACK TO NOTICE</a>
     {% if user and (app_post.is_mine or user.is_admin) %}
     <form method="post" action="/apps/{{ app_post.id }}/delete" style="display:inline;"
           onsubmit="return confirm('이 글을 삭제할까요?');">
