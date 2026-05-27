@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ post.title }} — PORTFOLIO{% endblock %}
+{% block content %}
+<style>
+  .pfd-wrap { max-width: 900px; margin: 0 auto; }
+  .pfd-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 24px; gap: 16px; flex-wrap: wrap;
+  }
+  .pfd-title {
+    font-family: 'Archivo Black', sans-serif; font-size: 28px;
+    letter-spacing: -0.5px;
+  }
+  .pfd-meta {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--text-muted); display: flex; align-items: center; gap: 8px;
+  }
+  .pfd-meta a { text-decoration: none; color: var(--text); font-weight: 700; }
+  .pfd-avatar {
+    width: 28px; height: 28px; border-radius: 50%; object-fit: cover;
+    background: var(--bg-elev);
+  }
+  .pfd-del-btn {
+    background: none; border: 1px solid var(--danger); color: var(--danger);
+    padding: 6px 14px; border-radius: 6px; font-size: 11px;
+    font-weight: 700; cursor: pointer;
+  }
+  .pfd-gallery {
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .pfd-gallery img {
+    width: 100%; border-radius: 10px; display: block;
+    background: var(--bg-elev);
+  }
+  .pfd-gallery video {
+    width: 100%; border-radius: 10px; display: block;
+    background: #000;
+  }
+  .pfd-back {
+    display: inline-block; margin-top: 28px;
+    font-size: 12px; color: var(--text-muted); font-weight: 700;
+  }
+</style>
+
+<div class="pfd-wrap">
+  <div class="pfd-header">
+    <div>
+      <div class="pfd-title">{{ post.title }}</div>
+      <div class="pfd-meta" style="margin-top:8px;">
+        {% if post.avatar_url %}
+        <img src="{{ post.avatar_url }}" class="pfd-avatar" alt="">
+        {% endif %}
+        <a href="/portfolio/u/{{ post.username }}">@{{ post.username }}</a>
+        <span>·</span>
+        <span>{{ post.created_at|relativetime }}</span>
+      </div>
+    </div>
+    {% if is_mine %}
+    <form method="post" action="/portfolio/post/{{ post.id }}/delete"
+          onsubmit="return confirm('이 작품을 삭제할까요?');">
+      <button type="submit" class="pfd-del-btn">× 삭제</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="pfd-gallery">
+    {% if post.images %}
+      {% for img in post.images %}
+      <img src="{{ img.url }}" alt="{{ post.title }}" loading="lazy">
+      {% endfor %}
+    {% endif %}
+    {% if post.video %}
+    <video src="{{ post.video.url }}" controls preload="metadata"></video>
+    {% endif %}
+  </div>
+
+  <a href="/portfolio/u/{{ post.username }}" class="pfd-back">← 포트폴리오로 돌아가기</a>
+</div>
+{% endblock %}

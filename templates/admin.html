@@ -175,9 +175,35 @@
     {% endif %}
   </div>
 
+  <div class="admin-section">
+    <h2>PENDING PORTFOLIO ({{ pf_pending|length }})</h2>
+    {% if pf_pending %}
+      {% for p in pf_pending %}
+      <div class="pending-card">
+        {% if p.avatar_url %}
+        <img src="{{ p.avatar_url }}" class="pending-thumb" alt="">
+        {% else %}
+        <div class="pending-thumb">{{ p.username[0]|upper }}</div>
+        {% endif %}
+        <div class="pending-info">
+          <div class="pending-title">@{{ p.username }}</div>
+          <div class="pending-meta">포트폴리오 사용 신청 · {{ p.created_at|relativetime }}</div>
+        </div>
+        <div class="pending-actions">
+          <a href="/u/{{ p.username }}" class="btn-view">PROFILE</a>
+          <form method="post" action="/portfolio/{{ p.id }}/approve" style="display:inline">
+            <button type="submit" class="btn-approve">✓ APPROVE</button>
+          </form>
+          <form method="post" action="/portfolio/{{ p.id }}/reject" style="display:inline">
+            <button type="submit" class="btn-reject">✗ REJECT</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-msg">포트폴리오 승인 대기가 없어요.</div>
+    {% endif %}
+  </div>
+
 </div>
 {% endblock %}
-
-
-
-

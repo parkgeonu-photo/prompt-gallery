@@ -65,6 +65,14 @@ APP_CATEGORIES = [
     "음악", "게임", "교육", "라이프스타일", "유틸리티", "기타"
 ]
 
+# Portfolio
+PORTFOLIO_IMG_MAX_BYTES = 5 * 1024 * 1024       # 이미지 1장당 5MB
+PORTFOLIO_IMG_MAX_COUNT = 8                       # 게시물당 이미지 최대 8장
+PORTFOLIO_VID_MAX_BYTES = 50 * 1024 * 1024       # 비디오 1개당 50MB
+PORTFOLIO_VID_MAX_COUNT = 1                       # 게시물당 비디오 최대 1개
+PORTFOLIO_POST_MAX_BYTES = 50 * 1024 * 1024      # 게시물당 총 50MB
+PORTFOLIO_USER_MAX_BYTES = 5 * 1024 * 1024 * 1024  # 1인당 총 5GB
+
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
 app.secret_key = os.environ.get("SECRET_KEY", "dev-" + secrets.token_hex(16))
@@ -199,6 +207,32 @@ def init_db():
         """)
         c.execute("CREATE INDEX IF NOT EXISTS idx_msg_recipient ON messages(recipient_id, created_at DESC)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_msg_sender ON messages(sender_id, created_at DESC)")
+
+        # Portfolio
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS portfolio_members (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE UNIQUE,
+                status TEXT NOT NULL DEFAULT 'pending',
+                total_bytes BIGINT NOT NULL DEFAULT 0,
+                created_at BIGINT NOT NULL,
+                approved_at BIGINT
+            )
+        """)
+        c.execute("CREATE INDEX IF NOT EXISTS idx_pm_status ON portfolio_members(status)")
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS portfolio_posts (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                title TEXT NOT NULL,
+                images JSONB DEFAULT '[]'::jsonb,
+                video JSONB,
+                total_bytes BIGINT NOT NULL DEFAULT 0,
+                created_at BIGINT NOT NULL,
+                updated_at BIGINT
+            )
+        """)
+        c.execute("CREATE INDEX IF NOT EXISTS idx_pp_user ON portfolio_posts(user_id, created_at DESC)")
 
 
 # =================================================================
@@ -344,6 +378,10 @@ def inject_user():
                     "SELECT COUNT(*) AS n FROM app_posts WHERE status = 'pending'"
                 )
                 pending_apps = row["n"] if row else 0
+                pf_row = c.fetchone(
+                    "SELECT COUNT(*) AS n FROM portfolio_members WHERE status = 'pending'"
+                )
+                pending_apps += pf_row["n"] if pf_row else 0
             rows = c.fetchall("SELECT blocked_id FROM blocks WHERE blocker_id = %s", (u["id"],))
             blocked_ids = {r["blocked_id"] for r in rows}
             rows = c.fetchall("SELECT muted_id FROM user_mutes WHERE muter_id = %s", (u["id"],))
@@ -1292,7 +1330,16 @@ def admin_dashboard():
               (SELECT COUNT(*) FROM app_posts WHERE status = 'approved') AS apps_n,
               (SELECT COUNT(*) FROM app_posts WHERE status = 'pending') AS pending_n
         """, ())
-    return render_template("admin.html", settings=settings, pending=pending, stats=stats)
+        pf_pending = c.fetchall(
+            "SELECT pm.*, u.username, u.avatar_url FROM portfolio_members pm "
+            "JOIN users u ON u.id = pm.user_id "
+            "WHERE pm.status = 'pending' ORDER BY pm.created_at ASC", ()
+        )
+        pf_pending = [dict(r) for r in pf_pending]
+        for p in pf_pending:
+            p["id"] = str(p["id"])
+    return render_template("admin.html", settings=settings, pending=pending,
+                           stats=stats, pf_pending=pf_pending)
 
 
 @app.route("/admin/settings", methods=["POST"])
@@ -1963,6 +2010,297 @@ def api_my_characters():
         d["images"] = _parse_char_images(d.get("images"))
         out.append(d)
     return jsonify({"characters": out})
+
+
+# =================================================================
+# Portfolio
+# =================================================================
+
+def _portfolio_status(user_id):
+    """유저의 포트폴리오 멤버 상태 반환. None이면 미가입."""
+    with db() as c:
+        row = c.fetchone(
+            "SELECT * FROM portfolio_members WHERE user_id = %s", (user_id,)
+        )
+    return dict(row) if row else None
+
+
+@app.route("/portfolio")
+def portfolio_index():
+    """승인된 포트폴리오 멤버 목록."""
+    u = current_user()
+    viewer_id = u["id"] if u else None
+    blocked = get_hidden_ids(viewer_id) if viewer_id else set()
+
+    sql = """
+        SELECT pm.*, u.username, u.avatar_url, u.bio,
+               (SELECT COUNT(*) FROM portfolio_posts pp WHERE pp.user_id = pm.user_id) AS post_count
+        FROM portfolio_members pm
+        JOIN users u ON u.id = pm.user_id
+        WHERE pm.status = 'approved'
+    """
+    params = []
+    if blocked:
+        sql += " AND pm.user_id != ALL(%s)"
+        params.append(list(blocked))
+    sql += " ORDER BY pm.approved_at DESC NULLS LAST"
+
+    with db() as c:
+        rows = c.fetchall(sql, params)
+    members = [dict(r) for r in rows]
+
+    my_status = None
+    if u:
+        my_status = _portfolio_status(u["id"])
+
+    return render_template("portfolio_index.html", members=members, my_status=my_status)
+
+
+@app.route("/portfolio/apply", methods=["POST"])
+@login_required
+def portfolio_apply():
+    """포트폴리오 사용 신청."""
+    u = current_user()
+    existing = _portfolio_status(u["id"])
+    if existing:
+        return redirect("/portfolio")
+
+    status = "approved" if u.get("username") == "xazinga" else "pending"
+    with db() as c:
+        c.execute(
+            "INSERT INTO portfolio_members (user_id, status, created_at, approved_at) "
+            "VALUES (%s, %s, %s, %s)",
+            (u["id"], status, int(time.time()),
+             int(time.time()) if status == "approved" else None)
+        )
+    return redirect("/portfolio")
+
+
+@app.route("/portfolio/u/<username>")
+def portfolio_user(username):
+    """특정 유저의 포트폴리오 페이지."""
+    u = current_user()
+    with db() as c:
+        owner = c.fetchone("SELECT * FROM users WHERE username = %s", (username,))
+        if not owner:
+            abort(404)
+        mem = c.fetchone(
+            "SELECT * FROM portfolio_members WHERE user_id = %s AND status = 'approved'",
+            (owner["id"],)
+        )
+        if not mem:
+            abort(404)
+        posts = c.fetchall(
+            "SELECT * FROM portfolio_posts WHERE user_id = %s ORDER BY created_at DESC",
+            (owner["id"],)
+        )
+    posts = [dict(p) for p in posts]
+    for p in posts:
+        p["id"] = str(p["id"])
+        if isinstance(p.get("images"), str):
+            try: p["images"] = json.loads(p["images"])
+            except: p["images"] = []
+        if isinstance(p.get("video"), str):
+            try: p["video"] = json.loads(p["video"])
+            except: p["video"] = None
+
+    is_mine = u and str(u["id"]) == str(owner["id"])
+    return render_template("portfolio_user.html", owner=owner, posts=posts,
+                           member=dict(mem), is_mine=is_mine)
+
+
+@app.route("/portfolio/new", methods=["GET", "POST"])
+@login_required
+def portfolio_new():
+    """포트폴리오 게시물 작성."""
+    u = current_user()
+    mem = _portfolio_status(u["id"])
+    if not mem or mem["status"] != "approved":
+        return redirect("/portfolio")
+
+    if request.method == "POST":
+        title = (request.form.get("title") or "").strip()[:200]
+        if not title:
+            return render_template("portfolio_form.html", error="제목은 필수예요"), 400
+
+        # 용량 계산
+        post_bytes = 0
+        images_data = []
+        video_data = None
+
+        # 이미지 처리
+        img_files = request.files.getlist("images")
+        for i, f in enumerate(img_files[:PORTFOLIO_IMG_MAX_COUNT]):
+            if not f or not f.filename:
+                continue
+            ext = os.path.splitext(f.filename)[1].lower()
+            if ext not in ALLOWED_IMG:
+                continue
+            f.stream.seek(0, 2)
+            size = f.stream.tell()
+            f.stream.seek(0)
+            if size > PORTFOLIO_IMG_MAX_BYTES:
+                return render_template("portfolio_form.html",
+                    error=f"이미지 '{f.filename}'이(가) {size/1024/1024:.1f}MB — 최대 5MB"), 400
+            post_bytes += size
+
+        # 비디오 처리
+        vid_file = request.files.get("video")
+        vid_size = 0
+        if vid_file and vid_file.filename:
+            ext = os.path.splitext(vid_file.filename)[1].lower()
+            if ext not in ALLOWED_VID:
+                return render_template("portfolio_form.html",
+                    error="지원하지 않는 영상 형식이에요 (mp4/webm/mov만 가능)"), 400
+            vid_file.stream.seek(0, 2)
+            vid_size = vid_file.stream.tell()
+            vid_file.stream.seek(0)
+            if vid_size > PORTFOLIO_VID_MAX_BYTES:
+                return render_template("portfolio_form.html",
+                    error=f"영상이 {vid_size/1024/1024:.1f}MB — 최대 50MB"), 400
+            post_bytes += vid_size
+
+        if post_bytes > PORTFOLIO_POST_MAX_BYTES:
+            return render_template("portfolio_form.html",
+                error=f"게시물 총 용량 {post_bytes/1024/1024:.1f}MB — 최대 50MB"), 400
+
+        # 유저 총 용량 체크
+        user_total = mem.get("total_bytes", 0) or 0
+        if user_total + post_bytes > PORTFOLIO_USER_MAX_BYTES:
+            remain = max(0, PORTFOLIO_USER_MAX_BYTES - user_total)
+            return render_template("portfolio_form.html",
+                error=f"포트폴리오 총 용량 초과 (남은 공간: {remain/1024/1024:.0f}MB / 최대 5GB)"), 400
+
+        # 실제 업로드
+        post_id = str(uuid.uuid4())
+        for i, f in enumerate(img_files[:PORTFOLIO_IMG_MAX_COUNT]):
+            if not f or not f.filename:
+                continue
+            ext = os.path.splitext(f.filename)[1].lower()
+            if ext not in ALLOWED_IMG:
+                continue
+            f.stream.seek(0, 2)
+            sz = f.stream.tell()
+            f.stream.seek(0)
+            if sz > PORTFOLIO_IMG_MAX_BYTES:
+                continue
+            name = f"portfolio/{u['id']}/{post_id}/img-{i}{ext}"
+            try:
+                url = storage_upload(f, name)
+                images_data.append({"url": url, "id": str(uuid.uuid4()), "size": sz})
+            except Exception:
+                continue
+
+        if vid_file and vid_file.filename:
+            ext = os.path.splitext(vid_file.filename)[1].lower()
+            name = f"portfolio/{u['id']}/{post_id}/video{ext}"
+            try:
+                url = storage_upload(vid_file, name)
+                video_data = {"url": url, "id": str(uuid.uuid4()), "size": vid_size, "ext": ext}
+            except Exception:
+                pass
+
+        actual_bytes = sum(im.get("size", 0) for im in images_data) + (video_data.get("size", 0) if video_data else 0)
+
+        with db() as c:
+            c.execute(
+                "INSERT INTO portfolio_posts (id, user_id, title, images, video, total_bytes, created_at) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                (post_id, u["id"], title, Json(images_data),
+                 Json(video_data) if video_data else None,
+                 actual_bytes, int(time.time()))
+            )
+            c.execute(
+                "UPDATE portfolio_members SET total_bytes = total_bytes + %s WHERE user_id = %s",
+                (actual_bytes, u["id"])
+            )
+        return redirect(f"/portfolio/u/{u['username']}")
+
+    return render_template("portfolio_form.html")
+
+
+@app.route("/portfolio/post/<post_id>")
+def portfolio_post_detail(post_id):
+    """포트폴리오 게시물 상세."""
+    u = current_user()
+    with db() as c:
+        p = c.fetchone(
+            "SELECT pp.*, u.username, u.avatar_url "
+            "FROM portfolio_posts pp JOIN users u ON u.id = pp.user_id "
+            "WHERE pp.id = %s", (post_id,)
+        )
+    if not p:
+        abort(404)
+    p = dict(p)
+    p["id"] = str(p["id"])
+    if isinstance(p.get("images"), str):
+        try: p["images"] = json.loads(p["images"])
+        except: p["images"] = []
+    if isinstance(p.get("video"), str):
+        try: p["video"] = json.loads(p["video"])
+        except: p["video"] = None
+    is_mine = u and str(u["id"]) == str(p["user_id"])
+    return render_template("portfolio_detail.html", post=p, is_mine=is_mine)
+
+
+@app.route("/portfolio/post/<post_id>/delete", methods=["POST"])
+@login_required
+def portfolio_post_delete(post_id):
+    """포트폴리오 게시물 삭제."""
+    u = current_user()
+    with db() as c:
+        row = c.fetchone("SELECT * FROM portfolio_posts WHERE id = %s", (post_id,))
+        if not row:
+            abort(404)
+        if str(row["user_id"]) != str(u["id"]) and not u.get("is_admin"):
+            abort(403)
+        # 스토리지에서 파일 삭제
+        images = row.get("images") or []
+        if isinstance(images, str):
+            try: images = json.loads(images)
+            except: images = []
+        for img in images:
+            try: storage_delete(img.get("url", ""))
+            except: pass
+        video = row.get("video")
+        if isinstance(video, str):
+            try: video = json.loads(video)
+            except: video = None
+        if video and video.get("url"):
+            try: storage_delete(video["url"])
+            except: pass
+        # DB 삭제 + 용량 업데이트
+        freed = row.get("total_bytes", 0) or 0
+        c.execute("DELETE FROM portfolio_posts WHERE id = %s", (post_id,))
+        c.execute(
+            "UPDATE portfolio_members SET total_bytes = GREATEST(0, total_bytes - %s) WHERE user_id = %s",
+            (freed, row["user_id"])
+        )
+    owner_username = u["username"]
+    with db() as c:
+        owner = c.fetchone("SELECT username FROM users WHERE id = %s", (row["user_id"],))
+        if owner:
+            owner_username = owner["username"]
+    return redirect(f"/portfolio/u/{owner_username}")
+
+
+@app.route("/portfolio/<member_id>/approve", methods=["POST"])
+@admin_required
+def portfolio_approve(member_id):
+    with db() as c:
+        c.execute(
+            "UPDATE portfolio_members SET status = 'approved', approved_at = %s WHERE id = %s",
+            (int(time.time()), member_id)
+        )
+    return redirect("/admin")
+
+
+@app.route("/portfolio/<member_id>/reject", methods=["POST"])
+@admin_required
+def portfolio_reject(member_id):
+    with db() as c:
+        c.execute("DELETE FROM portfolio_members WHERE id = %s AND status = 'pending'", (member_id,))
+    return redirect("/admin")
 
 
 # 프롬프트 번역 API — Google Translate 공개 엔드포인트 사용 (무료, 키 불필요)

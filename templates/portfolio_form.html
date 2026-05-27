@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}작품 올리기 — {{ site.site_name or 'XAZINGA' }}{% endblock %}
+{% block content %}
+<style>
+  .pf-form-wrap { max-width: 640px; margin: 0 auto; }
+  .pf-form-title {
+    font-family: 'Archivo Black', sans-serif; font-size: 32px;
+    letter-spacing: -0.5px; margin-bottom: 8px;
+  }
+  .pf-form-sub { color: var(--text-muted); font-size: 13px; margin-bottom: 28px; }
+  .field { margin-bottom: 20px; }
+  .field label {
+    display: block; font-size: 11px; font-weight: 700;
+    letter-spacing: 1px; color: var(--text-muted); margin-bottom: 6px;
+  }
+  .field input[type=text] {
+    width: 100%; background: var(--bg-elev); border: 1px solid var(--border);
+    color: var(--text); padding: 12px 14px; border-radius: 8px;
+    font-family: inherit; font-size: 14px;
+  }
+  .field input[type=text]:focus { border-color: var(--text); outline: none; }
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: 10px;
+    padding: 32px; text-align: center; cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--bg-elev);
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--text); background: var(--highlight);
+  }
+  .drop-zone p { color: var(--text-muted); font-size: 13px; margin-bottom: 4px; }
+  .drop-zone .limit {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--text-dim);
+  }
+  .preview-row {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;
+  }
+  .preview-item {
+    width: 80px; height: 80px; border-radius: 6px; overflow: hidden;
+    position: relative; background: var(--bg);
+  }
+  .preview-item img, .preview-item video {
+    width: 100%; height: 100%; object-fit: cover;
+  }
+  .preview-remove {
+    position: absolute; top: 2px; right: 2px;
+    background: rgba(200,0,0,0.8); color: white;
+    border: none; border-radius: 50%; width: 18px; height: 18px;
+    font-size: 10px; cursor: pointer; line-height: 18px; text-align: center;
+  }
+  .submit-btn {
+    background: var(--text); color: var(--bg); border: none;
+    padding: 14px 32px; border-radius: 8px; font-weight: 800;
+    font-family: 'Archivo Black', sans-serif; letter-spacing: 1.5px;
+    cursor: pointer; font-size: 13px; width: 100%;
+  }
+  .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .err-msg {
+    background: #ffeaea; color: #b33a3a; padding: 12px 16px;
+    border-radius: 8px; font-size: 13px; font-weight: 700; margin-bottom: 20px;
+  }
+</style>
+
+<div class="pf-form-wrap">
+  <div class="pf-form-title">UPLOAD WORK</div>
+  <div class="pf-form-sub">이미지 최대 8장 (장당 5MB) + 영상 1개 (50MB) · 게시물당 총 50MB</div>
+
+  {% if error %}
+  <div class="err-msg">{{ error }}</div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" id="pfForm">
+    <div class="field">
+      <label>TITLE</label>
+      <input type="text" name="title" maxlength="200" required placeholder="작품 제목">
+    </div>
+
+    <div class="field">
+      <label>IMAGES (최대 8장, 장당 5MB)</label>
+      <div class="drop-zone" id="imgZone">
+        <p>클릭하거나 드래그해서 이미지 추가</p>
+        <p class="limit">JPG · PNG · WEBP · GIF</p>
+        <input type="file" name="images" multiple accept=".jpg,.jpeg,.png,.webp,.gif"
+               style="display:none" id="imgInput">
+      </div>
+      <div class="preview-row" id="imgPreview"></div>
+    </div>
+
+    <div class="field">
+      <label>VIDEO (1개, 최대 50MB)</label>
+      <div class="drop-zone" id="vidZone">
+        <p>클릭하거나 드래그해서 영상 추가</p>
+        <p class="limit">MP4 · WEBM · MOV</p>
+        <input type="file" name="video" accept=".mp4,.webm,.mov"
+               style="display:none" id="vidInput">
+      </div>
+      <div class="preview-row" id="vidPreview"></div>
+    </div>
+
+    <button type="submit" class="submit-btn" id="submitBtn">UPLOAD</button>
+  </form>
+</div>
+
+<script>
+(function(){
+  const imgZone = document.getElementById('imgZone');
+  const imgInput = document.getElementById('imgInput');
+  const imgPreview = document.getElementById('imgPreview');
+  const vidZone = document.getElementById('vidZone');
+  const vidInput = document.getElementById('vidInput');
+  const vidPreview = document.getElementById('vidPreview');
+
+  // 이미지 영역
+  imgZone.addEventListener('click', () => imgInput.click());
+  imgZone.addEventListener('dragover', e => { e.preventDefault(); imgZone.classList.add('drag-over'); });
+  imgZone.addEventListener('dragleave', () => imgZone.classList.remove('drag-over'));
+  imgZone.addEventListener('drop', e => {
+    e.preventDefault(); imgZone.classList.remove('drag-over');
+    addImages(e.dataTransfer.files);
+  });
+  imgInput.addEventListener('change', () => addImages(imgInput.files));
+
+  let imgFiles = [];
+  function addImages(files) {
+    for (const f of files) {
+      if (imgFiles.length >= 8) break;
+      if (f.size > 5*1024*1024) { alert(f.name + ' — 5MB 초과'); continue; }
+      if (!/\.(jpe?g|png|webp|gif)$/i.test(f.name)) continue;
+      imgFiles.push(f);
+    }
+    renderImgPreviews();
+    syncImgInput();
+  }
+  function renderImgPreviews() {
+    imgPreview.innerHTML = '';
+    imgFiles.forEach((f, i) => {
+      const div = document.createElement('div');
+      div.className = 'preview-item';
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(f);
+      div.appendChild(img);
+      const btn = document.createElement('button');
+      btn.className = 'preview-remove'; btn.textContent = '×'; btn.type = 'button';
+      btn.onclick = () => { imgFiles.splice(i, 1); renderImgPreviews(); syncImgInput(); };
+      div.appendChild(btn);
+      imgPreview.appendChild(div);
+    });
+  }
+  function syncImgInput() {
+    const dt = new DataTransfer();
+    imgFiles.forEach(f => dt.items.add(f));
+    imgInput.files = dt.files;
+  }
+
+  // 비디오 영역
+  vidZone.addEventListener('click', () => vidInput.click());
+  vidZone.addEventListener('dragover', e => { e.preventDefault(); vidZone.classList.add('drag-over'); });
+  vidZone.addEventListener('dragleave', () => vidZone.classList.remove('drag-over'));
+  vidZone.addEventListener('drop', e => {
+    e.preventDefault(); vidZone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) setVideo(e.dataTransfer.files[0]);
+  });
+  vidInput.addEventListener('change', () => { if (vidInput.files[0]) setVideo(vidInput.files[0]); });
+
+  function setVideo(f) {
+    if (f.size > 50*1024*1024) { alert('영상 최대 50MB'); return; }
+    if (!/\.(mp4|webm|mov)$/i.test(f.name)) { alert('지원하지 않는 형식'); return; }
+    const dt = new DataTransfer();
+    dt.items.add(f);
+    vidInput.files = dt.files;
+    vidPreview.innerHTML = '';
+    const div = document.createElement('div');
+    div.className = 'preview-item';
+    div.style.width = '120px';
+    const vid = document.createElement('video');
+    vid.src = URL.createObjectURL(f); vid.muted = true;
+    div.appendChild(vid);
+    const btn = document.createElement('button');
+    btn.className = 'preview-remove'; btn.textContent = '×'; btn.type = 'button';
+    btn.onclick = () => { vidInput.value = ''; vidPreview.innerHTML = ''; };
+    div.appendChild(btn);
+    vidPreview.appendChild(div);
+  }
+
+  // 폼 제출 시 중복 방지
+  document.getElementById('pfForm').addEventListener('submit', function() {
+    document.getElementById('submitBtn').disabled = true;
+    document.getElementById('submitBtn').textContent = 'UPLOADING...';
+  });
+})();
+</script>
+{% endblock %}

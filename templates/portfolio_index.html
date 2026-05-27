@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}PORTFOLIO — {{ site.site_name or 'XAZINGA' }}{% endblock %}
+{% block content %}
+<style>
+  .pf-hero { text-align: center; max-width: 720px; margin: 0 auto 32px; }
+  .pf-hero h1 {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 48px; margin: 0 0 10px; letter-spacing: -1px;
+  }
+  .pf-hero p { color: var(--text-muted); font-size: 14px; }
+  .pf-actions { display: flex; gap: 10px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+  .pf-apply-btn {
+    background: var(--text); color: var(--bg);
+    padding: 12px 24px; border-radius: 8px;
+    font-weight: 800; letter-spacing: 1px;
+    font-family: 'Archivo Black', sans-serif; font-size: 12px;
+    border: none; cursor: pointer;
+  }
+  .pf-pending-badge {
+    background: var(--bg-elev); color: var(--text-muted);
+    padding: 10px 20px; border-radius: 8px; font-size: 12px;
+    font-weight: 700; border: 1px solid var(--border);
+  }
+  .pf-grid {
+    display: grid; gap: 20px; max-width: 1100px; margin: 0 auto;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+  .pf-card {
+    background: var(--bg-elev); border-radius: 12px; overflow: hidden;
+    border: 1px solid var(--border); transition: transform 0.2s;
+    text-decoration: none; color: inherit; display: flex; flex-direction: column;
+    padding: 24px; text-align: center;
+  }
+  .pf-card:hover { transform: translateY(-2px); border-color: var(--text); }
+  .pf-avatar {
+    width: 80px; height: 80px; border-radius: 50%; object-fit: cover;
+    margin: 0 auto 14px; background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; font-weight: 800; font-family: 'Archivo Black', sans-serif;
+    color: var(--text-muted);
+  }
+  .pf-username {
+    font-family: 'Archivo Black', sans-serif; font-size: 18px;
+    letter-spacing: -0.3px; margin-bottom: 6px;
+  }
+  .pf-bio {
+    font-size: 12px; color: var(--text-muted);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; line-height: 1.5; margin-bottom: 10px;
+  }
+  .pf-stat {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--text-muted); letter-spacing: 0.5px;
+  }
+  .empty-msg {
+    text-align: center; padding: 60px 20px; color: var(--text-muted);
+    grid-column: 1 / -1;
+  }
+</style>
+
+<div class="pf-hero">
+  <h1>PORTFOLIO</h1>
+  <p>크리에이터들의 작품 포트폴리오를 만나보세요.</p>
+  {% if user %}
+    {% if not my_status %}
+    <div class="pf-actions">
+      <form method="post" action="/portfolio/apply">
+        <button type="submit" class="pf-apply-btn">포트폴리오 사용 신청</button>
+      </form>
+    </div>
+    {% elif my_status.status == 'pending' %}
+    <div class="pf-actions">
+      <div class="pf-pending-badge">승인 대기 중이에요</div>
+    </div>
+    {% elif my_status.status == 'approved' %}
+    <div class="pf-actions">
+      <a href="/portfolio/u/{{ user.username }}" class="pf-apply-btn">내 포트폴리오</a>
+    </div>
+    {% endif %}
+  {% endif %}
+</div>
+
+<div class="pf-grid">
+  {% if members %}
+    {% for m in members %}
+    <a href="/portfolio/u/{{ m.username }}" class="pf-card">
+      {% if m.avatar_url %}
+      <img src="{{ m.avatar_url }}" class="pf-avatar" alt="">
+      {% else %}
+      <div class="pf-avatar">{{ m.username[0]|upper }}</div>
+      {% endif %}
+      <div class="pf-username">@{{ m.username }}</div>
+      {% if m.bio %}
+      <div class="pf-bio">{{ m.bio }}</div>
+      {% endif %}
+      <div class="pf-stat">{{ m.post_count }} WORKS</div>
+    </a>
+    {% endfor %}
+  {% else %}
+    <div class="empty-msg">
+      <div style="font-size:48px;margin-bottom:12px;">✦</div>
+      <p>아직 포트폴리오가 없어요.</p>
+      {% if user and not my_status %}
+      <p style="margin-top:8px;font-size:12px;">첫 번째 포트폴리오의 주인공이 되어보세요!</p>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

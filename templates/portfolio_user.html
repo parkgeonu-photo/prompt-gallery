@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}@{{ owner.username }}의 포트폴리오 — {{ site.site_name or 'XAZINGA' }}{% endblock %}
+{% block content %}
+<style>
+  .pfu-header {
+    text-align: center; max-width: 720px; margin: 0 auto 36px;
+  }
+  .pfu-avatar {
+    width: 96px; height: 96px; border-radius: 50%; object-fit: cover;
+    margin: 0 auto 14px; background: var(--bg-elev);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px; font-weight: 800; font-family: 'Archivo Black', sans-serif;
+    color: var(--text-muted);
+  }
+  .pfu-name {
+    font-family: 'Archivo Black', sans-serif; font-size: 32px;
+    letter-spacing: -0.5px; margin-bottom: 6px;
+  }
+  .pfu-bio { color: var(--text-muted); font-size: 13px; margin-bottom: 16px; }
+  .pfu-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .pfu-btn {
+    background: var(--text); color: var(--bg);
+    padding: 10px 20px; border-radius: 8px;
+    font-weight: 800; letter-spacing: 1px;
+    font-family: 'Archivo Black', sans-serif; font-size: 11px;
+    text-decoration: none; border: none; cursor: pointer;
+  }
+  .pfu-btn-ghost {
+    background: var(--bg-elev); color: var(--text);
+    padding: 10px 20px; border-radius: 8px;
+    font-weight: 700; font-size: 11px;
+    text-decoration: none; border: 1px solid var(--border);
+  }
+  .pfu-usage {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--text-muted); margin-top: 12px;
+  }
+
+  .pf-masonry {
+    column-width: 320px; column-gap: 12px; max-width: 1200px; margin: 0 auto;
+  }
+  .pf-post-card {
+    break-inside: avoid; margin-bottom: 12px;
+    border-radius: 10px; overflow: hidden;
+    background: var(--bg-elev); border: 1px solid var(--border);
+    transition: transform 0.2s;
+    text-decoration: none; color: inherit; display: block;
+    position: relative;
+  }
+  .pf-post-card:hover { transform: translateY(-2px); border-color: var(--text); }
+  .pf-post-media {
+    width: 100%; display: block; background: var(--bg);
+  }
+  .pf-post-body { padding: 14px; }
+  .pf-post-title {
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+    font-size: 14px; margin-bottom: 4px;
+  }
+  .pf-post-meta {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--text-muted);
+  }
+  .pf-post-count {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(0,0,0,0.62); color: white;
+    padding: 3px 8px; border-radius: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    backdrop-filter: blur(8px);
+  }
+  .pf-del-btn {
+    position: absolute; top: 10px; left: 10px;
+    background: rgba(200,0,0,0.8); color: white;
+    border: none; border-radius: 6px; padding: 4px 8px;
+    font-size: 10px; font-weight: 700; cursor: pointer;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .pf-post-card:hover .pf-del-btn { opacity: 1; }
+  .empty-msg {
+    text-align: center; padding: 60px 20px; color: var(--text-muted);
+  }
+</style>
+
+<div class="pfu-header">
+  {% if owner.avatar_url %}
+  <img src="{{ owner.avatar_url }}" class="pfu-avatar" alt="">
+  {% else %}
+  <div class="pfu-avatar">{{ owner.username[0]|upper }}</div>
+  {% endif %}
+  <div class="pfu-name">@{{ owner.username }}</div>
+  {% if owner.bio %}
+  <div class="pfu-bio">{{ owner.bio }}</div>
+  {% endif %}
+  <div class="pfu-actions">
+    <a href="/u/{{ owner.username }}" class="pfu-btn-ghost">PROFILE</a>
+    {% if is_mine %}
+    <a href="/portfolio/new" class="pfu-btn">+ 작품 올리기</a>
+    {% endif %}
+  </div>
+  {% if is_mine %}
+  <div class="pfu-usage">
+    사용량: {{ "%.1f"|format((member.total_bytes or 0) / 1024 / 1024) }}MB / 5,120MB
+  </div>
+  {% endif %}
+</div>
+
+{% if posts %}
+<div class="pf-masonry">
+  {% for p in posts %}
+  <a href="/portfolio/post/{{ p.id }}" class="pf-post-card">
+    {% set media_count = (p.images|length) + (1 if p.video else 0) %}
+    {% if media_count > 1 %}
+    <div class="pf-post-count">{{ media_count }}</div>
+    {% endif %}
+    {% if p.images and p.images|length > 0 %}
+    <img src="{{ p.images[0].url }}" class="pf-post-media" alt="" loading="lazy">
+    {% elif p.video %}
+    <video src="{{ p.video.url }}" class="pf-post-media" muted preload="metadata"></video>
+    {% endif %}
+    <div class="pf-post-body">
+      <div class="pf-post-title">{{ p.title }}</div>
+      <div class="pf-post-meta">{{ p.created_at|relativetime }}</div>
+    </div>
+    {% if is_mine %}
+    <form method="post" action="/portfolio/post/{{ p.id }}/delete"
+          onclick="event.stopPropagation(); event.preventDefault();
+                   if(confirm('이 작품을 삭제할까요?')) this.submit();"
+          style="display:inline;">
+      <button type="button" class="pf-del-btn">× 삭제</button>
+    </form>
+    {% endif %}
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-msg">
+  <div style="font-size:48px;margin-bottom:12px;">✦</div>
+  <p>아직 작품이 없어요.</p>
+  {% if is_mine %}
+  <p style="margin-top:8px;font-size:12px;">첫 번째 작품을 올려보세요!</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

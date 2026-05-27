@@ -658,6 +658,7 @@ select { cursor: pointer; }
     </a>
     <nav class="nav">
       <a href="/explore" class="nav-link {% if request.path == '/explore' or request.path == '/' %}active{% endif %}">PROMPT</a>
+      <a href="/portfolio" class="nav-link {% if request.path.startswith('/portfolio') %}active{% endif %}">PORTFOLIO</a>
       <a href="/apps" class="nav-link {% if request.path.startswith('/apps') %}active{% endif %}">APP</a>
       <a href="/character-sheet" class="nav-link {% if request.path == '/character-sheet' %}active{% endif %}">CHARACTER SHEET</a>
       {% if user %}
