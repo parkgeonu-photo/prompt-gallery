@@ -1338,30 +1338,43 @@ def admin_dashboard():
         for p in pf_pending:
             p["id"] = str(p["id"])
 
-        # 용량 측정
-        db_size_row = c.fetchone("SELECT pg_database_size(current_database()) AS db_bytes")
-        db_bytes = db_size_row["db_bytes"] if db_size_row else 0
+        # 용량 측정 (에러 시 기본값)
+        try:
+            db_size_row = c.fetchone("SELECT pg_database_size(current_database()) AS db_bytes")
+            db_bytes = db_size_row["db_bytes"] if db_size_row else 0
+        except Exception:
+            db_bytes = 0
 
-        storage_row = c.fetchone("""
-            SELECT
-                COALESCE(SUM(CASE WHEN media_type = 'image' THEN 1 ELSE 0 END), 0) AS img_count,
-                COALESCE(SUM(CASE WHEN media_type = 'video' THEN 1 ELSE 0 END), 0) AS vid_count,
-                (SELECT COUNT(*) FROM characters) AS char_count,
-                (SELECT COALESCE(SUM(total_bytes), 0) FROM portfolio_posts) AS pf_bytes,
-                (SELECT COALESCE(SUM(total_bytes), 0) FROM portfolio_members) AS pf_total,
-                (SELECT COUNT(*) FROM portfolio_members WHERE status = 'approved') AS pf_members
-        """)
+        try:
+            storage_row = c.fetchone("""
+                SELECT
+                    COALESCE(SUM(CASE WHEN media_type = 'image' THEN 1 ELSE 0 END), 0) AS img_count,
+                    COALESCE(SUM(CASE WHEN media_type = 'video' THEN 1 ELSE 0 END), 0) AS vid_count
+                FROM posts
+            """)
+        except Exception:
+            storage_row = {"img_count": 0, "vid_count": 0}
+
+        try:
+            extra = c.fetchone("""
+                SELECT
+                    (SELECT COUNT(*) FROM characters) AS char_count,
+                    (SELECT COALESCE(SUM(total_bytes), 0) FROM portfolio_members) AS pf_total,
+                    (SELECT COUNT(*) FROM portfolio_members WHERE status = 'approved') AS pf_members
+            """)
+        except Exception:
+            extra = {"char_count": 0, "pf_total": 0, "pf_members": 0}
 
         usage = {
             "db_bytes": db_bytes,
             "db_gb": round(db_bytes / (1024**3), 2),
             "db_limit_gb": 8,
-            "pf_bytes": storage_row["pf_total"] if storage_row else 0,
-            "pf_gb": round((storage_row["pf_total"] or 0) / (1024**3), 2),
+            "pf_bytes": extra["pf_total"] if extra else 0,
+            "pf_gb": round((extra["pf_total"] or 0) / (1024**3), 2) if extra else 0,
             "img_count": storage_row["img_count"] if storage_row else 0,
             "vid_count": storage_row["vid_count"] if storage_row else 0,
-            "char_count": storage_row["char_count"] if storage_row else 0,
-            "pf_members": storage_row["pf_members"] if storage_row else 0,
+            "char_count": extra["char_count"] if extra else 0,
+            "pf_members": extra["pf_members"] if extra else 0,
         }
 
     return render_template("admin.html", settings=settings, pending=pending,
