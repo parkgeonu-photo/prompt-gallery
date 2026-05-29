@@ -2509,6 +2509,200 @@ Seedance · Grok · Kling · Midjourney · DALL-E 3 · Stable Diffusion · Flux 
     return jsonify({"ok": True, "msg": "사이트 소개 공지글 생성 완료!"})
 
 
+@app.route("/api/seed-seedance-guide", methods=["POST"])
+@admin_required
+def seed_seedance_guide():
+    """Seedance 2.0 프롬프트 가이드 공지글 시드."""
+    u = current_user()
+    with db() as c:
+        existing = c.fetchone(
+            "SELECT id FROM app_posts WHERE user_id = %s AND title LIKE %s",
+            (u["id"], "%Seedance 2.0 영상 프롬프트 작성 가이드%")
+        )
+        if existing:
+            return jsonify({"ok": False, "msg": "이미 존재합니다"}), 400
+
+        content = """Seedance 2.0으로 AI 영상을 만들 때, 프롬프트를 어떻게 써야 원하는 결과가 나오는지 정리한 가이드입니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Seedance 2.0이란?
+
+ByteDance에서 만든 멀티모달 AI 영상 생성 모델입니다. 텍스트, 이미지, 영상, 오디오를 함께 입력해서 4초~15초 분량의 AI 영상을 만들 수 있어요. 단순히 "멋진 영상 만들어줘"가 아니라, 무엇을 보여줄지 / 카메라는 어떻게 움직일지 / 몇 초에 무슨 일이 일어날지를 구체적으로 지시해야 좋은 결과가 나옵니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+입력 제한
+
+이미지: 최대 9장 (jpeg, png, webp, bmp, tiff, gif / 각 30MB)
+영상: 최대 3개 (mp4, mov / 각 50MB, 길이 2~15초)
+오디오: 최대 3개 (mp3, wav / 총 길이 15초 이하)
+텍스트: 자연어 프롬프트 (제한 없음)
+총 파일 수: 최대 12개 (이미지+영상+오디오 합산)
+
+주의: 실사 사람 얼굴이 포함된 이미지/영상은 플랫폼 정책상 차단될 수 있습니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+핵심 문법: @ 레퍼런스 시스템
+
+업로드한 자료를 @Image1, @Video1, @Audio1 같은 이름으로 부릅니다. 중요한 건 단순히 "참고해줘"가 아니라 역할을 명확히 지정하는 거예요.
+
+좋은 예시:
+@Image1's character as the main subject.
+@Image2 as the first frame.
+@Image3 as the last frame.
+Reference @Video1's camera movement and action choreography.
+BGM references @Audio1.
+
+나쁜 예시:
+Reference @Video1.
+→ 카메라를 참고하란 건지, 동작인지, 효과인지 불명확합니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+프롬프트 기본 구조
+
+1. 주인공 / 피사체 설정
+2. 장소 / 배경 설정
+3. 행동 / 움직임 설명
+4. 카메라 움직임
+5. 시간대별 연출 (타임라인)
+6. 전환 / 효과
+7. 사운드 / 음악 / 효과음
+8. 스타일 / 분위기
+9. 금지 사항
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+10초 이상은 시간 분할이 핵심
+
+15초 영상 구조 예시:
+0~3초: 시작 상태. 주인공 등장, 카메라 천천히 push in.
+3~6초: 준비 동작. 주변을 살피며 긴장감 상승.
+6~10초: 핵심 사건. 빛이 터지고 대상이 움직이기 시작.
+10~13초: 반응. 주인공이 놀라며 카메라가 따라감.
+13~15초: 안정된 끝. 다음 장면으로 이어질 수 있는 구도.
+
+기본 흐름: 시작 → 준비/접근 → 핵심 사건 → 결과/반응 → 안정된 끝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+카메라 표현 정리
+
+기본 움직임:
+slow push in — 피사체 쪽으로 천천히 접근
+pull back — 카메라가 뒤로 빠짐
+pan left/right — 좌우 회전
+tilt up/down — 상하 회전
+tracking shot — 피사체를 따라가는 카메라
+orbit shot — 피사체 주변을 도는 카메라
+one-take — 컷 없이 이어지는 롱테이크
+
+고급 표현:
+dolly zoom — 배경 왜곡 압박감 줌
+fisheye lens — 초광각 왜곡
+low angle / high angle — 앙각/부감
+bird's-eye view — 완전 탑뷰
+first-person POV — 1인칭 시점
+whip pan — 빠른 좌우 전환
+crane shot — 위아래 크게 이동
+
+샷 크기:
+extreme close-up → close-up → medium shot → full shot → wide shot → establishing shot
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+자주 쓰는 패턴
+
+캐릭터 일관성 유지:
+@Image1's character as the main subject.
+Keep the same face shape, hairstyle, outfit, body proportions throughout.
+
+카메라 움직임 복제:
+Reference @Video1's camera movement only.
+Do not copy the character or background from @Video1.
+
+영상 연장:
+Extend @Video1 by 15 seconds.
+0~5초: @Video1 마지막 프레임에서 이어서...
+
+음악 비트 매칭:
+Reference @Audio1's rhythm and beat structure.
+Cut timing, camera movement should match the beat.
+
+상품 광고:
+@Image1 as the hero product.
+0~3초: 깔끔한 스튜디오에서 천천히 회전
+3~7초: 질감, 소재, 로고 클로즈업
+7~11초: 라이프스타일 사용 장면
+11~15초: 드라마틱 조명의 히어로 샷
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+스타일 강화 문구 (프롬프트 끝에 추가)
+
+실사/영화풍:
+Photorealistic, cinematic quality, shallow depth of field, natural lighting, film grain, 24fps.
+
+애니메이션:
+Anime style, clean linework, cinematic lighting, expressive motion, smooth animation.
+
+판타지:
+Epic fantasy atmosphere, volumetric light, magical particles, grand scale.
+
+네온 도시:
+High saturation neon colors, wet asphalt reflections, cyberpunk atmosphere.
+
+브이로그/POV:
+First-person POV, handheld camera feeling, natural breathing, travel vlog style.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+자주 하는 실수
+
+1. 레퍼런스 역할 불명확 — "Reference @Video1" 대신 구체적으로 무엇을 참고할지 적기
+2. 짧은 시간에 너무 많은 행동 — 4초에 전투+대사+폭발 넣으면 불안정
+3. 카메라 지시 충돌 — "Static camera + fast orbit" 같은 모순 피하기
+4. 사운드 미지정 — 원하는 소리/원하지 않는 소리 명확히 적기
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+핵심 요약
+
+@레퍼런스는 반드시 역할을 지정한다.
+15초 영상은 시간 구간으로 나눈다.
+한 구간에는 하나의 핵심 행동만 넣는다.
+카메라 움직임을 명확히 쓴다.
+사운드까지 지시한다.
+마지막에 금지사항을 넣는다.
+
+가장 안정적인 기본 구조:
+@Image1 as the first frame.
+@Image2 as the last frame.
+@Image3 as the character reference.
+→ 0~3초: 시작 / 3~6초: 접근 / 6~10초: 핵심 / 10~13초: 반응 / 13~15초: 끝
+→ Camera / Sound / Style / Constraints 순으로 마무리
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+원본 출처: https://javaexpert.tistory.com/1763"""
+
+        c.execute(
+            "INSERT INTO app_posts "
+            "(user_id, title, app_name, app_url, category, thumbnail_url, "
+            " content, pros, cons, rating, status, approved_at, approved_by) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW(),%s) RETURNING id",
+            (u["id"], "Seedance 2.0 영상 프롬프트 작성 가이드",
+             "Seedance 2.0", "https://javaexpert.tistory.com/1763", "팁/가이드", None,
+             content,
+             "• @ 레퍼런스 역할 지정이 핵심\n• 15초 영상은 시간 구간 분할\n• 카메라/사운드까지 명확히 지시",
+             "• 실사 얼굴 업로드 시 차단 가능\n• 한국어 립싱크 불안정할 수 있음",
+             0, "approved", u["id"])
+        )
+    return jsonify({"ok": True, "msg": "Seedance 가이드 공지글 생성 완료!"})
+
+
 @app.route("/api/translate", methods=["POST"])
 def api_translate():
     """텍스트 번역. POST {text, target: 'ko'|'en'|'zh-CN'}"""
