@@ -1663,7 +1663,22 @@ def apps_index():
     pinned = [a for a in apps if "사이트 소개" in (a.get("title") or "")]
     regular = [a for a in apps if a not in pinned]
 
-    return render_template("apps_index.html", apps=regular, pinned=pinned, current_category=category)
+    # 스킬 목록
+    with db() as c:
+        try:
+            sk_rows = c.fetchall(
+                "SELECT s.*, u.username, u.avatar_url, u.is_admin "
+                "FROM skills s JOIN users u ON u.id = s.user_id "
+                "ORDER BY s.created_at DESC LIMIT 20"
+            )
+            skills = [dict(r) for r in sk_rows]
+            for s in skills:
+                s["id"] = str(s["id"])
+        except Exception:
+            skills = []
+
+    return render_template("apps_index.html", apps=regular, pinned=pinned,
+                           current_category=category, skills=skills)
 
 
 @app.route("/apps/new", methods=["GET", "POST"])
