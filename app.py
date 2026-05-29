@@ -1644,7 +1644,11 @@ def apps_index():
         for a in apps:
             a["id"] = str(a["id"])
 
-    return render_template("apps_index.html", apps=apps, current_category=category)
+    # 사이트 소개 글 맨 위 고정
+    pinned = [a for a in apps if "사이트 소개" in (a.get("title") or "")]
+    regular = [a for a in apps if a not in pinned]
+
+    return render_template("apps_index.html", apps=regular, pinned=pinned, current_category=category)
 
 
 @app.route("/apps/new", methods=["GET", "POST"])
