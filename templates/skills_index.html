@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}SKILLS — {{ site.site_name or 'XAZINGA' }}{% endblock %}
+{% block content %}
+<style>
+  .sk-hero { text-align: center; max-width: 720px; margin: 0 auto 28px; }
+  .sk-hero h1 {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 48px; margin: 0 0 10px; letter-spacing: -1px;
+  }
+  .sk-hero p { color: var(--text-muted); font-size: 14px; }
+  .sk-actions { display: flex; gap: 10px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+  .sk-btn {
+    background: var(--text); color: var(--bg);
+    padding: 12px 24px; border-radius: 8px;
+    font-weight: 800; letter-spacing: 1px;
+    font-family: 'Archivo Black', sans-serif; font-size: 12px;
+    text-decoration: none;
+  }
+  .sk-btn-ghost {
+    background: var(--bg-elev); color: var(--text);
+    padding: 10px 20px; border-radius: 8px;
+    font-weight: 700; font-size: 11px;
+    text-decoration: none; border: 1px solid var(--border);
+  }
+  .cat-bar { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 20px 0 32px; }
+  .cat-pill {
+    background: var(--bg-elev); color: var(--text-muted);
+    padding: 6px 14px; border-radius: 999px; font-size: 11px;
+    border: 1px solid var(--border); font-weight: 700;
+    letter-spacing: 1px; cursor: pointer; text-decoration: none;
+  }
+  .cat-pill.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  .sk-list { display: flex; flex-direction: column; gap: 12px; max-width: 900px; margin: 0 auto; }
+  .sk-card {
+    display: flex; gap: 16px; padding: 20px;
+    background: var(--bg-elev); border-radius: 12px;
+    border: 1px solid var(--border); text-decoration: none; color: inherit;
+    transition: transform 0.2s; align-items: flex-start;
+  }
+  .sk-card:hover { transform: translateY(-1px); border-color: var(--text); }
+  .sk-icon {
+    width: 52px; height: 52px; flex-shrink: 0; border-radius: 12px;
+    background: var(--text); color: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Archivo Black', sans-serif; font-size: 20px;
+    font-weight: 800;
+  }
+  .sk-body { flex: 1; min-width: 0; }
+  .sk-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .sk-name {
+    font-family: 'Archivo Black', sans-serif; font-size: 16px;
+    letter-spacing: -0.3px; flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .sk-cat {
+    background: var(--bg); color: var(--text-muted);
+    padding: 2px 8px; border-radius: 4px; font-size: 10px;
+    font-weight: 700; letter-spacing: 0.5px; flex-shrink: 0;
+  }
+  .sk-desc {
+    font-size: 13px; color: var(--text-muted); line-height: 1.5;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; margin-bottom: 6px;
+  }
+  .sk-foot {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10px; color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .admin-badge {
+    background: var(--text); color: var(--bg);
+    padding: 1px 5px; border-radius: 3px; font-size: 8px;
+    font-weight: 800; letter-spacing: 0.5px;
+  }
+  .empty-msg { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+</style>
+
+<div class="sk-hero">
+  <h1>SKILLS</h1>
+  <p>AI 영상/이미지 제작에 유용한 스킬과 프롬프트 모음</p>
+  <div class="sk-actions">
+    <a href="/apps" class="sk-btn-ghost">← NOTICE</a>
+    {% if user and user.is_admin %}
+    <a href="/skills/new" class="sk-btn">+ 스킬 추가</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="cat-bar">
+  <a href="/skills" class="cat-pill {% if not current_category %}active{% endif %}">ALL</a>
+  {% for cat in skill_categories %}
+  <a href="/skills?category={{ cat }}" class="cat-pill {% if current_category == cat %}active{% endif %}">{{ cat }}</a>
+  {% endfor %}
+</div>
+
+<div class="sk-list">
+  {% if skills %}
+    {% for s in skills %}
+    <a href="/skills/{{ s.id }}" class="sk-card">
+      <div class="sk-icon">{{ s.name[0]|upper }}</div>
+      <div class="sk-body">
+        <div class="sk-head">
+          <div class="sk-name">{{ s.name }}</div>
+          {% if s.category %}<span class="sk-cat">{{ s.category }}</span>{% endif %}
+        </div>
+        {% if s.description %}
+        <div class="sk-desc">{{ s.description }}</div>
+        {% else %}
+        <div class="sk-desc">{{ s.content[:120] }}</div>
+        {% endif %}
+        <div class="sk-foot">
+          <span>@{{ s.username }}</span>
+          {% if s.is_admin %}<span class="admin-badge">ADMIN</span>{% endif %}
+          <span>· {{ s.created_at|relativetime }}</span>
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  {% else %}
+    <div class="empty-msg">
+      <div style="font-size:48px;margin-bottom:12px;">✦</div>
+      <p>아직 등록된 스킬이 없어요.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

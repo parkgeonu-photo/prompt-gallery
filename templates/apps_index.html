@@ -126,6 +126,9 @@
 <div class="cat-bar">
   <a href="/apps" class="cat-pill {% if not current_category %}active{% endif %}">ALL</a>
   {% for cat in app_categories %}
+    {% if cat == '팁/가이드' %}
+    <a href="/skills" class="cat-pill" style="background:var(--text);color:var(--bg);border-color:var(--text);">스킬 저장소 →</a>
+    {% endif %}
   <a href="/apps?category={{ cat }}" class="cat-pill {% if current_category == cat %}active{% endif %}">{{ cat }}</a>
   {% endfor %}
 </div>

@@ -233,6 +233,21 @@ def init_db():
         """)
         c.execute("CREATE INDEX IF NOT EXISTS idx_pp_user ON portfolio_posts(user_id, created_at DESC)")
 
+        # Skills
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS skills (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                description TEXT,
+                content TEXT NOT NULL,
+                category TEXT,
+                created_at BIGINT NOT NULL,
+                updated_at BIGINT
+            )
+        """)
+        c.execute("CREATE INDEX IF NOT EXISTS idx_skills_created ON skills(created_at DESC)")
+
 
 # =================================================================
 # Supabase Storage
@@ -2053,6 +2068,124 @@ def api_my_characters():
         d["images"] = _parse_char_images(d.get("images"))
         out.append(d)
     return jsonify({"characters": out})
+
+
+# =================================================================
+# Skills (스킬 저장소)
+# =================================================================
+
+SKILL_CATEGORIES = ["영상 제작", "이미지 생성", "마케팅", "글쓰기", "개발", "기타"]
+
+@app.route("/skills")
+def skills_index():
+    """스킬 저장소 목록."""
+    category = request.args.get("category")
+    sql = """
+        SELECT s.*, u.username, u.avatar_url, u.is_admin
+        FROM skills s JOIN users u ON u.id = s.user_id
+    """
+    params = []
+    if category:
+        sql += " WHERE s.category = %s"
+        params.append(category)
+    sql += " ORDER BY s.created_at DESC LIMIT 100"
+
+    with db() as c:
+        rows = c.fetchall(sql, params)
+    skills = [dict(r) for r in rows]
+    for s in skills:
+        s["id"] = str(s["id"])
+
+    return render_template("skills_index.html", skills=skills,
+                           skill_categories=SKILL_CATEGORIES,
+                           current_category=category)
+
+
+@app.route("/skills/<skill_id>")
+def skill_detail(skill_id):
+    """스킬 상세."""
+    with db() as c:
+        row = c.fetchone(
+            "SELECT s.*, u.username, u.avatar_url, u.is_admin "
+            "FROM skills s JOIN users u ON u.id = s.user_id "
+            "WHERE s.id = %s", (skill_id,)
+        )
+    if not row:
+        abort(404)
+    skill = dict(row)
+    skill["id"] = str(skill["id"])
+    u = current_user()
+    is_mine = u and (str(u["id"]) == str(skill["user_id"]) or u.get("is_admin"))
+    return render_template("skill_detail.html", skill=skill, is_mine=is_mine)
+
+
+@app.route("/skills/new", methods=["GET", "POST"])
+@admin_required
+def skill_new():
+    """스킬 추가 (어드민 전용)."""
+    u = current_user()
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()[:200]
+        description = (request.form.get("description") or "").strip()[:500]
+        content = (request.form.get("content") or "").strip()[:20000]
+        category = (request.form.get("category") or "").strip()
+
+        if not (name and content):
+            return render_template("skill_form.html",
+                skill_categories=SKILL_CATEGORIES,
+                error="이름과 내용은 필수예요"), 400
+
+        with db() as c:
+            c.execute(
+                "INSERT INTO skills (user_id, name, description, content, category, created_at) "
+                "VALUES (%s,%s,%s,%s,%s,%s)",
+                (u["id"], name, description, content, category or None, int(time.time()))
+            )
+        return redirect("/skills")
+
+    return render_template("skill_form.html", skill_categories=SKILL_CATEGORIES)
+
+
+@app.route("/skills/<skill_id>/edit", methods=["GET", "POST"])
+@admin_required
+def skill_edit(skill_id):
+    """스킬 수정."""
+    u = current_user()
+    with db() as c:
+        row = c.fetchone("SELECT * FROM skills WHERE id = %s", (skill_id,))
+    if not row:
+        abort(404)
+    skill = dict(row)
+    skill["id"] = str(skill["id"])
+
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()[:200]
+        description = (request.form.get("description") or "").strip()[:500]
+        content = (request.form.get("content") or "").strip()[:20000]
+        category = (request.form.get("category") or "").strip()
+
+        if not (name and content):
+            return render_template("skill_form.html",
+                skill=skill, skill_categories=SKILL_CATEGORIES,
+                error="이름과 내용은 필수예요"), 400
+
+        with db() as c:
+            c.execute(
+                "UPDATE skills SET name=%s, description=%s, content=%s, category=%s, updated_at=%s "
+                "WHERE id=%s",
+                (name, description, content, category or None, int(time.time()), skill_id)
+            )
+        return redirect(f"/skills/{skill_id}")
+
+    return render_template("skill_form.html", skill=skill, skill_categories=SKILL_CATEGORIES)
+
+
+@app.route("/skills/<skill_id>/delete", methods=["POST"])
+@admin_required
+def skill_delete(skill_id):
+    with db() as c:
+        c.execute("DELETE FROM skills WHERE id = %s", (skill_id,))
+    return redirect("/skills")
 
 
 # =================================================================

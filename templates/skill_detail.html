@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}{{ skill.name }} — SKILLS{% endblock %}
+{% block content %}
+<style>
+  .skd-wrap { max-width: 800px; margin: 0 auto; }
+  .skd-header { margin-bottom: 28px; }
+  .skd-back {
+    font-size: 12px; color: var(--text-muted); font-weight: 700;
+    text-decoration: none; display: inline-block; margin-bottom: 16px;
+  }
+  .skd-back:hover { color: var(--text); }
+  .skd-title {
+    font-family: 'Archivo Black', sans-serif; font-size: 32px;
+    letter-spacing: -0.5px; margin-bottom: 8px;
+  }
+  .skd-meta {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--text-muted); flex-wrap: wrap;
+  }
+  .skd-cat {
+    background: var(--bg-elev); color: var(--text-muted);
+    padding: 3px 10px; border-radius: 4px; font-size: 10px;
+    font-weight: 700; letter-spacing: 0.5px; border: 1px solid var(--border);
+  }
+  .admin-badge {
+    background: var(--text); color: var(--bg);
+    padding: 2px 6px; border-radius: 3px; font-size: 9px;
+    font-weight: 800; letter-spacing: 0.5px;
+  }
+  .skd-desc {
+    background: var(--bg-elev); border-radius: 10px; padding: 18px 20px;
+    font-size: 14px; line-height: 1.6; color: var(--text-muted);
+    margin-bottom: 20px; border: 1px solid var(--border);
+  }
+  .skd-content {
+    background: var(--bg-elev); border-radius: 10px; padding: 24px;
+    border: 1px solid var(--border); position: relative;
+  }
+  .skd-content-label {
+    font-family: 'Archivo Black', sans-serif; font-size: 12px;
+    letter-spacing: 1px; color: var(--text-muted); margin-bottom: 14px;
+  }
+  .skd-content pre {
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    line-height: 1.7; white-space: pre-wrap; word-break: break-word;
+    color: var(--text); margin: 0;
+  }
+  .skd-copy-btn {
+    position: absolute; top: 14px; right: 14px;
+    background: var(--text); color: var(--bg); border: none;
+    padding: 6px 14px; border-radius: 6px; font-size: 11px;
+    font-weight: 700; cursor: pointer; letter-spacing: 0.5px;
+  }
+  .skd-copy-btn:active { opacity: 0.7; }
+  .skd-admin-actions {
+    display: flex; gap: 10px; margin-top: 20px;
+  }
+  .skd-edit-btn {
+    background: var(--bg-elev); color: var(--text); border: 1px solid var(--border);
+    padding: 8px 16px; border-radius: 6px; font-size: 11px;
+    font-weight: 700; text-decoration: none;
+  }
+  .skd-del-btn {
+    background: none; border: 1px solid var(--danger, #c00); color: var(--danger, #c00);
+    padding: 8px 16px; border-radius: 6px; font-size: 11px;
+    font-weight: 700; cursor: pointer;
+  }
+</style>
+
+<div class="skd-wrap">
+  <div class="skd-header">
+    <a href="/skills" class="skd-back">← SKILLS</a>
+    <div class="skd-title">{{ skill.name }}</div>
+    <div class="skd-meta">
+      <span>@{{ skill.username }}</span>
+      {% if skill.is_admin %}<span class="admin-badge">ADMIN</span>{% endif %}
+      {% if skill.category %}<span class="skd-cat">{{ skill.category }}</span>{% endif %}
+      <span>· {{ skill.created_at|relativetime }}</span>
+    </div>
+  </div>
+
+  {% if skill.description %}
+  <div class="skd-desc">{{ skill.description }}</div>
+  {% endif %}
+
+  <div class="skd-content">
+    <div class="skd-content-label">SKILL CONTENT</div>
+    <button class="skd-copy-btn" onclick="copySkill()">COPY</button>
+    <pre id="skillContent">{{ skill.content }}</pre>
+  </div>
+
+  {% if is_mine %}
+  <div class="skd-admin-actions">
+    <a href="/skills/{{ skill.id }}/edit" class="skd-edit-btn">EDIT</a>
+    <form method="post" action="/skills/{{ skill.id }}/delete"
+          onsubmit="return confirm('이 스킬을 삭제할까요?');">
+      <button type="submit" class="skd-del-btn">DELETE</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function copySkill() {
+  const text = document.getElementById('skillContent').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.skd-copy-btn');
+    btn.textContent = 'COPIED!';
+    setTimeout(() => btn.textContent = 'COPY', 1500);
+  });
+}
+</script>
+{% endblock %}
