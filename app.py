@@ -2855,6 +2855,225 @@ First-person POV, handheld camera feeling, natural breathing, travel vlog style.
     return jsonify({"ok": True, "msg": "Seedance 가이드 공지글 생성 완료!"})
 
 
+@app.route("/api/seed-skills", methods=["POST"])
+@admin_required
+def seed_skills():
+    """스킬 4개 일괄 시드."""
+    u = current_user()
+    skills_data = [
+        {
+            "name": "Seedance 디렉터",
+            "category": "영상 제작",
+            "description": "장면 설명을 Seedance 2.0에 최적화된 영어+중국어 이중 언어 영상 프롬프트로 변환하는 스킬. 액션/일반/대화 장면 모두 지원.",
+            "content": """Seedance 2.0 유니버셜 디렉터
+
+장면 설명(텍스트 + 레퍼런스 이미지)을 입력하면, Seedance 2.0에 최적화된 EN+ZH 이중 언어 영상 프롬프트를 JSON으로 출력합니다.
+
+━━━ 지원 장면 유형 ━━━
+
+액션: 추격(Pursuit), 결투(Duel), 충격(Impact)
+일반: 여정(Journey), 분위기(Atmosphere), 공개(Reveal)
+대화: 대립(Confrontation), 심문(Interrogation), 협상(Negotiation)
+
+━━━ 프롬프트 구조 ━━━
+
+1. Style & Mood — 팔레트, 조명, 렌즈, 분위기
+2. Narrative Summary — 1문장 장면 요약 (선택)
+3. Dynamic Description — 샷별 서술. 카메라, 움직임, 액션
+4. Static Description — 장소, 소품, 환경
+5. Audio — 대사 + SFX/BGM (대화 장면만)
+
+━━━ Seedance 엔진 규칙 ━━━
+
+• 액션 = 의도 + 기술명. 생체역학 묘사 금지
+• 힘과 방향을 묘사하되, 파괴 시퀀스는 금지
+• 컷 후 위치/방향 재설정 필수
+• 동시 추적 캐릭터 3명 이하
+• 프레임 밖 = 존재하지 않음
+• 반사(거울, 물웅덩이) 금지
+• 감정 레이블 대신 물리적 묘사 사용
+
+━━━ 출력 형식 ━━━
+
+[{"lang":"en","prompt":"..."}, {"lang":"zh","prompt":"..."}]
+
+ZH 프롬프트 1,800자 이하. 번역이 아닌 네이티브 중국어 재작성.
+레퍼런스 이미지 사용 시 <<<image_n>>> 범례 포함.
+
+━━━ 카메라 언어 ━━━
+
+앵글: low-angle/仰拍, high-angle/俯拍, dutch angle/荷兰角, bird's-eye/鸟瞰
+렌즈: wide 14-24mm/广角, standard 35-50mm/标准, telephoto 85-200mm/长焦
+무브: tracking/跟拍, dolly-in/推镜头, crane/摇臂, pan/横摇, orbit/环绕
+시간: slow-motion/升格, speed ramp/变速, freeze frame/定格
+전환: smash cut/硬切, match cut/匹配剪辑, whip-pan/甩镜转场"""
+        },
+        {
+            "name": "비디오 프롬프트 빌더",
+            "category": "영상 제작",
+            "description": "크리에이티브 브리프를 4섹션 구조의 상세한 샷별 영상 프롬프트로 변환. 이펙트 타임라인, 인벤토리, 밀도 맵, 에너지 아크 포함.",
+            "content": """비디오 프롬프트 빌더 (Seedance 2.0)
+
+크리에이티브 브리프 → 샷별 영상 프롬프트 변환 스킬
+
+━━━ 입력 ━━━
+
+"나이키 스타일 러닝 광고, 산, 골든아워, 15초" 같은 간단한 설명부터
+상세한 스토리보드까지 모두 지원.
+
+━━━ 출력 4섹션 (반드시 전부 포함) ━━━
+
+1. SHOT-BY-SHOT EFFECTS TIMELINE
+각 샷별 블록:
+• EFFECT: 주요 이펙트 + 보조 이펙트
+• 시각적 묘사
+• 카메라 동작 (앵글, 무브먼트, 렌즈)
+• 속도/타이밍 정보
+• 다음 샷으로의 전환 방식
+
+2. MASTER EFFECTS INVENTORY
+사용된 전체 이펙트 번호 목록 + 등장 횟수 + 역할
+
+3. EFFECTS DENSITY MAP
+타임라인 구간별 밀도 등급:
+HIGH (4+ 이펙트) / MEDIUM (2-3) / LOW (1 이하)
+
+4. ENERGY ARC
+전체 에너지 흐름:
+Act 1: 오프닝 에너지
+Act 2: 전개 + 시그니처 모먼트
+Act 3: 해소 + 착지
+
+━━━ 크리에이티브 원칙 ━━━
+
+• 대비가 임팩트를 만든다 — 고밀도/저밀도 교차
+• 시그니처 모먼트 필수 — 영상당 최소 1개 히어로 이펙트
+• 전환도 샷이다 — 위프팬, 블룸 플래시도 창의적 순간
+• 구체성 > 모호함 — "20-25% 속도" > "슬로모션"
+• 에너지는 반드시 해소 — 끝은 의도적으로
+
+━━━ 길이별 가이드 ━━━
+
+5-10초: 4-7샷, 린하고 펀치감, 시그니처 1개
+10-20초: 8-14샷, 대비와 빌드업, 시그니처 1-2개
+20-30초: 12-20샷, 풀 3막 구조, 시그니처 2-3개"""
+        },
+        {
+            "name": "Seedance 프롬프팅 가이드",
+            "category": "영상 제작",
+            "description": "Seedance 2.0 프롬프트의 5블록 구조, @ 소스 바인딩, 타임라인 분할, 카메라 키워드, 원샷/연장 기법 총정리.",
+            "content": """Seedance 2.0 프롬프팅 가이드
+
+━━━ 핵심 3원칙 ━━━
+
+1. 모든 소재에는 역할이 있어야 한다
+   @이미지N, @비디오N, @오디오N 각각에 구체적 역할 지정 필수
+   "그냥 @비디오1 참조" 금물 → 카메라/동작/리듬/효과 중 뭔지 명시
+
+2. 감정은 이름이 아니라 물리 현상으로 쓴다
+   ❌ "슬프다", "긴장감 있다"
+   ✅ "눈물이 뺨을 따라 흐르고, 입가가 미세하게 떨린다"
+
+3. 10초 이상이면 타임라인을 3초 단위로 쪼갠다
+   한 구간에는 핵심 동작 하나만
+
+━━━ 5블록 프롬프트 구조 ━━━
+
+① 소재 바인딩: 업로드한 소재에 역할 부여
+   @이미지1을 첫 번째 프레임으로. 캐릭터 외모를 @이미지1과 일치.
+
+② 피사체 + 공간: 캐릭터 외모, 배경, 조명, 시간대
+   20대 여성, 흰 원피스. 서울 골목길, 젖은 아스팔트. 밤, 가로등 역광.
+
+③ 타임라인 동작: 시간 구간별 동작 (3초 단위)
+   0-4초: 천천히 걸으며 고개를 숙인다…
+
+④ 카메라 + 오디오: 카메라 움직임, 음향 참조
+   카메라 이동은 @비디오1 참조. 느린 달리 인. BGM은 @오디오1 참조.
+
+⑤ 스타일 + 제약: 비주얼 톤, 원샷 여부
+   16mm 필름 그레인, 얕은 피사계심도. 원샷.
+
+━━━ 입력 제한 ━━━
+
+이미지: 최대 9장 (jpeg, png, webp, bmp, tiff, gif / 각 30MB)
+영상: 최대 3개 (mp4, mov / 각 50MB, 2-15초)
+오디오: 최대 3개 (mp3, wav / 총 15초 이하)
+총 파일: 최대 12개
+
+━━━ 실전 예시 ━━━
+
+❌ 나쁨: "여자가 슬프게 비를 맞으며 걷는다. 시네마틱."
+
+✅ 좋음:
+① @이미지1을 첫 프레임으로. 캐릭터 외모 @이미지1과 일치.
+② 20대 여성, 흰 원피스, 젖은 머리카락이 얼굴에 붙어 있다.
+   서울 골목길, 젖은 아스팔트, 네온사인 반사. 밤, 가로등 역광.
+③ 0-4초: 천천히 걸으며 고개를 숙인다. 빗방울이 어깨에 떨어진다.
+   4-7초: 멈추고 하늘을 올려다본다. 눈물이 빗물과 섞여 뺨을 따라 흐른다.
+   7-10초: 입가가 미세하게 떨리며 양손으로 얼굴을 감싼다.
+④ 카메라 @비디오1 참조. 느린 달리 인. BGM @오디오1. 빗소리, 먼 천둥.
+⑤ 16mm 필름 그레인, 한국 인디영화 톤, 얕은 피사계심도. 원샷.
+
+━━━ 자주 쓰는 패턴 ━━━
+
+캐릭터 일관성: @이미지1's character as main subject. Keep same face, outfit throughout.
+카메라 복제: Reference @비디오1's camera movement only.
+영상 연장: Extend @비디오1 by 15 seconds. 0-5초: Continue from final frame…
+비트 매칭: Reference @오디오1's rhythm. Cut timing matches the beat.
+상품 광고: @이미지1 as hero product. 0-3초: 회전, 3-7초: 클로즈업, 7-11초: 라이프스타일"""
+        },
+        {
+            "name": "촬영 타임테이블",
+            "category": "영상 제작",
+            "description": "촬영 스케줄과 시간 가이드를 한 페이지 타임테이블로 정리하는 스킬. 자료를 읽고 해석해서 촬영 일정표 제작.",
+            "content": """촬영 타임테이블 스킬
+
+자료(대본, 콘티, 촬영 계획서 등)를 읽고 해석하여
+촬영 시간의 가이드를 잡는 타임테이블을 한 페이지에 제작합니다.
+
+━━━ 사용법 ━━━
+
+1. 촬영 관련 자료(대본, 장소 목록, 출연진 등)를 첨부하거나 설명
+2. 스킬이 자동으로 해석하여 시간 배분
+3. 한 페이지짜리 타임테이블 출력
+
+━━━ 타임테이블 포함 항목 ━━━
+
+• 촬영 시간대 (시작/종료)
+• 장면 번호 및 설명
+• 장소 이동 시간
+• 준비/세팅 시간
+• 식사/휴식 시간
+• 예비 시간 (버퍼)
+• 담당자/출연진
+
+━━━ 활용 ━━━
+
+AI 영상 제작뿐 아니라 실사 촬영, 유튜브 콘텐츠,
+제품 촬영, 인터뷰 등 모든 영상 작업에 활용 가능."""
+        }
+    ]
+
+    created = 0
+    with db() as c:
+        for sk in skills_data:
+            existing = c.fetchone(
+                "SELECT id FROM skills WHERE user_id = %s AND name = %s",
+                (u["id"], sk["name"])
+            )
+            if existing:
+                continue
+            c.execute(
+                "INSERT INTO skills (user_id, name, description, content, category, created_at) "
+                "VALUES (%s,%s,%s,%s,%s,%s)",
+                (u["id"], sk["name"], sk["description"], sk["content"],
+                 sk["category"], int(time.time()))
+            )
+            created += 1
+    return jsonify({"ok": True, "msg": f"스킬 {created}개 생성 완료!"})
+
+
 @app.route("/api/translate", methods=["POST"])
 def api_translate():
     """텍스트 번역. POST {text, target: 'ko'|'en'|'zh-CN'}"""
