@@ -1,4 +1,12 @@
 {% extends "base.html" %}
+{% block title %}@{{ profile.username }}의 프로필 — XAZINGA{% endblock %}
+{% block meta_description %}{{ (profile.bio or '@' + profile.username + '의 AI 작품 갤러리')[:160] }}{% endblock %}
+{% block og_description %}{{ (profile.bio or '@' + profile.username + '의 AI 작품 갤러리')[:200] }}{% endblock %}
+{% block og_image_tag %}
+{% if profile.avatar_url %}
+<meta property="og:image" content="{{ profile.avatar_url }}">
+{% endif %}
+{% endblock %}
 {% block content %}
 <style>
   /* 아바타 - 클릭 가능 (마이페이지 본인) */

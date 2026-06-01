@@ -100,6 +100,105 @@ def build_info():
 
 
 # =================================================================
+# SEO: sitemap.xml, robots.txt
+# =================================================================
+@app.route("/sitemap.xml")
+def sitemap():
+    from flask import Response
+    pages = []
+    base = "https://www.xazinga.com"
+    # 고정 페이지
+    for path in ["/", "/explore", "/portfolio", "/apps", "/skills"]:
+        pages.append(f'  <url><loc>{base}{path}</loc><changefreq>daily</changefreq><priority>0.8</priority></url>')
+    # 게시물
+    try:
+        with db() as c:
+            rows = c.fetchall("SELECT id, created_at FROM posts WHERE visibility = 'public' ORDER BY created_at DESC LIMIT 500")
+            for r in rows:
+                pages.append(f'  <url><loc>{base}/post/{r["id"]}</loc><priority>0.6</priority></url>')
+            # 유저 프로필
+            rows = c.fetchall("SELECT username FROM users ORDER BY created_at DESC LIMIT 200")
+            for r in rows:
+                pages.append(f'  <url><loc>{base}/u/{r["username"]}</loc><priority>0.5</priority></url>')
+            # 포트폴리오
+            rows = c.fetchall(
+                "SELECT u.username FROM portfolio_members pm "
+                "JOIN users u ON u.id = pm.user_id WHERE pm.status = 'approved'"
+            )
+            for r in rows:
+                pages.append(f'  <url><loc>{base}/portfolio/u/{r["username"]}</loc><priority>0.5</priority></url>')
+    except Exception:
+        pass
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    xml += '\n'.join(pages)
+    xml += '\n</urlset>'
+    return Response(xml, mimetype='application/xml')
+
+
+@app.route("/robots.txt")
+def robots():
+    from flask import Response
+    txt = """User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /messages
+Disallow: /characters
+Disallow: /api/
+Sitemap: https://www.xazinga.com/sitemap.xml"""
+    return Response(txt, mimetype='text/plain')
+
+
+# =================================================================
+# 다국어 지원
+# =================================================================
+TRANSLATIONS = {
+    "ko": {
+        "upload": "업로드", "login": "로그인", "signup": "회원가입", "logout": "로그아웃",
+        "search": "검색", "like": "좋아요", "comment": "댓글", "delete": "삭제",
+        "edit": "수정", "save": "저장", "cancel": "취소", "submit": "제출",
+        "my_page": "MY PAGE", "admin": "관리자", "follow": "팔로우",
+        "portfolio_apply": "포트폴리오 사용 신청", "pending": "승인 대기 중이에요",
+        "no_posts": "아직 게시물이 없어요.", "write": "글 쓰기",
+        "title_required": "제목은 필수예요", "login_required": "로그인이 필요해요",
+        "copied": "복사 완료!", "back": "돌아가기",
+        "hero_desc": "AI로 만든 작품과 사용한 프롬프트를 함께 아카이브하는 갤러리",
+    },
+    "en": {
+        "upload": "Upload", "login": "Login", "signup": "Sign Up", "logout": "Logout",
+        "search": "Search", "like": "Like", "comment": "Comment", "delete": "Delete",
+        "edit": "Edit", "save": "Save", "cancel": "Cancel", "submit": "Submit",
+        "my_page": "MY PAGE", "admin": "Admin", "follow": "Follow",
+        "portfolio_apply": "Apply for Portfolio", "pending": "Pending approval",
+        "no_posts": "No posts yet.", "write": "Write",
+        "title_required": "Title is required", "login_required": "Login required",
+        "copied": "Copied!", "back": "Back",
+        "hero_desc": "Gallery for archiving AI-generated art with prompts",
+    },
+    "ja": {
+        "upload": "アップロード", "login": "ログイン", "signup": "会員登録", "logout": "ログアウト",
+        "search": "検索", "like": "いいね", "comment": "コメント", "delete": "削除",
+        "edit": "編集", "save": "保存", "cancel": "キャンセル", "submit": "送信",
+        "my_page": "MY PAGE", "admin": "管理者", "follow": "フォロー",
+        "portfolio_apply": "ポートフォリオ申請", "pending": "承認待ち",
+        "no_posts": "まだ投稿がありません。", "write": "投稿する",
+        "title_required": "タイトルは必須です", "login_required": "ログインが必要です",
+        "copied": "コピー完了！", "back": "戻る",
+        "hero_desc": "AIで作った作品とプロンプトをアーカイブするギャラリー",
+    }
+}
+
+
+@app.route("/set-lang/<lang_code>")
+def set_lang(lang_code):
+    if lang_code not in TRANSLATIONS:
+        lang_code = "ko"
+    resp = redirect(request.referrer or "/explore")
+    resp.set_cookie("lang", lang_code, max_age=365*24*3600, samesite="Lax")
+    return resp
+
+
+# =================================================================
 # Connection pool
 # =================================================================
 _pool = SimpleConnectionPool(1, 10, DATABASE_URL)
@@ -406,6 +505,10 @@ def inject_user():
             settings = {r["key"]: r["value"] for r in rows}
     except Exception:
         pass
+    lang = request.cookies.get("lang", "ko")
+    if lang not in TRANSLATIONS:
+        lang = "ko"
+    t = TRANSLATIONS[lang]
     return {
         "user": u,
         "unread_count": unread,
@@ -414,6 +517,8 @@ def inject_user():
         "muted_ids": muted_ids,
         "app_categories": NOTICE_CATEGORIES,
         "site": settings,
+        "lang": lang,
+        "t": t,
     }
 
 

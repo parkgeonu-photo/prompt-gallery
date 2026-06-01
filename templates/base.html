@@ -1,32 +1,31 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="{{ lang or 'ko' }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{% block title %}{{ site.site_name or 'XAZINGA' }}{% endblock %}</title>
+<meta name="description" content="{% block meta_description %}{{ site.site_tagline or 'AI로 만든 작품과 사용한 프롬프트를 함께 아카이브하는 갤러리' }}{% endblock %}">
+<link rel="canonical" href="{{ request.url.split('?')[0] }}">
 <link rel="icon" type="image/jpeg" href="{{ site.logo_url or 'https://agwqkgjgskcotqiedohb.supabase.co/storage/v1/object/public/media/branding/xazinga-logo.png' }}">
 <link rel="shortcut icon" href="{{ site.logo_url or 'https://agwqkgjgskcotqiedohb.supabase.co/storage/v1/object/public/media/branding/xazinga-logo.png' }}">
 <link rel="apple-touch-icon" href="{{ site.logo_url or 'https://agwqkgjgskcotqiedohb.supabase.co/storage/v1/object/public/media/branding/xazinga-logo.png' }}">
 <link rel="apple-touch-icon" sizes="180x180" href="{{ site.logo_url or 'https://agwqkgjgskcotqiedohb.supabase.co/storage/v1/object/public/media/branding/xazinga-logo.png' }}">
 
-{# Open Graph + Twitter 카드 — 카톡/X/Discord 등 링크 미리보기 #}
+{# Open Graph + Twitter 카드 #}
 <meta property="og:site_name" content="{{ site.site_name or 'XAZINGA' }}">
-<meta property="og:title" content="{% block og_title %}{{ site.site_name or 'XAZINGA' }}{% endblock %}">
+<meta property="og:title" content="{% block og_title %}{{ self.title() }}{% endblock %}">
 <meta property="og:description" content="{% block og_description %}{{ site.site_tagline or 'AI로 만든 작품과 사용한 프롬프트를 함께 아카이브하는 갤러리' }}{% endblock %}">
 <meta property="og:url" content="{{ request.url }}">
-{# 항상 website 타입 — Threads/카카오/Slack에서 og:image를 큰 미리보기로 띄움 #}
 <meta property="og:type" content="website">
+{% block og_image_tag %}
 {% if site.og_image_url or site.logo_url %}
 <meta property="og:image" content="{{ site.og_image_url or site.logo_url }}">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="{{ site.site_name or 'XAZINGA' }}">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="{{ site.og_image_url or site.logo_url }}">
-{% else %}
-<meta name="twitter:card" content="summary_large_image">
 {% endif %}
-{# 영상은 X(트위터)에서만 player로 렌더되며, og:image는 그대로 큰 미리보기로 유지 #}
+{% endblock %}
+<meta name="twitter:card" content="summary_large_image">
 {% if site.og_video_url %}
 <meta property="og:video" content="{{ site.og_video_url }}">
 <meta property="og:video:url" content="{{ site.og_video_url }}">
@@ -35,6 +34,7 @@
 <meta property="og:video:width" content="1280">
 <meta property="og:video:height" content="720">
 {% endif %}
+{% block extra_head %}{% endblock %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&family=Bebas+Neue&family=Archivo+Black&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -108,6 +108,13 @@ header {
   font-family: 'Space Grotesk', sans-serif;
 }
 .header-actions { display: flex; align-items: center; gap: 8px; }
+.lang-switch { display: flex; gap: 2px; margin-right: 4px; }
+.lang-btn {
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500;
+  color: var(--text-muted); text-decoration: none; padding: 3px 6px; border-radius: 4px;
+}
+.lang-btn.active { color: var(--text); font-weight: 700; background: var(--bg-elev); }
+.lang-btn:hover { color: var(--text); }
 .btn {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 9px 16px; border-radius: 999px;
@@ -675,20 +682,25 @@ select { cursor: pointer; }
       {% endif %}
     </nav>
     <div class="header-actions">
+      <div class="lang-switch">
+        <a href="/set-lang/ko" class="lang-btn {% if lang == 'ko' %}active{% endif %}">KO</a>
+        <a href="/set-lang/en" class="lang-btn {% if lang == 'en' %}active{% endif %}">EN</a>
+        <a href="/set-lang/ja" class="lang-btn {% if lang == 'ja' %}active{% endif %}">JA</a>
+      </div>
       {% if user %}
         <button type="button" class="btn btn-ghost icon-only" id="searchTrigger" aria-label="검색" title="검색">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
         </button>
-        <a href="/upload" class="btn btn-primary">+ UPLOAD</a>
+        <a href="/upload" class="btn btn-primary">+ {{ t.upload|upper }}</a>
         <form method="POST" action="/logout" class="inline-form">
-          <button type="submit" class="btn btn-ghost">LOGOUT</button>
+          <button type="submit" class="btn btn-ghost">{{ t.logout|upper }}</button>
         </form>
       {% else %}
-        <button type="button" class="btn btn-ghost icon-only" id="searchTrigger" aria-label="검색" title="검색">
+        <button type="button" class="btn btn-ghost icon-only" id="searchTrigger" aria-label="{{ t.search }}" title="{{ t.search }}">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
         </button>
-        <a href="/login" class="btn btn-ghost">LOGIN</a>
-        <a href="/signup" class="btn btn-primary">SIGN UP</a>
+        <a href="/login" class="btn btn-ghost">{{ t.login|upper }}</a>
+        <a href="/signup" class="btn btn-primary">{{ t.signup|upper }}</a>
       {% endif %}
     </div>
   </div>

@@ -1,4 +1,27 @@
 {% extends "base.html" %}
+{% block title %}{{ post.title or '작품' }} | @{{ post.author or 'unknown' }}{% if post.model %} | {{ post.model }}{% endif %} — XAZINGA{% endblock %}
+{% block meta_description %}{{ (post.prompt or '')[:160] }}{% endblock %}
+{% block og_description %}{{ (post.prompt or post.title or '')[:200] }}{% endblock %}
+{% block og_image_tag %}
+{% if post.media_path %}
+<meta property="og:image" content="{{ post.media_path }}">
+<meta property="og:image:alt" content="{{ post.title or 'AI 작품' }}">
+{% endif %}
+{% endblock %}
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "{% if post.media_type == 'video' %}VideoObject{% else %}ImageObject{% endif %}",
+  "name": {{ (post.title or 'AI 작품')|tojson }},
+  "description": {{ (post.prompt or '')|tojson }},
+  "contentUrl": {{ (post.media_path or '')|tojson }},
+  "author": {"@type": "Person", "name": {{ (post.author or '')|tojson }}},
+  "datePublished": "{{ post.created_at }}",
+  "url": "{{ request.url }}"
+}
+</script>
+{% endblock %}
 {% block content %}
 <style>
   .blurred-text {
