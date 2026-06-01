@@ -73,13 +73,13 @@
   <form method="post" enctype="multipart/form-data" id="pfForm">
     <div class="field">
       <label>TITLE</label>
-      <input type="text" name="title" maxlength="200" required placeholder="작품 제목">
+      <input type="text" name="title" maxlength="200" required placeholder="{{ _("작품 제목") }}">
     </div>
 
     <div class="field">
       <label>IMAGES (최대 8장, 장당 5MB)</label>
       <div class="drop-zone" id="imgZone">
-        <p>클릭하거나 드래그해서 이미지 추가</p>
+        <p>{{ _("클릭하거나 드래그해서 이미지 추가") }}</p>
         <p class="limit">JPG · PNG · WEBP · GIF</p>
         <input type="file" name="images" multiple accept=".jpg,.jpeg,.png,.webp,.gif"
                style="display:none" id="imgInput">
@@ -90,7 +90,7 @@
     <div class="field">
       <label>VIDEO (1개, 최대 50MB)</label>
       <div class="drop-zone" id="vidZone">
-        <p>클릭하거나 드래그해서 영상 추가</p>
+        <p>{{ _("클릭하거나 드래그해서 영상 추가") }}</p>
         <p class="limit">MP4 · WEBM · MOV</p>
         <input type="file" name="video" accept=".mp4,.webm,.mov"
                style="display:none" id="vidInput">

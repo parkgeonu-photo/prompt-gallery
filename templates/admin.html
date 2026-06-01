@@ -72,7 +72,7 @@
 
 <div class="page-heading">
   <h1 class="page-title">⚙ ADMIN</h1>
-  <p class="page-subtitle">사이트 설정과 승인 대기 게시물을 관리하세요.</p>
+  <p class="page-subtitle">{{ _("사이트 설정과 승인 대기 게시물을 관리하세요.") }}</p>
 </div>
 
 {% if request.args.get('saved') %}
@@ -216,7 +216,7 @@
       </div>
       {% endfor %}
     {% else %}
-      <div class="empty-msg">승인 대기 중인 글이 없어요.</div>
+      <div class="empty-msg">{{ _("승인 대기 중인 글이 없어요.") }}</div>
     {% endif %}
   </div>
 
@@ -232,7 +232,7 @@
         {% endif %}
         <div class="pending-info">
           <div class="pending-title">@{{ p.username }}</div>
-          <div class="pending-meta">포트폴리오 사용 신청 · {{ p.created_at|relativetime }}</div>
+          <div class="pending-meta">{{ _("포트폴리오 사용 신청") }} · {{ p.created_at|relativetime }}</div>
         </div>
         <div class="pending-actions">
           <a href="/u/{{ p.username }}" class="btn-view">PROFILE</a>
@@ -246,7 +246,7 @@
       </div>
       {% endfor %}
     {% else %}
-      <div class="empty-msg">포트폴리오 승인 대기가 없어요.</div>
+      <div class="empty-msg">{{ _("포트폴리오 승인 대기가 없어요.") }}</div>
     {% endif %}
   </div>
 

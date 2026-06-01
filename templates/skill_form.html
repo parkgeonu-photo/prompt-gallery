@@ -65,7 +65,7 @@
     <div class="field">
       <label>DESCRIPTION (한 줄 설명)</label>
       <input type="text" name="description" maxlength="500"
-             placeholder="이 스킬이 무엇을 하는지 간단히"
+             placeholder="{{ _("이 스킬이 무엇을 하는지 간단히") }}"
              value="{{ skill.description if skill else '' }}">
     </div>
 
@@ -73,7 +73,7 @@
       <label>CONTENT *</label>
       <textarea name="content" class="big" required maxlength="20000"
                 placeholder="스킬 내용, 프롬프트 템플릿, 사용법 등을 적어주세요...">{{ skill.content if skill else '' }}</textarea>
-      <p class="field-hint">프롬프트 템플릿, 워크플로우, 가이드 등 자유롭게 작성</p>
+      <p class="field-hint">{{ _("프롬프트 템플릿, 워크플로우, 가이드 등 자유롭게 작성") }}</p>
     </div>
 
     <button type="submit" class="submit-btn">

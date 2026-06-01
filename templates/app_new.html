@@ -40,26 +40,26 @@
 
 <div class="page-heading">
   <h1 class="page-title">NEW POST</h1>
-  <p class="page-subtitle">업데이트 소식, 공지, 앱 소개 등 자유롭게 작성하세요.</p>
+  <p class="page-subtitle">{{ _("업데이트 소식, 공지, 앱 소개 등 자유롭게 작성하세요.") }}</p>
 </div>
 
 <div class="form-wrap">
 
   {% if submitted %}
   <div class="submitted-banner">
-    <h2>✓ 제출 완료!</h2>
-    <p>주인장이 확인 후 승인하면 NOTICE 페이지에 노출됩니다.</p>
-    <p style="margin-top:10px;"><a href="/apps" style="color:white;text-decoration:underline;">NOTICE 목록으로 돌아가기 →</a></p>
+    <h2>✓ {{ _("제출 완료!") }}</h2>
+    <p>{{ _("주인장이 확인 후 승인하면 NOTICE 페이지에 노출됩니다.") }}</p>
+    <p style="margin-top:10px;"><a href="/apps" style="color:white;text-decoration:underline;">{{ _("NOTICE 목록으로 돌아가기 →") }}</a></p>
   </div>
   {% else %}
 
   {% if user.is_admin %}
   <div class="admin-notice">
-    ✨ <strong>ADMIN</strong> — 작성하면 바로 발행됩니다.
+    ✨ <strong>ADMIN</strong> — {{ _("작성하면 바로 발행됩니다.") }}
   </div>
   {% else %}
   <div class="pending-notice">
-    가입자가 작성한 글은 주인장 승인 후 노출돼요.
+    {{ _("가입자가 작성한 글은 주인장 승인 후 노출돼요.") }}
   </div>
   {% endif %}
 
@@ -67,56 +67,56 @@
 
   <form method="post" enctype="multipart/form-data">
     <div class="field-row">
-      <label>제목 *</label>
+      <label>{{ _("제목 *") }}</label>
       <input type="text" name="title" required maxlength="200" placeholder="예: v1.2 업데이트 — 포트폴리오 기능 추가">
     </div>
 
     <div class="field-row-grid">
       <div class="field-row">
-        <label>앱/서비스 이름 *</label>
+        <label>{{ _("앱/서비스 이름 *") }}</label>
         <input type="text" name="app_name" required maxlength="120" placeholder="XAZINGA" value="XAZINGA">
       </div>
       <div class="field-row">
-        <label>카테고리</label>
+        <label>{{ _("카테고리") }}</label>
         <select name="category">
-          <option value="">— 선택 —</option>
+          <option value="">{{ _("— 선택 —") }}</option>
           {% for cat in app_categories %}<option value="{{ cat }}">{{ cat }}</option>{% endfor %}
         </select>
       </div>
     </div>
 
     <div class="field-row">
-      <label>관련 URL (선택)</label>
+      <label>{{ _("관련 URL (선택)") }}</label>
       <input type="url" name="app_url" placeholder="https://...">
     </div>
 
     <div class="field-row">
-      <label>썸네일 이미지</label>
+      <label>{{ _("썸네일 이미지") }}</label>
       <input type="file" name="thumbnail" accept="image/*">
-      <p class="field-hint">16:9 권장 (없으면 기본 아이콘 표시)</p>
+      <p class="field-hint">{{ _("16:9 권장 (없으면 기본 아이콘 표시)") }}</p>
     </div>
 
     <div class="field-row">
-      <label>본문 *</label>
+      <label>{{ _("본문 *") }}</label>
       <textarea name="content" required maxlength="20000"
                 placeholder="업데이트 내용, 공지사항, 앱 소개 등을 자유롭게 적어주세요..."></textarea>
     </div>
 
     <div class="field-row-grid">
       <div class="field-row">
-        <label>장점 / 하이라이트</label>
+        <label>{{ _("장점 / 하이라이트") }}</label>
         <textarea name="pros" class="smaller" maxlength="2000" placeholder="- 주요 변경점&#10;- 새 기능"></textarea>
       </div>
       <div class="field-row">
-        <label>알려진 이슈 / 참고</label>
+        <label>{{ _("알려진 이슈 / 참고") }}</label>
         <textarea name="cons" class="smaller" maxlength="2000" placeholder="- 알려진 버그&#10;- 예정된 변경"></textarea>
       </div>
     </div>
 
     <div class="field-row">
-      <label>평점 (앱 소개 시, 선택)</label>
+      <label>{{ _("평점 (앱 소개 시, 선택)") }}</label>
       <select name="rating">
-        <option value="0">선택 안 함</option>
+        <option value="0">{{ _("선택 안 함") }}</option>
         {% for n in range(1,6) %}<option value="{{ n }}">{{ '★' * n }} ({{ n }})</option>{% endfor %}
       </select>
     </div>

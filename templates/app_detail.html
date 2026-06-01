@@ -141,7 +141,7 @@
     <a href="/apps">← BACK TO NOTICE</a>
     {% if user and (app_post.is_mine or user.is_admin) %}
     <form method="post" action="/apps/{{ app_post.id }}/delete" style="display:inline;"
-          onsubmit="return confirm('이 글을 삭제할까요?');">
+          onsubmit="return confirm('{{ _("이 글을 삭제할까요?") }}');">
       <button type="submit" class="btn-danger">🗑 DELETE</button>
     </form>
     {% endif %}
