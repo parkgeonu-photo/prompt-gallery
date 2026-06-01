@@ -163,6 +163,39 @@ TRANSLATIONS = {
         "title_required": "제목은 필수예요", "login_required": "로그인이 필요해요",
         "copied": "복사 완료!", "back": "돌아가기",
         "hero_desc": "AI로 만든 작품과 사용한 프롬프트를 함께 아카이브하는 갤러리",
+        # 로그인/회원가입
+        "welcome_back": "다시 오신 것을 환영합니다", "welcome": "환영합니다",
+        "username": "아이디", "password": "비밀번호", "password_confirm": "비밀번호 확인",
+        "or_google": "Google 계정으로 계속하기", "no_account": "계정이 없으신가요?",
+        "has_account": "이미 계정이 있으신가요?",
+        # 업로드
+        "upload_title": "작품 올리기", "title": "제목", "prompt": "프롬프트",
+        "negative_prompt": "네거티브 프롬프트", "model": "모델", "tags": "태그",
+        "media": "미디어", "visibility": "공개 설정",
+        "public": "공개", "partial": "일부 공개", "private": "비공개",
+        "source_url": "원본 URL", "process_text": "작업 과정",
+        "drag_drop": "클릭하거나 드래그해서 파일 추가",
+        # 갤러리
+        "all": "전체", "recent": "최신순", "popular": "인기순", "images": "이미지", "videos": "영상",
+        "filter_model": "모델 필터", "sort_by": "정렬",
+        # 프로필
+        "posts": "게시물", "likes": "좋아요", "views": "조회수",
+        "edit_profile": "프로필 수정", "new_post": "새 게시물", "bio": "소개",
+        "send_message": "메시지 보내기", "block": "차단", "mute": "숨기기",
+        "manage": "관리",
+        # 포트폴리오
+        "portfolio_desc": "크리에이터들의 작품 포트폴리오를 만나보세요.",
+        "my_portfolio": "내 포트폴리오", "upload_work": "작품 올리기",
+        "usage": "사용량", "works": "작품",
+        # NOTICE
+        "notice_desc": "업데이트 소식, 공지사항, 추천 앱 소개를 확인하세요.",
+        # 스킬
+        "skills": "스킬", "add": "추가", "no_skills": "아직 등록된 스킬이 없어요.",
+        # 공통
+        "confirm_delete": "삭제할까요?", "loading": "로딩 중...",
+        "no_results": "결과가 없어요.", "view_all": "전체 보기",
+        "enter": "입장", "messages": "메시지",
+        "characters": "캐릭터", "first_creator": "첫 번째 크리에이터가 되어보세요!",
     },
     "en": {
         "upload": "Upload", "login": "Login", "signup": "Sign Up", "logout": "Logout",
@@ -174,6 +207,31 @@ TRANSLATIONS = {
         "title_required": "Title is required", "login_required": "Login required",
         "copied": "Copied!", "back": "Back",
         "hero_desc": "Gallery for archiving AI-generated art with prompts",
+        "welcome_back": "Welcome back", "welcome": "Welcome",
+        "username": "Username", "password": "Password", "password_confirm": "Confirm password",
+        "or_google": "Continue with Google", "no_account": "Don't have an account?",
+        "has_account": "Already have an account?",
+        "upload_title": "Upload Work", "title": "Title", "prompt": "Prompt",
+        "negative_prompt": "Negative Prompt", "model": "Model", "tags": "Tags",
+        "media": "Media", "visibility": "Visibility",
+        "public": "Public", "partial": "Partial", "private": "Private",
+        "source_url": "Source URL", "process_text": "Process",
+        "drag_drop": "Click or drag to add files",
+        "all": "All", "recent": "Recent", "popular": "Popular", "images": "Images", "videos": "Videos",
+        "filter_model": "Model Filter", "sort_by": "Sort by",
+        "posts": "Posts", "likes": "Likes", "views": "Views",
+        "edit_profile": "Edit Profile", "new_post": "New Post", "bio": "Bio",
+        "send_message": "Message", "block": "Block", "mute": "Mute",
+        "manage": "Manage",
+        "portfolio_desc": "Discover creators' portfolios.",
+        "my_portfolio": "My Portfolio", "upload_work": "Upload Work",
+        "usage": "Usage", "works": "Works",
+        "notice_desc": "Updates, announcements, and app recommendations.",
+        "skills": "Skills", "add": "Add", "no_skills": "No skills registered yet.",
+        "confirm_delete": "Delete?", "loading": "Loading...",
+        "no_results": "No results.", "view_all": "View All",
+        "enter": "Enter", "messages": "Messages",
+        "characters": "Characters", "first_creator": "Be the first creator!",
     },
     "ja": {
         "upload": "アップロード", "login": "ログイン", "signup": "会員登録", "logout": "ログアウト",
@@ -185,6 +243,31 @@ TRANSLATIONS = {
         "title_required": "タイトルは必須です", "login_required": "ログインが必要です",
         "copied": "コピー完了！", "back": "戻る",
         "hero_desc": "AIで作った作品とプロンプトをアーカイブするギャラリー",
+        "welcome_back": "おかえりなさい", "welcome": "ようこそ",
+        "username": "ユーザー名", "password": "パスワード", "password_confirm": "パスワード確認",
+        "or_google": "Googleアカウントで続ける", "no_account": "アカウントをお持ちでないですか？",
+        "has_account": "すでにアカウントをお持ちですか？",
+        "upload_title": "作品を投稿", "title": "タイトル", "prompt": "プロンプト",
+        "negative_prompt": "ネガティブプロンプト", "model": "モデル", "tags": "タグ",
+        "media": "メディア", "visibility": "公開設定",
+        "public": "公開", "partial": "一部公開", "private": "非公開",
+        "source_url": "ソースURL", "process_text": "制作過程",
+        "drag_drop": "クリックまたはドラッグでファイルを追加",
+        "all": "全て", "recent": "新着順", "popular": "人気順", "images": "画像", "videos": "動画",
+        "filter_model": "モデルフィルター", "sort_by": "並び替え",
+        "posts": "投稿", "likes": "いいね", "views": "閲覧数",
+        "edit_profile": "プロフィール編集", "new_post": "新規投稿", "bio": "自己紹介",
+        "send_message": "メッセージ", "block": "ブロック", "mute": "ミュート",
+        "manage": "管理",
+        "portfolio_desc": "クリエイターのポートフォリオをご覧ください。",
+        "my_portfolio": "マイポートフォリオ", "upload_work": "作品を投稿",
+        "usage": "使用量", "works": "作品",
+        "notice_desc": "アップデート情報、お知らせ、おすすめアプリ。",
+        "skills": "スキル", "add": "追加", "no_skills": "まだスキルが登録されていません。",
+        "confirm_delete": "削除しますか？", "loading": "読み込み中...",
+        "no_results": "結果がありません。", "view_all": "全て見る",
+        "enter": "入場", "messages": "メッセージ",
+        "characters": "キャラクター", "first_creator": "最初のクリエイターになりましょう！",
     }
 }
 
@@ -3764,6 +3847,163 @@ https://www.seedance2prompt.com/ko/blog/seedance-2-user-guide"""
              0, "approved", u["id"])
         )
     return jsonify({"ok": True, "msg": "Seedance 레시피북 생성 완료!"})
+
+
+@app.route("/api/seed-v17-update", methods=["POST"])
+@admin_required
+def seed_v17_update():
+    """v1.7 업데이트 노트 시드."""
+    u = current_user()
+    with db() as c:
+        existing = c.fetchone(
+            "SELECT id FROM app_posts WHERE user_id = %s AND title LIKE %s",
+            (u["id"], "%v1.7 업데이트%")
+        )
+        if existing:
+            return jsonify({"ok": False, "msg": "이미 존재합니다"}), 400
+
+        content = """XAZINGA v1.7 업데이트가 적용되었습니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+다국어 지원 (KO / EN / JA)
+
+사이트 전체가 한국어, 영어, 일본어를 지원합니다. 헤더 오른쪽의 KO / EN / JA 버튼을 클릭하면 언어가 전환됩니다.
+
+적용 범위:
+- 헤더 버튼 (업로드, 로그인, 회원가입, 로그아웃)
+- 로그인 / 회원가입 페이지
+- 갤러리 필터 및 정렬
+- 포트폴리오 페이지 (신청, 작품 올리기, 상태 표시)
+- NOTICE 페이지
+- 스킬 저장소
+- 프로필 페이지 (수정, 관리 등)
+- 공통 UI (삭제 확인, 로딩, 빈 상태 메시지)
+
+선택한 언어는 쿠키에 저장되어 다음 방문 시에도 유지됩니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SEO 전면 강화
+
+Google 검색에 XAZINGA가 노출되도록 전면적인 SEO 최적화를 적용했습니다.
+
+sitemap.xml 자동 생성
+- 고정 페이지, 모든 공개 게시물, 유저 프로필, 포트폴리오가 자동으로 사이트맵에 포함
+- 새 게시물이 올라오면 자동으로 사이트맵에 추가
+- Google Search Console에 등록 완료 (67페이지 발견)
+
+robots.txt
+- 검색 엔진 크롤링 규칙 설정
+- DM, 캐릭터 저장소, 어드민 페이지는 검색에서 제외
+- API 엔드포인트도 검색 차단
+
+페이지별 메타태그 자동 생성
+- 게시물: 작품 제목 + 작성자 + 모델명이 검색 결과 타이틀에 표시
+- 프롬프트가 검색 결과 설명(description)에 자동 삽입
+- 프로필: "@username의 프로필 — XAZINGA"
+- 갤러리: "AI 프롬프트 갤러리 — XAZINGA"
+
+OG 이미지 자동 설정
+- 게시물 공유 시 해당 작품 이미지가 카카오톡/X/디스코드 미리보기로 표시
+- 프로필 공유 시 아바타가 미리보기 이미지로 표시
+
+구조화 데이터 (JSON-LD)
+- 게시물에 ImageObject/VideoObject 스키마 삽입
+- Google 이미지 검색, Google 비디오 검색에서 직접 노출 가능
+
+canonical URL
+- 중복 URL로 인한 SEO 페널티 방지
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NOTICE 개편
+
+기존 APP 카테고리가 NOTICE로 전환되었습니다.
+
+변경 사항:
+- 카테고리: 업데이트, 공지, 앱 소개, 팁/가이드, 기타
+- 가로 카드 레이아웃 + 내용 미리보기
+- 사이트 소개 글 상단 고정 (PINNED 배지)
+- 스킬 저장소 섹션 추가 (글 쓰기 버튼 아래)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+스킬 저장소
+
+NOTICE 페이지 안에 스킬 저장소가 추가되었습니다. AI 영상/이미지 제작에 유용한 스킬, 프롬프트 템플릿, 워크플로우를 카테고리별로 모아볼 수 있습니다.
+
+카테고리: 영상 제작, 이미지 생성, 마케팅, 글쓰기, 개발, 기타
+현재 등록된 스킬: Seedance 디렉터, 비디오 프롬프트 빌더, Seedance 프롬프팅 가이드
+COPY 버튼으로 스킬 내용을 클립보드에 복사 가능
+어드민이 추가/수정/삭제 가능
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+포트폴리오 카테고리
+
+크리에이터 포트폴리오 기능이 추가되었습니다.
+
+제한 사양:
+- 이미지: 장당 5MB, 게시물당 최대 8장
+- 영상: 50MB, 게시물당 1개
+- 게시물당 총 50MB
+- 1인당 총 5GB
+
+승인제로 운영됩니다. xazinga 계정은 자동 승인, 그 외는 어드민 승인 필요.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+캐릭터 저장소 변경
+
+캐릭터 수와 컷 수가 조정되었습니다.
+
+변경 전: 캐릭터 30개, 캐릭터당 60장
+변경 후: 캐릭터 60개, 캐릭터당 30장
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+어드민 대시보드 강화
+
+실시간 사용량 모니터링이 추가되었습니다.
+
+표시 항목:
+- DATABASE: 현재 사용량 / 8GB (프로그레스 바)
+- IMAGES / VIDEOS: 프롬프트 갤러리 미디어 수
+- CHARACTERS: 전체 캐릭터 수
+- PORTFOLIO MEMBERS: 승인된 포트폴리오 멤버 수
+- PORTFOLIO STORAGE: 포트폴리오 총 용량
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+보안 강화
+
+Supabase RLS (Row Level Security)를 모든 테이블에 적용했습니다. DB URL을 직접 아는 외부인이 데이터에 접근할 수 없도록 차단됩니다. 사이트 일반 사용에는 영향 없습니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+콘텐츠 추가
+
+NOTICE에 다음 가이드가 추가되었습니다:
+- XAZINGA 업데이트 히스토리 (v1.0 ~ v1.6)
+- XAZINGA 사이트 소개
+- Seedance 2.0 영상 프롬프트 작성 가이드
+- Seedance 2.0 실전 프롬프트 레시피북 (15가지 카테고리)
+- 스레드 떡상하게 만드는 AI 워크플로우"""
+
+        c.execute(
+            "INSERT INTO app_posts "
+            "(user_id, title, app_name, app_url, category, thumbnail_url, "
+            " content, pros, cons, rating, status, approved_at, approved_by) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW(),%s) RETURNING id",
+            (u["id"], "v1.7 업데이트 — 다국어 지원, SEO 강화, 스킬 저장소, 포트폴리오",
+             "XAZINGA", "https://www.xazinga.com", "업데이트", None,
+             content,
+             "• 다국어 UI (한/영/일)\n• Google 검색 노출 (SEO)\n• 스킬 저장소 + 포트폴리오\n• 보안 강화 (RLS)",
+             None,
+             0, "approved", u["id"])
+        )
+    return jsonify({"ok": True, "msg": "v1.7 업데이트 노트 생성 완료!"})
 
 
 @app.route("/api/translate", methods=["POST"])

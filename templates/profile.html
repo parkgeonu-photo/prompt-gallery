@@ -188,9 +188,9 @@
   <div class="profile-actions">
     {% if is_self %}
       <button type="button" class="edit-profile-btn" onclick="document.getElementById('editForm').classList.toggle('active');">
-        ✏️ EDIT PROFILE
+        ✏️ {{ t.edit_profile|upper }}
       </button>
-      <a href="/upload" class="btn btn-primary">+ NEW POST</a>
+      <a href="/upload" class="btn btn-primary"> + {{ t.new_post|upper }}</a>
     {% elif user %}
       <a href="/messages/{{ profile.username }}" class="btn btn-ghost">✉ MESSAGE</a>
       {% set is_blocked = blocked_ids and profile.id in (blocked_ids|map('string')|list) %}
@@ -322,7 +322,7 @@
 <div class="characters-section">
   <div class="cs-header">
     <div class="cs-title">MY CHARACTERS {% if my_chars_total %}<span class="badge">{{ my_chars_total }} / 60</span>{% endif %}</div>
-    <a href="{{ url_for('my_characters') }}" class="cs-all">MANAGE →</a>
+    <a href="{{ url_for('my_characters') }}" class="cs-all">{{ t.manage }} →</a>
   </div>
   {% if my_chars_preview %}
   <div class="cs-grid">

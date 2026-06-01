@@ -93,7 +93,7 @@
   <div class="pfu-actions">
     <a href="/u/{{ owner.username }}" class="pfu-btn-ghost">PROFILE</a>
     {% if is_mine %}
-    <a href="/portfolio/new" class="pfu-btn">+ 작품 올리기</a>
+    <a href="/portfolio/new" class="pfu-btn">+ {{ t.upload_work }}</a>
     {% endif %}
   </div>
   {% if is_mine %}
@@ -123,7 +123,7 @@
     {% if is_mine %}
     <form method="post" action="/portfolio/post/{{ p.id }}/delete"
           onclick="event.stopPropagation(); event.preventDefault();
-                   if(confirm('이 작품을 삭제할까요?')) this.submit();"
+                   if(confirm('{{ t.confirm_delete }}')) this.submit();"
           style="display:inline;">
       <button type="button" class="pf-del-btn">× 삭제</button>
     </form>
@@ -134,7 +134,7 @@
 {% else %}
 <div class="empty-msg">
   <div style="font-size:48px;margin-bottom:12px;">✦</div>
-  <p>아직 작품이 없어요.</p>
+  <p>{{ t.no_posts }}</p>
   {% if is_mine %}
   <p style="margin-top:8px;font-size:12px;">첫 번째 작품을 올려보세요!</p>
   {% endif %}

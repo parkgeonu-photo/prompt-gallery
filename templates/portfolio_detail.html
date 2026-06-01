@@ -57,7 +57,7 @@
     </div>
     {% if is_mine %}
     <form method="post" action="/portfolio/post/{{ post.id }}/delete"
-          onsubmit="return confirm('이 작품을 삭제할까요?');">
+          onsubmit="return confirm('{{ t.confirm_delete }}');">
       <button type="submit" class="pfd-del-btn">× 삭제</button>
     </form>
     {% endif %}

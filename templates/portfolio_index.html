@@ -60,21 +60,21 @@
 
 <div class="pf-hero">
   <h1>PORTFOLIO</h1>
-  <p>크리에이터들의 작품 포트폴리오를 만나보세요.</p>
+  <p>{{ t.portfolio_desc }}</p>
   {% if user %}
     {% if not my_status %}
     <div class="pf-actions">
       <form method="post" action="/portfolio/apply">
-        <button type="submit" class="pf-apply-btn">포트폴리오 사용 신청</button>
+        <button type="submit" class="pf-apply-btn">{{ t.portfolio_apply }}</button>
       </form>
     </div>
     {% elif my_status.status == 'pending' %}
     <div class="pf-actions">
-      <div class="pf-pending-badge">승인 대기 중이에요</div>
+      <div class="pf-pending-badge">{{ t.pending }}</div>
     </div>
     {% elif my_status.status == 'approved' %}
     <div class="pf-actions">
-      <a href="/portfolio/u/{{ user.username }}" class="pf-apply-btn">내 포트폴리오</a>
+      <a href="/portfolio/u/{{ user.username }}" class="pf-apply-btn">{{ t.my_portfolio }}</a>
     </div>
     {% endif %}
   {% endif %}
@@ -99,7 +99,7 @@
   {% else %}
     <div class="empty-msg">
       <div style="font-size:48px;margin-bottom:12px;">✦</div>
-      <p>아직 포트폴리오가 없어요.</p>
+      <p>{{ t.no_posts }}</p>
       {% if user and not my_status %}
       <p style="margin-top:8px;font-size:12px;">첫 번째 포트폴리오의 주인공이 되어보세요!</p>
       {% endif %}
