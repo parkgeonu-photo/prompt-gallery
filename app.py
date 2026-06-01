@@ -3587,22 +3587,26 @@ Stronger motion on downbeats.
     ]
 
     created = 0
-    with db() as c:
-        for sk in skills_data:
-            existing = c.fetchone(
-                "SELECT id FROM skills WHERE user_id = %s AND name = %s",
-                (u["id"], sk["name"])
-            )
-            if existing:
-                continue
-            c.execute(
-                "INSERT INTO skills (user_id, name, description, content, category, created_at) "
-                "VALUES (%s,%s,%s,%s,%s,%s)",
-                (u["id"], sk["name"], sk["description"], sk["content"],
-                 sk["category"], int(time.time()))
-            )
-            created += 1
-    return jsonify({"ok": True, "msg": f"스킬 {created}개 생성 완료!"})
+    try:
+        with db() as c:
+            for sk in skills_data:
+                existing = c.fetchone(
+                    "SELECT id FROM skills WHERE user_id = %s AND name = %s",
+                    (u["id"], sk["name"])
+                )
+                if existing:
+                    continue
+                c.execute(
+                    "INSERT INTO skills (user_id, name, description, content, category, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s)",
+                    (u["id"], sk["name"], sk["description"], sk["content"],
+                     sk["category"], int(time.time()))
+                )
+                created += 1
+        return jsonify({"ok": True, "msg": f"스킬 {created}개 생성 완료!"})
+    except Exception as e:
+        import traceback
+        return jsonify({"ok": False, "error": str(e), "trace": traceback.format_exc()}), 500
 
 
 @app.route("/api/seed-threads-guide", methods=["POST"])
@@ -4263,7 +4267,7 @@ NOTICE에 다음 가이드가 추가되었습니다:
              None,
              0, "approved", u["id"])
         )
-    return jsonify({"ok": True, "msg": "v1.7 업데이트 노트 생성 완료!"})
+        return jsonify({"ok": True, "msg": "v1.7 업데이트 노트 생성 완료!"})
 
 
 @app.route("/api/translate", methods=["POST"])
