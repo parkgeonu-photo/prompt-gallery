@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Seedance 2.0 실전 가이드 — XAZINGA{% endblock %}
+{% block meta_description %}Seedance 2.0 멀티모달 영상 생성 실전 가이드. 30가지 케이스별 프롬프트 템플릿과 핵심 팁.{% endblock %}
+{% block content %}
+<style>
+  .sg-hero { text-align: center; max-width: 800px; margin: 0 auto 32px; }
+  .sg-hero h1 {
+    font-family: 'Archivo Black', sans-serif;
+    font-size: 42px; letter-spacing: -1px; margin-bottom: 8px;
+  }
+  .sg-hero p { color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+  .sg-back {
+    display: inline-block; margin-bottom: 20px;
+    font-size: 12px; color: var(--text-muted); font-weight: 700; text-decoration: none;
+  }
+  .sg-back:hover { color: var(--text); }
+
+  .cat-bar { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 24px 0 36px; }
+  .cat-pill {
+    background: var(--bg-elev); color: var(--text-muted);
+    padding: 6px 14px; border-radius: 999px; font-size: 11px;
+    border: 1px solid var(--border); font-weight: 700;
+    letter-spacing: 0.5px; cursor: pointer; text-decoration: none;
+  }
+  .cat-pill.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  .sg-grid { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+
+  .sg-card {
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: 14px; overflow: hidden; transition: transform 0.2s;
+  }
+  .sg-card:hover { transform: translateY(-1px); border-color: var(--text); }
+
+  .sg-card-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 18px 20px 0; flex-wrap: wrap;
+  }
+  .sg-num {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--text); color: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Archivo Black', sans-serif; font-size: 13px;
+    flex-shrink: 0;
+  }
+  .sg-card-title {
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700;
+    font-size: 16px; flex: 1; min-width: 0;
+  }
+  .sg-cat-tag {
+    background: var(--bg); color: var(--text-muted);
+    padding: 3px 10px; border-radius: 6px; font-size: 10px;
+    font-weight: 700; letter-spacing: 0.5px; flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+
+  .sg-card-body { padding: 14px 20px 18px; }
+
+  .sg-inputs {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .sg-input-badge {
+    background: rgba(0,0,0,0.06); color: var(--text-muted);
+    padding: 4px 10px; border-radius: 6px; font-size: 11px;
+    font-family: 'JetBrains Mono', monospace; font-weight: 500;
+  }
+  .sg-lang-badge {
+    background: var(--text); color: var(--bg);
+    padding: 3px 8px; border-radius: 4px; font-size: 9px;
+    font-weight: 800; letter-spacing: 0.5px;
+  }
+
+  .sg-prompt-wrap {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; position: relative;
+    margin-bottom: 12px;
+  }
+  .sg-prompt-label {
+    font-family: 'Archivo Black', sans-serif; font-size: 10px;
+    letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px;
+  }
+  .sg-prompt-text {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    line-height: 1.7; color: var(--text); white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .sg-copy-btn {
+    position: absolute; top: 10px; right: 10px;
+    background: var(--text); color: var(--bg); border: none;
+    padding: 4px 10px; border-radius: 5px; font-size: 10px;
+    font-weight: 700; cursor: pointer; letter-spacing: 0.5px;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .sg-prompt-wrap:hover .sg-copy-btn { opacity: 1; }
+
+  .sg-tip {
+    background: rgba(28, 124, 84, 0.06); border-left: 3px solid #1c7c54;
+    padding: 10px 14px; border-radius: 0 8px 8px 0;
+    font-size: 12px; color: var(--text-muted); line-height: 1.5;
+  }
+  .sg-tip strong { color: var(--text); font-weight: 700; }
+
+  .sg-footer {
+    text-align: center; max-width: 800px; margin: 48px auto 0;
+    padding: 24px; border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--text-muted);
+  }
+  .sg-footer a { color: var(--text); font-weight: 700; }
+
+  .sg-count {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: var(--text-muted); text-align: center; margin-bottom: 20px;
+  }
+
+  @media (max-width: 600px) {
+    .sg-hero h1 { font-size: 28px; }
+    .sg-card-head { padding: 14px 14px 0; }
+    .sg-card-body { padding: 10px 14px 14px; }
+  }
+</style>
+
+<div class="sg-hero">
+  <a href="/apps" class="sg-back">← NOTICE</a>
+  <h1>SEEDANCE 2.0 GUIDE</h1>
+  <p>Seedance 2.0 멀티모달 영상 생성의 실전 프롬프트 레시피.<br>
+  카테고리별로 정리된 {{ cases|length }}개 케이스에서 필요한 패턴을 찾아 바로 응용하세요.</p>
+</div>
+
+<div class="cat-bar">
+  <a href="/guide/seedance" class="cat-pill {% if not current_category %}active{% endif %}">ALL · {{ cases|length }}</a>
+  {% for cat in categories %}
+  <a href="/guide/seedance?category={{ cat }}" class="cat-pill {% if current_category == cat %}active{% endif %}">{{ cat }}</a>
+  {% endfor %}
+</div>
+
+<div class="sg-grid">
+  {% for c in cases %}
+  <div class="sg-card">
+    <div class="sg-card-head">
+      <div class="sg-num">{{ c.id }}</div>
+      <div class="sg-card-title">{{ c.title }}</div>
+      <span class="sg-cat-tag">{{ c.category }}</span>
+    </div>
+    <div class="sg-card-body">
+      <div class="sg-inputs">
+        <span class="sg-input-badge">{{ c.inputs }}</span>
+        <span class="sg-lang-badge">{{ c.lang }}</span>
+      </div>
+      <div class="sg-prompt-wrap">
+        <div class="sg-prompt-label">PROMPT</div>
+        <button class="sg-copy-btn" onclick="copyPrompt(this)">COPY</button>
+        <div class="sg-prompt-text">{{ c.prompt }}</div>
+      </div>
+      <div class="sg-tip">
+        <strong>TIP</strong> — {{ c.tip }}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="sg-footer">
+  <p>이 가이드는 Seedance 2.0 공식 사용 설명서를 참고하여 XAZINGA 스타일로 재구성했습니다.</p>
+  <p style="margin-top:8px;">
+    원본 참고: <a href="https://www.seedance2prompt.com/ko/blog/seedance-2-user-guide" target="_blank">seedance2prompt.com</a>
+  </p>
+</div>
+
+<script>
+function copyPrompt(btn) {
+  const text = btn.parentElement.querySelector('.sg-prompt-text').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'COPIED!';
+    setTimeout(() => btn.textContent = 'COPY', 1500);
+  });
+}
+</script>
+{% endblock %}
