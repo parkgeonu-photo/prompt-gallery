@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}수정 — PORTFOLIO{% endblock %}
+{% block content %}
+<style>
+  .pfe-wrap { max-width: 640px; margin: 0 auto; }
+  .pfe-title { font-family: 'Archivo Black', sans-serif; font-size: 28px; margin-bottom: 24px; }
+  .field { margin-bottom: 18px; }
+  .field label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 6px; }
+  .field input[type=text], .field select {
+    width: 100%; background: var(--bg-elev); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 12px; border-radius: 8px; font-size: 14px;
+  }
+  .existing-images { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .existing-img {
+    width: 90px; height: 90px; border-radius: 8px; overflow: hidden;
+    position: relative; background: var(--bg);
+  }
+  .existing-img img { width: 100%; height: 100%; object-fit: cover; }
+  .existing-img label {
+    position: absolute; top: 4px; right: 4px; background: rgba(200,0,0,0.8);
+    color: white; border-radius: 50%; width: 20px; height: 20px;
+    font-size: 11px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  .existing-img input { display: none; }
+  .existing-img.marked { opacity: 0.3; }
+  .add-more { margin-top: 8px; }
+  .add-more input { font-size: 13px; }
+  .submit-btn {
+    background: var(--text); color: var(--bg); border: none;
+    padding: 14px 32px; border-radius: 8px; font-weight: 800;
+    font-family: 'Archivo Black', sans-serif; letter-spacing: 1.5px;
+    cursor: pointer; font-size: 13px; width: 100%;
+  }
+  .err-msg { background: #ffeaea; color: #b33a3a; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 18px; }
+</style>
+
+<div class="pfe-wrap">
+  <div class="pfe-title">EDIT WORK</div>
+  {% if error %}<div class="err-msg">{{ error }}</div>{% endif %}
+
+  <form method="post" enctype="multipart/form-data">
+    <div class="field">
+      <label>TITLE</label>
+      <input type="text" name="title" value="{{ post.title }}" maxlength="200" required>
+    </div>
+    <div class="field">
+      <label>CATEGORY</label>
+      <select name="category">
+        <option value="">— 선택 —</option>
+        {% for cat in pf_categories %}
+        <option value="{{ cat }}" {% if post.category == cat %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label>CURRENT IMAGES (× 클릭하면 삭제 표시)</label>
+      <div class="existing-images">
+        {% if post.images %}
+        {% for img in post.images %}
+        <div class="existing-img" id="img-{{ img.id }}">
+          <img src="{{ img.url }}" alt="">
+          <label onclick="toggleRemove('{{ img.id }}')">×</label>
+          <input type="checkbox" name="remove_images" value="{{ img.id }}">
+        </div>
+        {% endfor %}
+        {% endif %}
+      </div>
+      <div class="add-more">
+        <label style="font-size:11px;color:var(--text-muted);font-weight:700;">+ ADD MORE IMAGES</label>
+        <input type="file" name="images" multiple accept=".jpg,.jpeg,.png,.webp,.gif">
+      </div>
+    </div>
+    <button type="submit" class="submit-btn">SAVE</button>
+  </form>
+</div>
+
+<script>
+function toggleRemove(id) {
+  const div = document.getElementById('img-' + id);
+  const cb = div.querySelector('input[type=checkbox]');
+  cb.checked = !cb.checked;
+  div.classList.toggle('marked', cb.checked);
+}
+</script>
+{% endblock %}

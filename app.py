@@ -683,6 +683,7 @@ def init_db():
         """)
         c.execute("CREATE INDEX IF NOT EXISTS idx_pp_user ON portfolio_posts(user_id, created_at DESC)")
         c.execute("ALTER TABLE portfolio_posts ADD COLUMN IF NOT EXISTS category TEXT")
+        c.execute("ALTER TABLE portfolio_posts ADD COLUMN IF NOT EXISTS sort_order INT DEFAULT 0")
 
         # Skills
         c.execute("""
@@ -3010,12 +3011,12 @@ def portfolio_user(username):
             abort(404)
         if category:
             posts = c.fetchall(
-                "SELECT * FROM portfolio_posts WHERE user_id = %s AND category = %s ORDER BY created_at DESC",
+                "SELECT * FROM portfolio_posts WHERE user_id = %s AND category = %s ORDER BY sort_order ASC, created_at DESC",
                 (owner["id"], category)
             )
         else:
             posts = c.fetchall(
-                "SELECT * FROM portfolio_posts WHERE user_id = %s ORDER BY created_at DESC",
+                "SELECT * FROM portfolio_posts WHERE user_id = %s ORDER BY sort_order ASC, created_at DESC",
                 (owner["id"],)
             )
     posts = [dict(p) for p in posts]
@@ -3172,6 +3173,114 @@ def portfolio_post_detail(post_id):
         except: p["video"] = None
     is_mine = u and str(u["id"]) == str(p["user_id"])
     return render_template("portfolio_detail.html", post=p, is_mine=is_mine)
+
+
+@app.route("/portfolio/post/<post_id>/edit", methods=["GET", "POST"])
+@login_required
+def portfolio_post_edit(post_id):
+    """포트폴리오 게시물 수정."""
+    u = current_user()
+    with db() as c:
+        row = c.fetchone("SELECT * FROM portfolio_posts WHERE id = %s", (post_id,))
+    if not row:
+        abort(404)
+    if str(row["user_id"]) != str(u["id"]) and not u.get("is_admin"):
+        abort(403)
+    post = dict(row)
+    post["id"] = str(post["id"])
+
+    if request.method == "POST":
+        title = (request.form.get("title") or "").strip()[:200]
+        category = (request.form.get("category") or "").strip()
+        if not title:
+            return render_template("portfolio_edit.html", post=post,
+                pf_categories=PORTFOLIO_CATEGORIES, error="제목은 필수예요"), 400
+
+        # 새 이미지 추가
+        img_files = request.files.getlist("images")
+        images = post.get("images") or []
+        if isinstance(images, str):
+            try: images = json.loads(images)
+            except: images = []
+
+        img_limit = 20 if u.get("is_admin") else PORTFOLIO_IMG_MAX_COUNT
+        added_bytes = 0
+        for i, f in enumerate(img_files):
+            if len(images) >= img_limit:
+                break
+            if not f or not f.filename:
+                continue
+            ext = os.path.splitext(f.filename)[1].lower()
+            if ext not in ALLOWED_IMG:
+                continue
+            f.stream.seek(0, 2)
+            sz = f.stream.tell()
+            f.stream.seek(0)
+            if sz > PORTFOLIO_IMG_MAX_BYTES:
+                continue
+            name = f"portfolio/{u['id']}/{post_id}/img-{len(images)}{ext}"
+            try:
+                url = storage_upload(f, name)
+                images.append({"url": url, "id": str(uuid.uuid4()), "size": sz})
+                added_bytes += sz
+            except Exception:
+                continue
+
+        # 삭제할 이미지
+        remove_ids = request.form.getlist("remove_images")
+        removed_bytes = 0
+        if remove_ids:
+            new_images = []
+            for img in images:
+                if img.get("id") in remove_ids:
+                    try: storage_delete(img.get("url", ""))
+                    except: pass
+                    removed_bytes += img.get("size", 0)
+                else:
+                    new_images.append(img)
+            images = new_images
+
+        net_bytes = added_bytes - removed_bytes
+        with db() as c:
+            c.execute(
+                "UPDATE portfolio_posts SET title=%s, category=%s, images=%s, "
+                "total_bytes = GREATEST(0, total_bytes + %s), updated_at=%s WHERE id=%s",
+                (title, category or None, Json(images), net_bytes, int(time.time()), post_id)
+            )
+            if net_bytes != 0:
+                c.execute(
+                    "UPDATE portfolio_members SET total_bytes = GREATEST(0, total_bytes + %s) WHERE user_id = %s",
+                    (net_bytes, row["user_id"])
+                )
+        owner_username = u["username"]
+        with db() as c:
+            owner = c.fetchone("SELECT username FROM users WHERE id = %s", (row["user_id"],))
+            if owner:
+                owner_username = owner["username"]
+        return redirect(f"/portfolio/u/{owner_username}")
+
+    if isinstance(post.get("images"), str):
+        try: post["images"] = json.loads(post["images"])
+        except: post["images"] = []
+    return render_template("portfolio_edit.html", post=post, pf_categories=PORTFOLIO_CATEGORIES)
+
+
+@app.route("/api/portfolio/reorder", methods=["POST"])
+@login_required
+def portfolio_reorder():
+    """포트폴리오 게시물 순서 변경 API."""
+    u = current_user()
+    data = request.get_json(silent=True) or {}
+    order = data.get("order", [])
+    if not order:
+        return jsonify({"ok": False}), 400
+    with db() as c:
+        for i, pid in enumerate(order):
+            c.execute(
+                "UPDATE portfolio_posts SET sort_order = %s WHERE id = %s AND user_id = %s",
+                (i, pid, u["id"])
+            )
+    return jsonify({"ok": True})
 
 
 @app.route("/portfolio/post/<post_id>/delete", methods=["POST"])
