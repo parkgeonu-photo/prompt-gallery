@@ -153,6 +153,17 @@ function addRow() {
   const idx = rowCount;
   rowCount++;
   const container = document.getElementById('rowContainer');
+  // 이전 행에서 카테고리 복사
+  const prevRows = container.querySelectorAll('.post-row');
+  const lastRow = prevRows[prevRows.length - 1];
+  const prevCat = lastRow ? lastRow.querySelector('select').value : '';
+  const prevTitle = lastRow ? lastRow.querySelector('input[type=text]').value : '';
+  // 제목에서 숫자 자동 증가
+  let newTitle = prevTitle;
+  const numMatch = prevTitle.match(/^(.*?)(\d+)$/);
+  if (numMatch) {
+    newTitle = numMatch[1] + (parseInt(numMatch[2]) + 1);
+  }
   const div = document.createElement('div');
   div.className = 'post-row';
   div.dataset.idx = idx;
@@ -160,12 +171,12 @@ function addRow() {
     <button type="button" class="remove-row" onclick="removeRow(this)" title="삭제">×</button>
     <div class="post-row-head">
       <div class="post-num">${idx + 1}</div>
-      <input type="text" name="title_${idx}" placeholder="게시물 제목" required>
+      <input type="text" name="title_${idx}" placeholder="게시물 제목" required value="${newTitle}">
       <select name="category_${idx}" style="width:100px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-size:12px;flex-shrink:0;">
-        <option value="">분류</option>
-        <option value="사진">사진</option>
-        <option value="영상">영상</option>
-        <option value="AI">AI</option>
+        <option value="" ${prevCat===''?'selected':''}>분류</option>
+        <option value="사진" ${prevCat==='사진'?'selected':''}>사진</option>
+        <option value="영상" ${prevCat==='영상'?'selected':''}>영상</option>
+        <option value="AI" ${prevCat==='AI'?'selected':''}>AI</option>
       </select>
     </div>
     <div class="drop-zone" data-idx="${idx}">
