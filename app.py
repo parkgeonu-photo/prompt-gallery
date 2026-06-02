@@ -3364,19 +3364,17 @@ def portfolio_bulk():
 
     if request.method == "POST":
         results = []
-        idx = 0
-        while True:
+        max_idx = 50  # 최대 50개까지 스캔
+        for idx in range(max_idx):
             title = request.form.get(f"title_{idx}")
             if title is None:
-                break
+                continue
             title = title.strip()[:200]
             if not title:
-                idx += 1
                 continue
 
             img_files = request.files.getlist(f"images_{idx}")
             if not img_files or not any(f.filename for f in img_files):
-                idx += 1
                 continue
 
             post_id = str(uuid.uuid4())
@@ -3404,7 +3402,6 @@ def portfolio_bulk():
                     continue
 
             if not images_data:
-                idx += 1
                 continue
 
             with db() as c:
@@ -3419,7 +3416,6 @@ def portfolio_bulk():
                     (post_bytes, u["id"])
                 )
             results.append({"title": title, "count": len(images_data)})
-            idx += 1
 
         return render_template("portfolio_bulk.html", results=results, done=True)
 
