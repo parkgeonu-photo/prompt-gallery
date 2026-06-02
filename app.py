@@ -3367,7 +3367,8 @@ def portfolio_bulk():
 
     if request.method == "POST":
         results = []
-        max_idx = 50  # 최대 50개까지 스캔
+        errors = []
+        max_idx = 50
         for idx in range(max_idx):
             title = request.form.get(f"title_{idx}")
             if title is None:
@@ -3378,34 +3379,40 @@ def portfolio_bulk():
 
             img_files = request.files.getlist(f"images_{idx}")
             if not img_files or not any(f.filename for f in img_files):
+                errors.append(f"#{idx}: '{title}' — 이미지 없음")
                 continue
 
             post_id = str(uuid.uuid4())
             images_data = []
             post_bytes = 0
+            skipped = []
 
             img_limit = 20 if u.get("is_admin") else PORTFOLIO_IMG_MAX_COUNT
+            img_sz_limit = 15 * 1024 * 1024 if u.get("is_admin") else PORTFOLIO_IMG_MAX_BYTES
             for i, f in enumerate(img_files[:img_limit]):
                 if not f or not f.filename:
                     continue
                 ext = os.path.splitext(f.filename)[1].lower()
                 if ext not in ALLOWED_IMG:
+                    skipped.append(f"{f.filename}: 지원하지 않는 형식")
                     continue
                 f.stream.seek(0, 2)
                 sz = f.stream.tell()
                 f.stream.seek(0)
-                img_sz_limit = 15 * 1024 * 1024 if u.get("is_admin") else PORTFOLIO_IMG_MAX_BYTES
                 if sz > img_sz_limit:
+                    skipped.append(f"{f.filename}: {sz/1024/1024:.1f}MB 초과 (최대 {img_sz_limit/1024/1024:.0f}MB)")
                     continue
                 name = f"portfolio/{u['id']}/{post_id}/img-{i}{ext}"
                 try:
                     url = storage_upload(f, name)
                     images_data.append({"url": url, "id": str(uuid.uuid4()), "size": sz})
                     post_bytes += sz
-                except Exception:
+                except Exception as e:
+                    skipped.append(f"{f.filename}: 업로드 실패 ({str(e)[:50]})")
                     continue
 
             if not images_data:
+                errors.append(f"#{idx}: '{title}' — 저장된 이미지 0장 (건너뜀: {', '.join(skipped[:3])})")
                 continue
 
             with db() as c:
@@ -3419,9 +3426,9 @@ def portfolio_bulk():
                     "UPDATE portfolio_members SET total_bytes = total_bytes + %s WHERE user_id = %s",
                     (post_bytes, u["id"])
                 )
-            results.append({"title": title, "count": len(images_data)})
+            results.append({"title": title, "count": len(images_data), "skipped": skipped})
 
-        return render_template("portfolio_bulk.html", results=results, done=True)
+        return render_template("portfolio_bulk.html", results=results, errors=errors, done=True)
 
     return render_template("portfolio_bulk.html")
 

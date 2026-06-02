@@ -105,11 +105,25 @@
   {% if done %}
   <div class="done-banner">
     <h2>✓ 업로드 완료!</h2>
+    {% if results %}
     <ul>
     {% for r in results %}
-      <li>{{ r.title }} — 이미지 {{ r.count }}장</li>
+      <li>{{ r.title }} — 이미지 {{ r.count }}장{% if r.skipped %} ({{ r.skipped|length }}장 건너뜀){% endif %}</li>
     {% endfor %}
     </ul>
+    {% else %}
+    <p style="margin-top:8px;">저장된 게시물이 없습니다.</p>
+    {% endif %}
+    {% if errors %}
+    <div style="margin-top:12px;padding:10px;background:rgba(255,255,255,0.15);border-radius:8px;font-size:12px;">
+      <strong>건너뛴 항목:</strong>
+      <ul style="margin:4px 0 0;">
+      {% for e in errors %}
+        <li>{{ e }}</li>
+      {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
     <p style="margin-top:12px;"><a href="/portfolio/u/{{ user.username }}">포트폴리오 보기 →</a></p>
   </div>
   {% endif %}
