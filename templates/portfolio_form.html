@@ -64,7 +64,7 @@
 
 <div class="pf-form-wrap">
   <div class="pf-form-title">UPLOAD WORK</div>
-  <div class="pf-form-sub">이미지 최대 8장 (장당 5MB) + 영상 1개 (50MB) · 게시물당 총 50MB</div>
+  <div class="pf-form-sub">이미지 최대 {% if user.is_admin %}20{% else %}8{% endif %}장 (장당 5MB) + 영상 1개 (50MB) · 게시물당 총 50MB</div>
 
   {% if error %}
   <div class="err-msg">{{ error }}</div>
@@ -87,7 +87,7 @@
     </div>
 
     <div class="field">
-      <label>IMAGES (최대 8장, 장당 5MB)</label>
+      <label>IMAGES (최대 {% if user.is_admin %}20{% else %}8{% endif %}장, 장당 5MB)</label>
       <div class="drop-zone" id="imgZone">
         <p>{{ _("클릭하거나 드래그해서 이미지 추가") }}</p>
         <p class="limit">JPG · PNG · WEBP · GIF</p>
@@ -134,7 +134,7 @@
   let imgFiles = [];
   function addImages(files) {
     for (const f of files) {
-      if (imgFiles.length >= 8) break;
+      if (imgFiles.length >= {{ 20 if user.is_admin else 8 }}) break;
       if (f.size > 5*1024*1024) { alert(f.name + ' — 5MB 초과'); continue; }
       if (!/\.(jpe?g|png|webp|gif)$/i.test(f.name)) continue;
       imgFiles.push(f);

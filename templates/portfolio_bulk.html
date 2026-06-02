@@ -100,7 +100,7 @@
 <div class="bulk-wrap">
   <a href="/portfolio/u/{{ user.username }}" style="font-size:12px;color:var(--text-muted);font-weight:700;text-decoration:none;">← {{ _("내 포트폴리오") }}</a>
   <div class="bulk-title">BULK UPLOAD</div>
-  <div class="bulk-sub">제목 + 이미지를 한 번에 여러 게시물로 올리세요. 게시물당 이미지 최대 8장(장당 5MB).</div>
+  <div class="bulk-sub">제목 + 이미지를 한 번에 여러 게시물로 올리세요. 게시물당 이미지 최대 {% if user.is_admin %}20{% else %}8{% endif %}장(장당 5MB).</div>
 
   {% if done %}
   <div class="done-banner">
@@ -130,7 +130,7 @@
         </div>
         <div class="drop-zone" data-idx="0">
           <p>{{ _("클릭하거나 드래그해서 이미지 추가") }}</p>
-          <p class="limit">JPG · PNG · WEBP · GIF · 장당 5MB · 최대 8장</p>
+          <p class="limit">JPG · PNG · WEBP · GIF · 장당 5MB · 최대 {% if user.is_admin %}20{% else %}8{% endif %}장</p>
           <input type="file" name="images_0" multiple accept=".jpg,.jpeg,.png,.webp,.gif" style="display:none">
         </div>
         <div class="preview-row" data-idx="0"></div>
@@ -181,7 +181,7 @@ function addRow() {
     </div>
     <div class="drop-zone" data-idx="${idx}">
       <p>클릭하거나 드래그해서 이미지 추가</p>
-      <p class="limit">JPG · PNG · WEBP · GIF · 장당 5MB · 최대 8장</p>
+      <p class="limit">JPG · PNG · WEBP · GIF · 장당 5MB · 최대 {% if user.is_admin %}20{% else %}8{% endif %}장</p>
       <input type="file" name="images_${idx}" multiple accept=".jpg,.jpeg,.png,.webp,.gif" style="display:none">
     </div>
     <div class="preview-row" data-idx="${idx}"></div>
@@ -226,7 +226,8 @@ function initDropZone(zone) {
 function addFiles(idx, files) {
   if (!fileMap[idx]) fileMap[idx] = [];
   for (const f of files) {
-    if (fileMap[idx].length >= 8) break;
+    const MAX_IMG = {{ 20 if user.is_admin else 8 }};
+    if (fileMap[idx].length >= MAX_IMG) break;
     if (f.size > 5 * 1024 * 1024) { alert(f.name + ' — 5MB 초과'); continue; }
     if (!/\.(jpe?g|png|webp|gif)$/i.test(f.name)) continue;
     fileMap[idx].push(f);
@@ -251,7 +252,7 @@ function renderPreviews(idx) {
     div.appendChild(btn);
     container.appendChild(div);
   });
-  counter.textContent = fileMap[idx].length > 0 ? fileMap[idx].length + ' / 8' : '';
+  counter.textContent = fileMap[idx].length > 0 ? fileMap[idx].length + ' / ' + MAX_IMG : '';
 }
 
 function syncInput(idx) {

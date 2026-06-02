@@ -3058,7 +3058,8 @@ def portfolio_new():
 
         # 이미지 처리
         img_files = request.files.getlist("images")
-        for i, f in enumerate(img_files[:PORTFOLIO_IMG_MAX_COUNT]):
+        img_limit = 20 if u.get("is_admin") else PORTFOLIO_IMG_MAX_COUNT
+        for i, f in enumerate(img_files[:img_limit]):
             if not f or not f.filename:
                 continue
             ext = os.path.splitext(f.filename)[1].lower()
@@ -3102,7 +3103,8 @@ def portfolio_new():
 
         # 실제 업로드
         post_id = str(uuid.uuid4())
-        for i, f in enumerate(img_files[:PORTFOLIO_IMG_MAX_COUNT]):
+        img_limit = 20 if u.get("is_admin") else PORTFOLIO_IMG_MAX_COUNT
+        for i, f in enumerate(img_files[:img_limit]):
             if not f or not f.filename:
                 continue
             ext = os.path.splitext(f.filename)[1].lower()
@@ -3272,7 +3274,8 @@ def portfolio_bulk():
             images_data = []
             post_bytes = 0
 
-            for i, f in enumerate(img_files[:PORTFOLIO_IMG_MAX_COUNT]):
+            img_limit = 20 if u.get("is_admin") else PORTFOLIO_IMG_MAX_COUNT
+            for i, f in enumerate(img_files[:img_limit]):
                 if not f or not f.filename:
                     continue
                 ext = os.path.splitext(f.filename)[1].lower()
