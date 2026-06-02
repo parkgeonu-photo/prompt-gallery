@@ -95,6 +95,20 @@
     cursor: pointer; font-size: 13px; flex: 2;
   }
   .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .progress-bar {
+    display: none; margin-top: 12px; background: var(--border);
+    border-radius: 8px; overflow: hidden; height: 32px; position: relative;
+  }
+  .progress-fill {
+    height: 100%; background: #1c7c54; width: 0%;
+    transition: width 0.3s; border-radius: 8px;
+  }
+  .progress-text {
+    position: absolute; inset: 0; display: flex;
+    align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    font-weight: 700; color: white; text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  }
 </style>
 
 <div class="bulk-wrap">
@@ -154,7 +168,11 @@
 
     <div class="bulk-actions">
       <button type="button" class="add-row-btn" onclick="addRow()">+ 게시물 추가</button>
-      <button type="submit" class="submit-btn" id="submitBtn">UPLOAD ALL</button>
+      <button type="submit" class="submit-btn" id="submitBtn" disabled style="opacity:0.4">UPLOAD ALL</button>
+      <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+        <div class="progress-text" id="progressText">0%</div>
+      </div>
     </div>
   </form>
 </div>
@@ -276,14 +294,69 @@ function syncInput(idx) {
   input.files = dt.files;
 }
 
+// 파일 있는지 체크 → 버튼 활성화/비활성화
+function checkReady() {
+  const btn = document.getElementById('submitBtn');
+  let hasFiles = false;
+  for (const idx in fileMap) {
+    if (fileMap[idx] && fileMap[idx].length > 0) { hasFiles = true; break; }
+  }
+  const hasTitles = [...document.querySelectorAll('.post-row input[type=text]')].some(i => i.value.trim());
+  btn.disabled = !(hasFiles && hasTitles);
+  btn.style.opacity = btn.disabled ? '0.4' : '1';
+}
+
 // 초기 드롭존 설정
 document.querySelectorAll('.drop-zone').forEach(z => initDropZone(z));
 
-// 폼 제출 시 중복 방지
-document.getElementById('bulkForm').addEventListener('submit', function() {
+// 입력 변화 감지
+document.addEventListener('input', checkReady);
+checkReady();
+
+// 프로그레스 바 + AJAX 업로드
+document.getElementById('bulkForm').addEventListener('submit', function(e) {
+  e.preventDefault();
   const btn = document.getElementById('submitBtn');
+  const bar = document.getElementById('progressBar');
+  const barFill = document.getElementById('progressFill');
+  const barText = document.getElementById('progressText');
+
   btn.disabled = true;
   btn.textContent = 'UPLOADING...';
+  bar.style.display = 'block';
+
+  const formData = new FormData(this);
+  const xhr = new XMLHttpRequest();
+
+  xhr.upload.addEventListener('progress', function(e) {
+    if (e.lengthComputable) {
+      const pct = Math.round((e.loaded / e.total) * 100);
+      barFill.style.width = pct + '%';
+      barText.textContent = pct + '%';
+      btn.textContent = 'UPLOADING... ' + pct + '%';
+    }
+  });
+
+  xhr.addEventListener('load', function() {
+    barFill.style.width = '100%';
+    barText.textContent = '100%';
+    btn.textContent = 'COMPLETE!';
+    // 서버 응답 HTML로 페이지 교체
+    document.open();
+    document.write(xhr.responseText);
+    document.close();
+  });
+
+  xhr.addEventListener('error', function() {
+    btn.textContent = 'ERROR — 다시 시도';
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    bar.style.display = 'none';
+    alert('업로드 중 에러가 발생했어요. 다시 시도해주세요.');
+  });
+
+  xhr.open('POST', '/portfolio/bulk');
+  xhr.send(formData);
 });
 </script>
 {% endblock %}
