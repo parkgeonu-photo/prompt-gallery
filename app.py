@@ -3218,6 +3218,87 @@ def portfolio_reject(member_id):
     return redirect("/admin")
 
 
+@app.route("/portfolio/bulk", methods=["GET", "POST"])
+@admin_required
+def portfolio_bulk():
+    """포트폴리오 일괄 업로드 (어드민 전용)."""
+    u = current_user()
+    # 자동 승인 확인
+    mem = _portfolio_status(u["id"])
+    if not mem or mem["status"] != "approved":
+        # 어드민이면 자동 생성
+        with db() as c:
+            existing = c.fetchone("SELECT id FROM portfolio_members WHERE user_id = %s", (u["id"],))
+            if not existing:
+                c.execute(
+                    "INSERT INTO portfolio_members (user_id, status, created_at, approved_at) "
+                    "VALUES (%s, 'approved', %s, %s)",
+                    (u["id"], int(time.time()), int(time.time()))
+                )
+        mem = _portfolio_status(u["id"])
+
+    if request.method == "POST":
+        results = []
+        idx = 0
+        while True:
+            title = request.form.get(f"title_{idx}")
+            if title is None:
+                break
+            title = title.strip()[:200]
+            if not title:
+                idx += 1
+                continue
+
+            img_files = request.files.getlist(f"images_{idx}")
+            if not img_files or not any(f.filename for f in img_files):
+                idx += 1
+                continue
+
+            post_id = str(uuid.uuid4())
+            images_data = []
+            post_bytes = 0
+
+            for i, f in enumerate(img_files[:PORTFOLIO_IMG_MAX_COUNT]):
+                if not f or not f.filename:
+                    continue
+                ext = os.path.splitext(f.filename)[1].lower()
+                if ext not in ALLOWED_IMG:
+                    continue
+                f.stream.seek(0, 2)
+                sz = f.stream.tell()
+                f.stream.seek(0)
+                if sz > PORTFOLIO_IMG_MAX_BYTES:
+                    continue
+                name = f"portfolio/{u['id']}/{post_id}/img-{i}{ext}"
+                try:
+                    url = storage_upload(f, name)
+                    images_data.append({"url": url, "id": str(uuid.uuid4()), "size": sz})
+                    post_bytes += sz
+                except Exception:
+                    continue
+
+            if not images_data:
+                idx += 1
+                continue
+
+            with db() as c:
+                c.execute(
+                    "INSERT INTO portfolio_posts (id, user_id, title, images, video, total_bytes, created_at) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    (post_id, u["id"], title, Json(images_data), None, post_bytes, int(time.time()))
+                )
+                c.execute(
+                    "UPDATE portfolio_members SET total_bytes = total_bytes + %s WHERE user_id = %s",
+                    (post_bytes, u["id"])
+                )
+            results.append({"title": title, "count": len(images_data)})
+            idx += 1
+
+        return render_template("portfolio_bulk.html", results=results, done=True)
+
+    return render_template("portfolio_bulk.html")
+
+
 # 프롬프트 번역 API — Google Translate 공개 엔드포인트 사용 (무료, 키 불필요)
 @app.route("/api/seed-notice", methods=["POST"])
 @admin_required

@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% block title %}BULK UPLOAD — PORTFOLIO{% endblock %}
+{% block content %}
+<style>
+  .bulk-wrap { max-width: 800px; margin: 0 auto; }
+  .bulk-title {
+    font-family: 'Archivo Black', sans-serif; font-size: 32px;
+    letter-spacing: -0.5px; margin-bottom: 6px;
+  }
+  .bulk-sub { color: var(--text-muted); font-size: 13px; margin-bottom: 28px; }
+
+  .done-banner {
+    background: #1c7c54; color: white; padding: 20px 24px;
+    border-radius: 12px; margin-bottom: 24px;
+  }
+  .done-banner h2 { margin: 0 0 8px; font-size: 18px; }
+  .done-banner li { font-size: 13px; margin: 4px 0; }
+  .done-banner a { color: white; text-decoration: underline; }
+
+  .post-row {
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; margin-bottom: 14px;
+    position: relative;
+  }
+  .post-row-head {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  }
+  .post-num {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: var(--text); color: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Archivo Black', sans-serif; font-size: 12px;
+    flex-shrink: 0;
+  }
+  .post-row input[type=text] {
+    flex: 1; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 12px; border-radius: 8px;
+    font-family: inherit; font-size: 14px;
+  }
+  .post-row input[type=text]:focus { border-color: var(--text); outline: none; }
+  .remove-row {
+    position: absolute; top: 12px; right: 12px;
+    background: none; border: none; color: var(--text-muted);
+    font-size: 18px; cursor: pointer; padding: 4px 8px;
+  }
+  .remove-row:hover { color: #c00; }
+
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: 10px;
+    padding: 24px; text-align: center; cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--bg);
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--text); background: var(--highlight, rgba(0,0,0,0.02));
+  }
+  .drop-zone p { color: var(--text-muted); font-size: 12px; margin: 0; }
+  .drop-zone .limit {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--text-dim); margin-top: 4px;
+  }
+
+  .preview-row {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px;
+  }
+  .preview-item {
+    width: 64px; height: 64px; border-radius: 6px; overflow: hidden;
+    position: relative; background: var(--bg);
+  }
+  .preview-item img { width: 100%; height: 100%; object-fit: cover; }
+  .preview-remove {
+    position: absolute; top: 2px; right: 2px;
+    background: rgba(200,0,0,0.8); color: white;
+    border: none; border-radius: 50%; width: 16px; height: 16px;
+    font-size: 9px; cursor: pointer; line-height: 16px; text-align: center;
+  }
+  .file-count {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--text-muted); margin-top: 6px;
+  }
+
+  .bulk-actions {
+    display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;
+  }
+  .add-row-btn {
+    background: var(--bg-elev); color: var(--text); border: 1px solid var(--border);
+    padding: 12px 20px; border-radius: 8px; font-weight: 700;
+    font-size: 13px; cursor: pointer; flex: 1;
+  }
+  .add-row-btn:hover { border-color: var(--text); }
+  .submit-btn {
+    background: var(--text); color: var(--bg); border: none;
+    padding: 14px 32px; border-radius: 8px; font-weight: 800;
+    font-family: 'Archivo Black', sans-serif; letter-spacing: 1.5px;
+    cursor: pointer; font-size: 13px; flex: 2;
+  }
+  .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+</style>
+
+<div class="bulk-wrap">
+  <a href="/portfolio/u/{{ user.username }}" style="font-size:12px;color:var(--text-muted);font-weight:700;text-decoration:none;">← {{ _("내 포트폴리오") }}</a>
+  <div class="bulk-title">BULK UPLOAD</div>
+  <div class="bulk-sub">제목 + 이미지를 한 번에 여러 게시물로 올리세요. 게시물당 이미지 최대 8장(장당 5MB).</div>
+
+  {% if done %}
+  <div class="done-banner">
+    <h2>✓ 업로드 완료!</h2>
+    <ul>
+    {% for r in results %}
+      <li>{{ r.title }} — 이미지 {{ r.count }}장</li>
+    {% endfor %}
+    </ul>
+    <p style="margin-top:12px;"><a href="/portfolio/u/{{ user.username }}">포트폴리오 보기 →</a></p>
+  </div>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data" id="bulkForm">
+    <div id="rowContainer">
+      <div class="post-row" data-idx="0">
+        <button type="button" class="remove-row" onclick="removeRow(this)" title="삭제">×</button>
+        <div class="post-row-head">
+          <div class="post-num">1</div>
+          <input type="text" name="title_0" placeholder="게시물 제목" required>
+        </div>
+        <div class="drop-zone" data-idx="0">
+          <p>{{ _("클릭하거나 드래그해서 이미지 추가") }}</p>
+          <p class="limit">JPG · PNG · WEBP · GIF · 장당 5MB · 최대 8장</p>
+          <input type="file" name="images_0" multiple accept=".jpg,.jpeg,.png,.webp,.gif" style="display:none">
+        </div>
+        <div class="preview-row" data-idx="0"></div>
+        <div class="file-count" data-idx="0"></div>
+      </div>
+    </div>
+
+    <div class="bulk-actions">
+      <button type="button" class="add-row-btn" onclick="addRow()">+ 게시물 추가</button>
+      <button type="submit" class="submit-btn" id="submitBtn">UPLOAD ALL</button>
+    </div>
+  </form>
+</div>
+
+<script>
+let rowCount = 1;
+const fileMap = {};
+
+function addRow() {
+  const idx = rowCount;
+  rowCount++;
+  const container = document.getElementById('rowContainer');
+  const div = document.createElement('div');
+  div.className = 'post-row';
+  div.dataset.idx = idx;
+  div.innerHTML = `
+    <button type="button" class="remove-row" onclick="removeRow(this)" title="삭제">×</button>
+    <div class="post-row-head">
+      <div class="post-num">${idx + 1}</div>
+      <input type="text" name="title_${idx}" placeholder="게시물 제목" required>
+    </div>
+    <div class="drop-zone" data-idx="${idx}">
+      <p>클릭하거나 드래그해서 이미지 추가</p>
+      <p class="limit">JPG · PNG · WEBP · GIF · 장당 5MB · 최대 8장</p>
+      <input type="file" name="images_${idx}" multiple accept=".jpg,.jpeg,.png,.webp,.gif" style="display:none">
+    </div>
+    <div class="preview-row" data-idx="${idx}"></div>
+    <div class="file-count" data-idx="${idx}"></div>
+  `;
+  container.appendChild(div);
+  initDropZone(div.querySelector('.drop-zone'));
+  renumberRows();
+}
+
+function removeRow(btn) {
+  const rows = document.querySelectorAll('.post-row');
+  if (rows.length <= 1) return;
+  const row = btn.closest('.post-row');
+  const idx = row.dataset.idx;
+  delete fileMap[idx];
+  row.remove();
+  renumberRows();
+}
+
+function renumberRows() {
+  document.querySelectorAll('.post-row').forEach((row, i) => {
+    row.querySelector('.post-num').textContent = i + 1;
+  });
+}
+
+function initDropZone(zone) {
+  const idx = zone.dataset.idx;
+  const input = zone.querySelector('input[type=file]');
+  fileMap[idx] = fileMap[idx] || [];
+
+  zone.addEventListener('click', () => input.click());
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    addFiles(idx, e.dataTransfer.files);
+  });
+  input.addEventListener('change', () => { addFiles(idx, input.files); });
+}
+
+function addFiles(idx, files) {
+  if (!fileMap[idx]) fileMap[idx] = [];
+  for (const f of files) {
+    if (fileMap[idx].length >= 8) break;
+    if (f.size > 5 * 1024 * 1024) { alert(f.name + ' — 5MB 초과'); continue; }
+    if (!/\.(jpe?g|png|webp|gif)$/i.test(f.name)) continue;
+    fileMap[idx].push(f);
+  }
+  renderPreviews(idx);
+  syncInput(idx);
+}
+
+function renderPreviews(idx) {
+  const container = document.querySelector(`.preview-row[data-idx="${idx}"]`);
+  const counter = document.querySelector(`.file-count[data-idx="${idx}"]`);
+  container.innerHTML = '';
+  fileMap[idx].forEach((f, i) => {
+    const div = document.createElement('div');
+    div.className = 'preview-item';
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(f);
+    div.appendChild(img);
+    const btn = document.createElement('button');
+    btn.className = 'preview-remove'; btn.textContent = '×'; btn.type = 'button';
+    btn.onclick = () => { fileMap[idx].splice(i, 1); renderPreviews(idx); syncInput(idx); };
+    div.appendChild(btn);
+    container.appendChild(div);
+  });
+  counter.textContent = fileMap[idx].length > 0 ? fileMap[idx].length + ' / 8' : '';
+}
+
+function syncInput(idx) {
+  const input = document.querySelector(`input[name="images_${idx}"]`);
+  const dt = new DataTransfer();
+  (fileMap[idx] || []).forEach(f => dt.items.add(f));
+  input.files = dt.files;
+}
+
+// 초기 드롭존 설정
+document.querySelectorAll('.drop-zone').forEach(z => initDropZone(z));
+
+// 폼 제출 시 중복 방지
+document.getElementById('bulkForm').addEventListener('submit', function() {
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'UPLOADING...';
+});
+</script>
+{% endblock %}
