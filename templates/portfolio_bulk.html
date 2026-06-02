@@ -168,7 +168,7 @@
 
     <div class="bulk-actions">
       <button type="button" class="add-row-btn" onclick="addRow()">+ 게시물 추가</button>
-      <button type="submit" class="submit-btn" id="submitBtn" disabled style="opacity:0.4">UPLOAD ALL</button>
+      <button type="submit" class="submit-btn" id="submitBtn">UPLOAD ALL</button>
       <div class="progress-bar" id="progressBar">
         <div class="progress-fill" id="progressFill"></div>
         <div class="progress-text" id="progressText">0%</div>
@@ -266,7 +266,6 @@ function addFiles(idx, files) {
   }
   renderPreviews(idx);
   syncInput(idx);
-  checkReady();
 }
 
 function renderPreviews(idx) {
@@ -281,7 +280,7 @@ function renderPreviews(idx) {
     div.appendChild(img);
     const btn = document.createElement('button');
     btn.className = 'preview-remove'; btn.textContent = '×'; btn.type = 'button';
-    btn.onclick = () => { fileMap[idx].splice(i, 1); renderPreviews(idx); syncInput(idx); checkReady(); };
+    btn.onclick = () => { fileMap[idx].splice(i, 1); renderPreviews(idx); syncInput(idx); };
     div.appendChild(btn);
     container.appendChild(div);
   });
@@ -295,24 +294,9 @@ function syncInput(idx) {
   input.files = dt.files;
 }
 
-// 파일 있는지 체크 → 버튼 활성화/비활성화
-function checkReady() {
-  const btn = document.getElementById('submitBtn');
-  let hasFiles = false;
-  for (const idx in fileMap) {
-    if (fileMap[idx] && fileMap[idx].length > 0) { hasFiles = true; break; }
-  }
-  const hasTitles = [...document.querySelectorAll('.post-row input[type=text]')].some(i => i.value.trim());
-  btn.disabled = !(hasFiles && hasTitles);
-  btn.style.opacity = btn.disabled ? '0.4' : '1';
-}
-
 // 초기 드롭존 설정
 document.querySelectorAll('.drop-zone').forEach(z => initDropZone(z));
 
-// 입력 변화 감지
-document.addEventListener('input', checkReady);
-checkReady();
 
 // 프로그레스 바 + AJAX 업로드
 document.getElementById('bulkForm').addEventListener('submit', function(e) {
