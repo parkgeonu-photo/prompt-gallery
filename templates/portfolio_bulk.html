@@ -326,7 +326,25 @@ document.getElementById('bulkForm').addEventListener('submit', function(e) {
   btn.textContent = 'UPLOADING...';
   bar.style.display = 'block';
 
-  const formData = new FormData(this);
+  // FormData를 fileMap에서 직접 구성
+  const formData = new FormData();
+  document.querySelectorAll('.post-row').forEach(row => {
+    const idx = row.dataset.idx;
+    const titleInput = row.querySelector('input[type=text]');
+    const catSelect = row.querySelector('select');
+    if (titleInput && titleInput.value.trim()) {
+      formData.append('title_' + idx, titleInput.value.trim());
+    }
+    if (catSelect) {
+      formData.append('category_' + idx, catSelect.value);
+    }
+    if (fileMap[idx]) {
+      fileMap[idx].forEach(f => {
+        formData.append('images_' + idx, f);
+      });
+    }
+  });
+
   const xhr = new XMLHttpRequest();
 
   xhr.upload.addEventListener('progress', function(e) {
