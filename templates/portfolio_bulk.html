@@ -266,6 +266,7 @@ function addFiles(idx, files) {
   }
   renderPreviews(idx);
   syncInput(idx);
+  checkReady();
 }
 
 function renderPreviews(idx) {
@@ -280,7 +281,7 @@ function renderPreviews(idx) {
     div.appendChild(img);
     const btn = document.createElement('button');
     btn.className = 'preview-remove'; btn.textContent = '×'; btn.type = 'button';
-    btn.onclick = () => { fileMap[idx].splice(i, 1); renderPreviews(idx); syncInput(idx); };
+    btn.onclick = () => { fileMap[idx].splice(i, 1); renderPreviews(idx); syncInput(idx); checkReady(); };
     div.appendChild(btn);
     container.appendChild(div);
   });
