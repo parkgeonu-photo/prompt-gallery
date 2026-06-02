@@ -3092,10 +3092,11 @@ def portfolio_new():
             return render_template("portfolio_form.html",
                 error=f"게시물 총 용량 {post_bytes/1024/1024:.1f}MB — 최대 50MB"), 400
 
-        # 유저 총 용량 체크
+        # 유저 총 용량 체크 (어드민은 10GB)
+        max_bytes = 10 * 1024 * 1024 * 1024 if u.get("is_admin") else PORTFOLIO_USER_MAX_BYTES
         user_total = mem.get("total_bytes", 0) or 0
-        if user_total + post_bytes > PORTFOLIO_USER_MAX_BYTES:
-            remain = max(0, PORTFOLIO_USER_MAX_BYTES - user_total)
+        if user_total + post_bytes > max_bytes:
+            remain = max(0, max_bytes - user_total)
             return render_template("portfolio_form.html",
                 error=f"포트폴리오 총 용량 초과 (남은 공간: {remain/1024/1024:.0f}MB / 최대 5GB)"), 400
 

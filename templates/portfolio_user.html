@@ -98,7 +98,7 @@
   </div>
   {% if is_mine %}
   <div class="pfu-usage">
-    사용량: {{ "%.1f"|format((member.total_bytes or 0) / 1024 / 1024) }}MB / 5,120MB
+    {{ _("사용량") }}: {{ "%.1f"|format((member.total_bytes or 0) / 1024 / 1024) }}MB / {% if user.is_admin %}10,240MB{% else %}5,120MB{% endif %}
   </div>
   {% endif %}
 </div>
