@@ -71,6 +71,7 @@ PORTFOLIO_VID_MAX_BYTES = 50 * 1024 * 1024       # 비디오 1개당 50MB
 PORTFOLIO_VID_MAX_COUNT = 1                       # 게시물당 비디오 최대 1개
 PORTFOLIO_POST_MAX_BYTES = 50 * 1024 * 1024      # 게시물당 총 50MB
 PORTFOLIO_USER_MAX_BYTES = 5 * 1024 * 1024 * 1024  # 1인당 총 5GB
+PORTFOLIO_CATEGORIES = ["사진", "영상", "AI"]
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
@@ -681,6 +682,7 @@ def init_db():
             )
         """)
         c.execute("CREATE INDEX IF NOT EXISTS idx_pp_user ON portfolio_posts(user_id, created_at DESC)")
+        c.execute("ALTER TABLE portfolio_posts ADD COLUMN IF NOT EXISTS category TEXT")
 
         # Skills
         c.execute("""
@@ -2995,6 +2997,7 @@ def portfolio_apply():
 def portfolio_user(username):
     """특정 유저의 포트폴리오 페이지."""
     u = current_user()
+    category = request.args.get("category")
     with db() as c:
         owner = c.fetchone("SELECT * FROM users WHERE username = %s", (username,))
         if not owner:
@@ -3005,10 +3008,16 @@ def portfolio_user(username):
         )
         if not mem:
             abort(404)
-        posts = c.fetchall(
-            "SELECT * FROM portfolio_posts WHERE user_id = %s ORDER BY created_at DESC",
-            (owner["id"],)
-        )
+        if category:
+            posts = c.fetchall(
+                "SELECT * FROM portfolio_posts WHERE user_id = %s AND category = %s ORDER BY created_at DESC",
+                (owner["id"], category)
+            )
+        else:
+            posts = c.fetchall(
+                "SELECT * FROM portfolio_posts WHERE user_id = %s ORDER BY created_at DESC",
+                (owner["id"],)
+            )
     posts = [dict(p) for p in posts]
     for p in posts:
         p["id"] = str(p["id"])
@@ -3021,7 +3030,9 @@ def portfolio_user(username):
 
     is_mine = u and str(u["id"]) == str(owner["id"])
     return render_template("portfolio_user.html", owner=owner, posts=posts,
-                           member=dict(mem), is_mine=is_mine)
+                           member=dict(mem), is_mine=is_mine,
+                           pf_categories=PORTFOLIO_CATEGORIES,
+                           current_category=category)
 
 
 @app.route("/portfolio/new", methods=["GET", "POST"])
@@ -3035,8 +3046,10 @@ def portfolio_new():
 
     if request.method == "POST":
         title = (request.form.get("title") or "").strip()[:200]
+        category = (request.form.get("category") or "").strip()
         if not title:
-            return render_template("portfolio_form.html", error="제목은 필수예요"), 400
+            return render_template("portfolio_form.html",
+                pf_categories=PORTFOLIO_CATEGORIES, error="제목은 필수예요"), 400
 
         # 용량 계산
         post_bytes = 0
@@ -3119,9 +3132,9 @@ def portfolio_new():
 
         with db() as c:
             c.execute(
-                "INSERT INTO portfolio_posts (id, user_id, title, images, video, total_bytes, created_at) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                (post_id, u["id"], title, Json(images_data),
+                "INSERT INTO portfolio_posts (id, user_id, title, category, images, video, total_bytes, created_at) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (post_id, u["id"], title, category or None, Json(images_data),
                  Json(video_data) if video_data else None,
                  actual_bytes, int(time.time()))
             )
@@ -3131,7 +3144,7 @@ def portfolio_new():
             )
         return redirect(f"/portfolio/u/{u['username']}")
 
-    return render_template("portfolio_form.html")
+    return render_template("portfolio_form.html", pf_categories=PORTFOLIO_CATEGORIES)
 
 
 @app.route("/portfolio/post/<post_id>")
@@ -3282,10 +3295,11 @@ def portfolio_bulk():
                 continue
 
             with db() as c:
+                category = request.form.get(f"category_{idx}", "").strip()
                 c.execute(
-                    "INSERT INTO portfolio_posts (id, user_id, title, images, video, total_bytes, created_at) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                    (post_id, u["id"], title, Json(images_data), None, post_bytes, int(time.time()))
+                    "INSERT INTO portfolio_posts (id, user_id, title, category, images, video, total_bytes, created_at) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                    (post_id, u["id"], title, category or None, Json(images_data), None, post_bytes, int(time.time()))
                 )
                 c.execute(
                     "UPDATE portfolio_members SET total_bytes = total_bytes + %s WHERE user_id = %s",

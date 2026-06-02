@@ -77,6 +77,16 @@
     </div>
 
     <div class="field">
+      <label>CATEGORY</label>
+      <select name="category" style="width:100%;background:var(--bg-elev);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-size:14px;">
+        <option value="">{{ _("— 선택 —") }}</option>
+        {% if pf_categories %}{% for cat in pf_categories %}
+        <option value="{{ cat }}">{{ cat }}</option>
+        {% endfor %}{% endif %}
+      </select>
+    </div>
+
+    <div class="field">
       <label>IMAGES (최대 8장, 장당 5MB)</label>
       <div class="drop-zone" id="imgZone">
         <p>{{ _("클릭하거나 드래그해서 이미지 추가") }}</p>

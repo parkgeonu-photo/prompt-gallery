@@ -103,6 +103,13 @@
   {% endif %}
 </div>
 
+<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:20px 0 28px;">
+  <a href="/portfolio/u/{{ owner.username }}" style="background:{% if not current_category %}var(--text){% else %}var(--bg-elev){% endif %};color:{% if not current_category %}var(--bg){% else %}var(--text-muted){% endif %};padding:6px 14px;border-radius:999px;font-size:11px;border:1px solid {% if not current_category %}var(--text){% else %}var(--border){% endif %};font-weight:700;letter-spacing:0.5px;text-decoration:none;">ALL</a>
+  {% if pf_categories %}{% for cat in pf_categories %}
+  <a href="/portfolio/u/{{ owner.username }}?category={{ cat }}" style="background:{% if current_category == cat %}var(--text){% else %}var(--bg-elev){% endif %};color:{% if current_category == cat %}var(--bg){% else %}var(--text-muted){% endif %};padding:6px 14px;border-radius:999px;font-size:11px;border:1px solid {% if current_category == cat %}var(--text){% else %}var(--border){% endif %};font-weight:700;letter-spacing:0.5px;text-decoration:none;">{{ cat }}</a>
+  {% endfor %}{% endif %}
+</div>
+
 {% if posts %}
 <div class="pf-masonry">
   {% for p in posts %}
