@@ -3069,7 +3069,8 @@ def portfolio_new():
             f.stream.seek(0, 2)
             size = f.stream.tell()
             f.stream.seek(0)
-            if size > PORTFOLIO_IMG_MAX_BYTES:
+            img_size_limit = 15 * 1024 * 1024 if u.get("is_admin") else PORTFOLIO_IMG_MAX_BYTES
+            if size > img_size_limit:
                 return render_template("portfolio_form.html",
                     error=f"이미지 '{f.filename}'이(가) {size/1024/1024:.1f}MB — 최대 5MB"), 400
             post_bytes += size
@@ -3114,7 +3115,8 @@ def portfolio_new():
             f.stream.seek(0, 2)
             sz = f.stream.tell()
             f.stream.seek(0)
-            if sz > PORTFOLIO_IMG_MAX_BYTES:
+            img_sz_limit = 15 * 1024 * 1024 if u.get("is_admin") else PORTFOLIO_IMG_MAX_BYTES
+            if sz > img_sz_limit:
                 continue
             name = f"portfolio/{u['id']}/{post_id}/img-{i}{ext}"
             try:
@@ -3216,7 +3218,8 @@ def portfolio_post_edit(post_id):
             f.stream.seek(0, 2)
             sz = f.stream.tell()
             f.stream.seek(0)
-            if sz > PORTFOLIO_IMG_MAX_BYTES:
+            img_sz_limit = 15 * 1024 * 1024 if u.get("is_admin") else PORTFOLIO_IMG_MAX_BYTES
+            if sz > img_sz_limit:
                 continue
             name = f"portfolio/{u['id']}/{post_id}/img-{len(images)}{ext}"
             try:
@@ -3391,7 +3394,8 @@ def portfolio_bulk():
                 f.stream.seek(0, 2)
                 sz = f.stream.tell()
                 f.stream.seek(0)
-                if sz > PORTFOLIO_IMG_MAX_BYTES:
+                img_sz_limit = 15 * 1024 * 1024 if u.get("is_admin") else PORTFOLIO_IMG_MAX_BYTES
+                if sz > img_sz_limit:
                     continue
                 name = f"portfolio/{u['id']}/{post_id}/img-{i}{ext}"
                 try:
