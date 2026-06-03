@@ -71,7 +71,7 @@
     {% endif %}
     <a class="card-media" href="/post/{{ post.id }}">
       {% if post.media_type == 'video' %}
-      <video src="{{ post.media_path }}" muted playsinline preload="metadata" loop></video>
+      <video src="{{ post.media_path }}#t=0.1" muted playsinline preload="metadata" loop class="card-video"></video>
       {% else %}
       <img src="{{ post.media_path }}" alt="" loading="lazy">
       {% endif %}
@@ -161,6 +161,29 @@ document.querySelectorAll('.card').forEach(card => {
     video.currentTime = 0;
   });
 });
+</script>
+<script>
+// 데스크톱: 호버 시 재생 / 모바일: 화면에 보이면 재생
+(function() {
+  const vids = document.querySelectorAll('.card-video');
+  if (!vids.length) return;
+  const isMobile = window.innerWidth <= 768;
+  if (isMobile) {
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) e.target.play().catch(()=>{});
+        else e.target.pause();
+      });
+    }, { threshold: 0.5 });
+    vids.forEach(v => obs.observe(v));
+  } else {
+    vids.forEach(v => {
+      const card = v.closest('.masonry-card') || v.parentElement;
+      card.addEventListener('mouseenter', () => v.play().catch(()=>{}));
+      card.addEventListener('mouseleave', () => { v.pause(); v.currentTime = 0; });
+    });
+  }
+})();
 </script>
 {% endblock %}
 
