@@ -64,6 +64,10 @@ NOTICE_CATEGORIES = [
     "업데이트", "공지", "앱 소개", "팁/가이드", "기타"
 ]
 
+CONTENT_CATEGORIES = [
+    "액션", "드라마", "쇼츠", "광고", "뷰티", "패션", "제품", "푸드", "기타"
+]
+
 # Portfolio
 PORTFOLIO_IMG_MAX_BYTES = 5 * 1024 * 1024       # 이미지 1장당 5MB
 PORTFOLIO_IMG_MAX_COUNT = 8                       # 게시물당 이미지 최대 8장
@@ -628,6 +632,8 @@ def init_db():
         c.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS refs JSONB DEFAULT '[]'::jsonb")
         c.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS visibility TEXT DEFAULT 'public'")
         c.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS source_url TEXT")
+        c.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS category TEXT")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_posts_category ON posts(category)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_posts_model ON posts(model)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id)")
@@ -981,6 +987,7 @@ def start():
 @app.route("/explore")
 def index():
     model = request.args.get("model")
+    category = request.args.get("category")
     sort = request.args.get("sort", "recent")
     media_filter = request.args.get("type", "all")
     if media_filter not in ("image", "video", "all"):
@@ -1016,10 +1023,12 @@ def index():
             sql += " AND media_type = %s"
             params.append(media_filter)
         if model:
-            # 정확히 일치 OR 모델명으로 시작 (예: 'Midjourney' -> 'Midjourney v7'도 잡음)
             sql += " AND (model = %s OR model ILIKE %s)"
             params.append(model)
             params.append(model + ' %')
+        if category:
+            sql += " AND category = %s"
+            params.append(category)
         if blocked:
             sql += " AND user_id != ALL(%s)"
             params.append(list(blocked))
@@ -1027,7 +1036,6 @@ def index():
         sql += " LIMIT 120"
         posts = [normalize_post(r, viewer_id) for r in c.fetchall(sql, params)]
 
-        # viewer가 좋아요한 게시물 id 셋 — 카드 좋아요 버튼 상태 표시용
         liked_ids = set()
         if viewer_id and posts:
             pids = [str(p["id"]) for p in posts]
@@ -1040,7 +1048,9 @@ def index():
     return render_template(
         "index.html",
         posts=posts, models=AI_MODELS,
-        current_model=model, current_sort=sort, current_type=media_filter,
+        content_categories=CONTENT_CATEGORIES,
+        current_model=model, current_category=category,
+        current_sort=sort, current_type=media_filter,
         image_count=image_count, video_count=video_count, all_count=all_count,
         liked_ids=liked_ids,
     )
@@ -1105,6 +1115,9 @@ def post_edit(post_id):
         visibility = (request.form.get("visibility") or "public").strip()
         source_url = (request.form.get("source_url") or "").strip()
         process_text = (request.form.get("process_text") or "").strip()[:PROCESS_TEXT_MAX]
+        category = (request.form.get("category") or "").strip()
+        if category and category not in CONTENT_CATEGORIES:
+            category = None
 
         if visibility not in ("public", "partial", "private"):
             visibility = "public"
@@ -1113,7 +1126,8 @@ def post_edit(post_id):
         else:
             model = model_custom or model_choice
         if not prompt:
-            return render_template("post_edit.html", post=post, models=AI_MODELS, error="프롬프트는 필수입니다"), 400
+            return render_template("post_edit.html", post=post, models=AI_MODELS,
+                content_categories=CONTENT_CATEGORIES, error="프롬프트는 필수입니다"), 400
 
         if source_url:
             if not (source_url.startswith("http://") or source_url.startswith("https://")):
@@ -1137,14 +1151,15 @@ def post_edit(post_id):
         with db() as c:
             c.execute(
                 """UPDATE posts SET title = %s, prompt = %s, negative_prompt = %s, model = %s,
-                   tags = %s, visibility = %s, source_url = %s, process_text = %s
+                   tags = %s, visibility = %s, source_url = %s, process_text = %s, category = %s
                    WHERE id = %s""",
                 (title or None, prompt, neg or None, model, tags_raw or None,
-                 visibility, source_url or None, process_text or None, post_id)
+                 visibility, source_url or None, process_text or None, category or None, post_id)
             )
         return redirect(url_for("post_detail", post_id=post_id))
 
-    return render_template("post_edit.html", post=post, models=AI_MODELS)
+    return render_template("post_edit.html", post=post, models=AI_MODELS,
+        content_categories=CONTENT_CATEGORIES)
 
 
 @app.route("/post/<post_id>/delete", methods=["POST"])
@@ -1195,6 +1210,9 @@ def upload():
         visibility = (request.form.get("visibility") or "public").strip()
         source_url = (request.form.get("source_url") or "").strip()
         process_text = (request.form.get("process_text") or "").strip()[:PROCESS_TEXT_MAX]
+        category = (request.form.get("category") or "").strip()
+        if category and category not in CONTENT_CATEGORIES:
+            category = None
         if visibility not in ("public", "partial", "private"):
             visibility = "public"
 
@@ -1214,7 +1232,7 @@ def upload():
                 source_url = source_url[:500]
 
         if not f or not f.filename or not prompt:
-            return render_template("upload.html", models=AI_MODELS, error="파일과 프롬프트는 필수입니다"), 400
+            return render_template("upload.html", models=AI_MODELS, content_categories=CONTENT_CATEGORIES, error="파일과 프롬프트는 필수입니다"), 400
 
         # Private post limit check
         if visibility == "private":
@@ -1232,14 +1250,14 @@ def upload():
         ext = os.path.splitext(f.filename)[1].lower()
         media_type = detect_media_type(ext)
         if media_type not in ("image", "video"):
-            return render_template("upload.html", models=AI_MODELS, error="지원하지 않는 파일 형식 (이미지/영상만 가능)"), 400
+            return render_template("upload.html", models=AI_MODELS, content_categories=CONTENT_CATEGORIES, error="지원하지 않는 파일 형식 (이미지/영상만 가능)"), 400
 
         new_id = str(uuid.uuid4())
         save_name = f"{u['username']}/{new_id}{ext}"
         try:
             public_url = storage_upload(f, save_name)
         except Exception as e:
-            return render_template("upload.html", models=AI_MODELS, error=f"업로드 실패: {e}"), 500
+            return render_template("upload.html", models=AI_MODELS, content_categories=CONTENT_CATEGORIES, error=f"업로드 실패: {e}"), 500
 
         # References (max 10)
         refs = []
@@ -1279,12 +1297,12 @@ def upload():
 
         with db() as c:
             c.execute(
-                """INSERT INTO posts (id, user_id, title, media_path, media_type, prompt, negative_prompt, model, tags, author, created_at, refs, visibility, source_url, process_text, process_images)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                """INSERT INTO posts (id, user_id, title, media_path, media_type, prompt, negative_prompt, model, tags, author, created_at, refs, visibility, source_url, process_text, process_images, category)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                 (new_id, u["id"], title or None, public_url, media_type, prompt,
                  neg or None, model, tags_clean, u["username"], int(time.time()),
                  Json(refs), visibility, source_url or None,
-                 process_text or None, Json(process_images)),
+                 process_text or None, Json(process_images), category or None),
             )
         return redirect(url_for("post_detail", post_id=new_id))
 
@@ -1299,6 +1317,7 @@ def upload():
     return render_template(
         "upload.html",
         models=AI_MODELS,
+        content_categories=CONTENT_CATEGORIES,
         private_used=private_used,
         private_limit=PRIVATE_POST_LIMIT,
     )

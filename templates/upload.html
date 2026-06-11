@@ -60,6 +60,16 @@
   </div>
 
   <div>
+    <label>CATEGORY (선택)</label>
+    <select name="category" style="width:100%;background:var(--bg-elev);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-size:14px;">
+      <option value="">— 선택 안 함 —</option>
+      {% for cat in content_categories %}
+      <option value="{{ cat }}">{{ cat }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
     <label>VISIBILITY (공개 범위)</label>
     <div class="vis-options">
       <label class="vis-option">

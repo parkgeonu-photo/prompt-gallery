@@ -89,6 +89,16 @@
     </div>
 
     <div class="field">
+      <label>카테고리<span class="opt">선택</span></label>
+      <select name="category" style="width:100%;background:var(--bg-elev);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-size:14px;">
+        <option value="">— 선택 안 함 —</option>
+        {% for cat in content_categories %}
+        <option value="{{ cat }}" {% if post.category == cat %}selected{% endif %}>{{ cat }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="field">
       <label>참고 영상/링크 URL<span class="opt">선택</span></label>
       <input type="url" name="source_url" value="{{ post.source_url or '' }}" maxlength="500" placeholder="https://www.youtube.com/watch?v=...">
     </div>
