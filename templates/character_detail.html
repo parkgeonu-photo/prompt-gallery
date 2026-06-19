@@ -32,6 +32,9 @@
 .img-cell .delete-btn { position:absolute; top:8px; right:8px; width:30px; height:30px; background:rgba(0,0,0,.8); color:#fff; border:none; cursor:pointer; opacity:0; transition:opacity .15s; font-size:16px; }
 .img-cell:hover .delete-btn { opacity:1; }
 .img-cell .delete-btn:hover { background:#c00; }
+.img-cell .dl-btn { position:absolute; top:8px; left:8px; width:30px; height:30px; background:rgba(0,0,0,.8); color:#fff; cursor:pointer; opacity:0; transition:opacity .15s; font-size:16px; display:flex; align-items:center; justify-content:center; text-decoration:none; }
+.img-cell:hover .dl-btn { opacity:1; }
+.img-cell .dl-btn:hover { background:#1c7c54; }
 .empty { text-align:center; padding:60px 0; color:#999; font-family:'JetBrains Mono',monospace; font-size:13px; }
 /* lightbox */
 .lb { position:fixed; inset:0; background:rgba(0,0,0,.92); z-index:999; display:none; align-items:center; justify-content:center; padding:20px; }
@@ -106,6 +109,8 @@
                        event.dataTransfer.setData('DownloadURL','image/png:'+fn+':'+dl);
                        event.dataTransfer.setData('text/uri-list',dl);
                        event.dataTransfer.setData('text/plain',dl);">
+      <a class="dl-btn" href="/dl?u={{ img.url|urlencode }}&n=character-{{ char.name|urlencode }}-{{ loop.index }}.png"
+         title="다운로드" download onclick="event.stopPropagation()">↓</a>
       <form method="POST" action="{{ url_for('character_image_delete', char_id=char.id, image_id=img.id) }}" style="display:inline;" onsubmit="return confirm('이 이미지를 삭제할까요?');">
         <button type="submit" class="delete-btn" title="삭제">×</button>
       </form>
