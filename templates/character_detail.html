@@ -100,17 +100,12 @@
     {% for img in char.images %}
     <div class="img-cell">
       <img src="{{ img.url }}" loading="lazy" alt="" draggable="true"
-           data-dl="/dl?u={{ img.url|urlencode }}&n=character-{{ char.name|urlencode }}-{{ loop.index }}.png"
+           data-dl="{{ img.url }}{% if '?' in img.url %}&{% else %}?{% endif %}download=character-{{ loop.index }}.png"
            onclick="if(!window._drag) openLb('{{ img.url }}')"
            ondragstart="window._drag=true; setTimeout(()=>window._drag=false,300);
-                       const fn='character-{{ char.name|e }}-{{ loop.index }}.png';
-                       const dl=window.location.origin+this.dataset.dl;
-                       event.dataTransfer.effectAllowed='copy';
-                       event.dataTransfer.setData('DownloadURL','image/png:'+fn+':'+dl);
-                       event.dataTransfer.setData('text/uri-list',dl);
-                       event.dataTransfer.setData('text/plain',dl);">
-      <a class="dl-btn" href="/dl?u={{ img.url|urlencode }}&n=character-{{ char.name|urlencode }}-{{ loop.index }}.png"
-         title="다운로드" download onclick="event.stopPropagation()">↓</a>
+                       event.dataTransfer.setData('DownloadURL','image/png:character-{{ loop.index }}.png:'+this.dataset.dl);">
+      <a class="dl-btn" href="{{ img.url }}{% if '?' in img.url %}&{% else %}?{% endif %}download=character-{{ loop.index }}.png"
+         title="다운로드" onclick="event.stopPropagation()">↓</a>
       <form method="POST" action="{{ url_for('character_image_delete', char_id=char.id, image_id=img.id) }}" style="display:inline;" onsubmit="return confirm('이 이미지를 삭제할까요?');">
         <button type="submit" class="delete-btn" title="삭제">×</button>
       </form>
