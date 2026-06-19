@@ -2791,6 +2791,26 @@ def character_image_delete(char_id, image_id):
     return redirect(url_for("character_detail", char_id=char_id))
 
 
+@app.route("/dl")
+@login_required
+def force_download():
+    """이미지 URL을 받아서 서버 경유로 강제 다운로드시키는 프록시."""
+    url = request.args.get("u", "").strip()
+    fname = request.args.get("n", "image").strip() or "image"
+    if not url.startswith("http"):
+        abort(400)
+    try:
+        r = requests.get(url, timeout=15, stream=True)
+        if r.status_code != 200:
+            abort(404)
+        ct = r.headers.get("Content-Type", "application/octet-stream")
+        resp = Response(r.content, mimetype=ct)
+        resp.headers["Content-Disposition"] = f'attachment; filename="{fname}"'
+        return resp
+    except Exception:
+        abort(500)
+
+
 @app.route("/characters/<char_id>/delete", methods=["POST"])
 @login_required
 def character_delete(char_id):
