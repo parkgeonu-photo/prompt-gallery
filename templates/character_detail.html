@@ -96,7 +96,9 @@
   <div class="img-grid">
     {% for img in char.images %}
     <div class="img-cell">
-      <img src="{{ img.url }}" loading="lazy" alt="" onclick="openLb('{{ img.url }}')">
+      <img src="{{ img.url }}" loading="lazy" alt="" draggable="true"
+           onclick="if(!window._drag) openLb('{{ img.url }}')"
+           ondragstart="window._drag=true; setTimeout(()=>window._drag=false, 300)">
       <form method="POST" action="{{ url_for('character_image_delete', char_id=char.id, image_id=img.id) }}" style="display:inline;" onsubmit="return confirm('이 이미지를 삭제할까요?');">
         <button type="submit" class="delete-btn" title="삭제">×</button>
       </form>
