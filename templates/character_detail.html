@@ -98,7 +98,10 @@
     <div class="img-cell">
       <img src="{{ img.url }}" loading="lazy" alt="" draggable="true"
            onclick="if(!window._drag) openLb('{{ img.url }}')"
-           ondragstart="window._drag=true; setTimeout(()=>window._drag=false, 300)">
+           ondragstart="window._drag=true; setTimeout(()=>window._drag=false, 300);
+                       const fn=this.src.split('/').pop().split('?')[0]||'image.png';
+                       const mime=fn.toLowerCase().endsWith('.png')?'image/png':(fn.toLowerCase().match(/\.(jpe?g)$/)?'image/jpeg':(fn.toLowerCase().endsWith('.webp')?'image/webp':'application/octet-stream'));
+                       event.dataTransfer.setData('DownloadURL', mime+':'+fn+':'+this.src);">
       <form method="POST" action="{{ url_for('character_image_delete', char_id=char.id, image_id=img.id) }}" style="display:inline;" onsubmit="return confirm('이 이미지를 삭제할까요?');">
         <button type="submit" class="delete-btn" title="삭제">×</button>
       </form>
