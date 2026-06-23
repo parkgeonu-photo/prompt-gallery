@@ -4987,15 +4987,14 @@ def api_translate():
     if len(text) > 5000:
         text = text[:5000]
 
-    # 레이트 리밋: 로그인 유저는 user id, 비로그인은 IP 기준 / KST 날짜 기준 하루 5회
-    DAILY_LIMIT = 5
+    # 로그인 필수 — 회원만 번역 사용 가능
     u = current_user()
-    if u:
-        identifier = "user:" + str(u["id"])
-    else:
-        xff = request.headers.get("X-Forwarded-For", "")
-        ip = xff.split(",")[0].strip() if xff else (request.remote_addr or "unknown")
-        identifier = "ip:" + ip
+    if not u:
+        return jsonify({"error": "번역은 로그인 후 이용할 수 있어요.", "login_required": True}), 401
+
+    # 레이트 리밋: 로그인 유저 id 기준 / KST 날짜 기준 하루 5회
+    DAILY_LIMIT = 5
+    identifier = "user:" + str(u["id"])
     today_kst = (datetime.now(timezone.utc) + timedelta(hours=9)).date()
 
     with db() as c:

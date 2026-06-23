@@ -448,6 +448,11 @@ document.querySelectorAll('.tr-btn').forEach(btn => {
         body: JSON.stringify({ text: original, target })
       });
       const data = await res.json();
+      if (res.status === 401 || data.login_required) {
+        promptEl.innerHTML = '<span style="color:#c0392b;">' + (data.error || '로그인 후 이용해주세요.') + '</span>';
+        setTimeout(() => { promptEl.textContent = original; }, 4000);
+        return;
+      }
       if (res.status === 429 || data.limit_reached) {
         promptEl.innerHTML = '<span style="color:#c0392b;">' + (data.error || '번역 횟수를 모두 사용했어요.') + '</span>';
         setTimeout(() => { promptEl.textContent = original; }, 4000);
