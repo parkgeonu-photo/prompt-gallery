@@ -26,6 +26,10 @@
   </a>
 </div>
 
+{% if error %}
+<p style="font-size: 14px; color: #c0392b; margin-bottom: 20px;">{{ error }}</p>
+{% endif %}
+
 {% if q %}
 <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">
   "{{ q }}" — {{ posts|length }} results

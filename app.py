@@ -716,6 +716,16 @@ def init_db():
             )
         """)
 
+        # 범용 레이트 리밋 (로그인 brute-force, 회원가입 남용 방지 등)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS rate_limits (
+                id BIGSERIAL PRIMARY KEY,
+                bucket TEXT NOT NULL,
+                created_at BIGINT NOT NULL
+            )
+        """)
+        c.execute("CREATE INDEX IF NOT EXISTS idx_rate_limits_bucket ON rate_limits(bucket, created_at)")
+
 
 # =================================================================
 # Supabase Storage
@@ -762,6 +772,49 @@ def hash_password(pw: str) -> str:
     salt = secrets.token_hex(16)
     h = hashlib.scrypt(pw.encode(), salt=salt.encode(), n=16384, r=8, p=1, dklen=32).hex()
     return f"{salt}${h}"
+
+
+def get_client_ip():
+    """프록시(Render) 뒤에서 실제 클라이언트 IP 추출."""
+    xff = request.headers.get("X-Forwarded-For", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.remote_addr or "unknown"
+
+
+def rate_limit_check(bucket, max_count, window_seconds):
+    """슬라이딩 윈도우 레이트 리밋. 한도 내면 True(기록함), 초과면 False.
+    bucket 예: 'login:1.2.3.4'. window_seconds 안에서 max_count회까지 허용."""
+    now = int(time.time())
+    window_start = now - window_seconds
+    try:
+        with db() as c:
+            # 가끔 오래된 레코드 청소 (윈도우의 2배 이전 것)
+            if now % 20 == 0:
+                c.execute("DELETE FROM rate_limits WHERE created_at < %s", (now - window_seconds * 2,))
+            row = c.fetchone(
+                "SELECT COUNT(*) AS n FROM rate_limits WHERE bucket = %s AND created_at >= %s",
+                (bucket, window_start),
+            )
+            if row and row["n"] >= max_count:
+                return False
+            c.execute(
+                "INSERT INTO rate_limits (bucket, created_at) VALUES (%s, %s)",
+                (bucket, now),
+            )
+        return True
+    except Exception:
+        # rate limit 시스템 장애 시 정상 동작 우선 (서비스 막지 않음)
+        return True
+
+
+def rate_limit_clear(bucket):
+    """성공 시 해당 버킷 기록 삭제 (예: 로그인 성공하면 실패 카운트 리셋)."""
+    try:
+        with db() as c:
+            c.execute("DELETE FROM rate_limits WHERE bucket = %s", (bucket,))
+    except Exception:
+        pass
 
 
 def verify_password(pw: str, stored: str) -> bool:
@@ -1343,6 +1396,11 @@ def search():
     viewer_id = u["id"] if u else None
     posts = []
     if q:
+        # 봇 대량 수집 방지: 같은 IP 분당 30회 (정상 사용엔 영향 없음)
+        ip = get_client_ip()
+        if not rate_limit_check(f"search:{ip}", max_count=30, window_seconds=60):
+            return render_template("search.html", posts=[], q=q, current_type=media_filter,
+                                   error="검색이 너무 많아요. 잠시 후 다시 시도해주세요."), 429
         with db() as c:
             sql = "SELECT * FROM posts WHERE (prompt ILIKE %s OR title ILIKE %s OR tags ILIKE %s OR author ILIKE %s OR model ILIKE %s)"
             like = f"%{q}%"
@@ -1627,14 +1685,21 @@ def user_page(username):
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "POST":
+        ip = get_client_ip()
+        # 봇 대량 계정 생성 방지: 같은 IP에서 하루 3개까지
+        if not rate_limit_check(f"signup:{ip}", max_count=3, window_seconds=86400):
+            return render_template(
+                "signup.html",
+                error="가입 시도가 너무 많아요. 24시간 후 다시 시도해주세요."
+            ), 429
         username = (request.form.get("username") or "").strip().lower()
         password = request.form.get("password") or ""
         if not username or len(username) < 2:
-            return render_template("signup.html", error="사용자명은 2����� 이상이어야 합��다"), 400
+            return render_template("signup.html", error="사용자명은 2자 이상이어야 합니다"), 400
         if not username.replace("_", "").replace("-", "").isalnum():
             return render_template("signup.html", error="사용자명은 영문/숫자/_/- 만 가능합니다"), 400
         if len(password) < 6:
-            return render_template("signup.html", error="비밀번호는 6자 ���상���어야 합니다"), 400
+            return render_template("signup.html", error="비밀번호는 6자 이상이어야 합니다"), 400
         with db() as c:
             existing = c.fetchone("SELECT id FROM users WHERE username = %s", (username,))
             if existing:
@@ -1652,6 +1717,13 @@ def signup():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
+        ip = get_client_ip()
+        # brute-force 방지: 같은 IP에서 15분에 10회 실패하면 차단
+        if not rate_limit_check(f"login:{ip}", max_count=10, window_seconds=900):
+            return render_template(
+                "login.html",
+                error="로그인 시도가 너무 많아요. 15분 후 다시 시도해주세요."
+            ), 429
         username = (request.form.get("username") or "").strip().lower()
         password = request.form.get("password") or ""
         with db() as c:
@@ -1659,6 +1731,8 @@ def login():
         # 비밀번호 없는 구글 가입자는 일반 로그인 차단
         if not row or not row.get("password_hash") or not verify_password(password, row["password_hash"]):
             return render_template("login.html", error="사용자명 또는 비밀번호가 잘못되었습니다"), 400
+        # 로그인 성공 → 해당 IP의 실패 카운트 리셋
+        rate_limit_clear(f"login:{ip}")
         session["user_id"] = str(row["id"])
         return redirect(request.args.get("next") or url_for("index"))
     return render_template("login.html")
