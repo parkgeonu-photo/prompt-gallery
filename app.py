@@ -706,6 +706,16 @@ def init_db():
         """)
         c.execute("CREATE INDEX IF NOT EXISTS idx_skills_created ON skills(created_at DESC)")
 
+        # 번역 API 일일 사용량 추적 (레이트 리밋용)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS translation_usage (
+                identifier TEXT NOT NULL,
+                used_date DATE NOT NULL,
+                count INT NOT NULL DEFAULT 0,
+                PRIMARY KEY (identifier, used_date)
+            )
+        """)
+
 
 # =================================================================
 # Supabase Storage
@@ -4964,7 +4974,9 @@ Runway Gen-4: 이미지만 가능, 비디오 레퍼런스 없음
 
 @app.route("/api/translate", methods=["POST"])
 def api_translate():
-    """텍스트 번역. POST {text, target: 'ko'|'en'|'zh-CN'}"""
+    """텍스트 번역. POST {text, target: 'ko'|'en'|'zh-CN'} — 하루 5회 제한."""
+    from datetime import datetime, timezone, timedelta
+
     data = request.get_json(silent=True) or {}
     text = (data.get("text") or "").strip()
     target = (data.get("target") or "ko").strip()
@@ -4974,6 +4986,32 @@ def api_translate():
         return jsonify({"translated": ""})
     if len(text) > 5000:
         text = text[:5000]
+
+    # 레이트 리밋: 로그인 유저는 user id, 비로그인은 IP 기준 / KST 날짜 기준 하루 5회
+    DAILY_LIMIT = 5
+    u = current_user()
+    if u:
+        identifier = "user:" + str(u["id"])
+    else:
+        xff = request.headers.get("X-Forwarded-For", "")
+        ip = xff.split(",")[0].strip() if xff else (request.remote_addr or "unknown")
+        identifier = "ip:" + ip
+    today_kst = (datetime.now(timezone.utc) + timedelta(hours=9)).date()
+
+    with db() as c:
+        row = c.fetchone(
+            "SELECT count FROM translation_usage WHERE identifier = %s AND used_date = %s",
+            (identifier, today_kst),
+        )
+        used = row["count"] if row else 0
+        if used >= DAILY_LIMIT:
+            return jsonify({
+                "error": f"번역은 하루 {DAILY_LIMIT}회까지만 가능해요. 내일 다시 시도해주세요.",
+                "limit_reached": True,
+                "used": used,
+                "limit": DAILY_LIMIT,
+            }), 429
+
     try:
         # Google Translate 무료 엔드포인트
         r = requests.get(
@@ -4993,9 +5031,22 @@ def api_translate():
         # 응답 구조: [[[translated, original, ...], [translated2, original2, ...], ...], ...]
         translated = "".join(seg[0] for seg in data[0] if seg and len(seg) > 0 and seg[0])
         detected = data[2] if len(data) > 2 else None
-        return jsonify({"translated": translated, "source": detected})
     except Exception as e:
         return jsonify({"error": f"번역 실패: {str(e)[:120]}"}), 500
+
+    # 번역 성공 시에만 카운트 증가 (실패하면 횟수 차감 안 됨)
+    try:
+        with db() as c:
+            c.execute(
+                "INSERT INTO translation_usage (identifier, used_date, count) VALUES (%s, %s, 1) "
+                "ON CONFLICT (identifier, used_date) DO UPDATE SET count = translation_usage.count + 1",
+                (identifier, today_kst),
+            )
+    except Exception:
+        pass  # 카운트 증가 실패해도 번역 결과는 반환
+
+    remaining = max(0, DAILY_LIMIT - (used + 1))
+    return jsonify({"translated": translated, "source": detected, "remaining": remaining})
 
 
 if __name__ == "__main__":
