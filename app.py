@@ -2797,17 +2797,22 @@ def character_edit(char_id):
 @app.route("/characters/<char_id>/images/add", methods=["POST"])
 @login_required
 def character_images_add(char_id):
-    """이미지 추가 — 캐릭터 디테일 페이지에서 드래그앤드롭."""
+    """이미지 추가 — 캐릭터 디테일 페이지 또는 목록에서 드래그앤드롭."""
     u = current_user()
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
     with db() as c:
         row = c.fetchone(
             "SELECT * FROM characters WHERE id = %s AND user_id = %s",
             (char_id, u["id"])
         )
         if not row:
+            if is_ajax:
+                return jsonify({"ok": False, "error": "캐릭터를 찾을 수 없어요."}), 404
             abort(404)
     existing = _parse_char_images(row.get("images"))
     if len(existing) >= MAX_IMAGES_PER_CHARACTER:
+        if is_ajax:
+            return jsonify({"ok": False, "error": f"이미 최대 {MAX_IMAGES_PER_CHARACTER}장이에요."}), 400
         return redirect(url_for("character_detail", char_id=char_id))
 
     added = 0
@@ -2844,6 +2849,13 @@ def character_images_add(char_id):
                 "UPDATE characters SET images = %s, updated_at = NOW() WHERE id = %s",
                 (Json(existing), char_id)
             )
+    if is_ajax:
+        return jsonify({
+            "ok": added > 0,
+            "added": added,
+            "total": len(existing),
+            "skipped": [{"name": n, "reason": r} for n, r in skipped],
+        })
     if skipped:
         session["char_upload_skipped"] = skipped
     return redirect(url_for("character_detail", char_id=char_id))

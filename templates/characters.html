@@ -27,7 +27,86 @@
 .empty-state { padding:60px 0; text-align:center; color:#888; }
 .empty-state h2 { font-family:'Archivo Black',sans-serif; font-size:22px; color:#000; margin:0 0 10px; }
 .empty-state p { font-size:14px; margin:0 0 24px; line-height:1.6; }
+/* 드래그앤드롭 */
+.drop-hint { position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+  background:rgba(28,124,84,.82); color:#fff; font-family:'Space Grotesk',sans-serif; font-weight:700;
+  font-size:15px; letter-spacing:0.5px; pointer-events:none; z-index:2; }
+.char-card.drag-over { border-color:#1c7c54; transform:translateY(-2px); box-shadow:0 8px 24px rgba(28,124,84,.25); }
+.char-card.drag-over .drop-hint { display:flex; }
+.char-card.uploading .drop-hint { display:flex; background:rgba(0,0,0,.75); }
+.dnd-tip { font-family:'JetBrains Mono',monospace; font-size:12px; color:#1c7c54; margin:-16px 0 20px; letter-spacing:0.3px; }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const MAX = 60;
+  let busy = false;
+
+  document.querySelectorAll('.char-card').forEach(card => {
+    ['dragenter','dragover'].forEach(ev => card.addEventListener(ev, e => {
+      if (busy) return;
+      if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) {
+        e.preventDefault();
+        card.classList.add('drag-over');
+      }
+    }));
+    ['dragleave','dragend'].forEach(ev => card.addEventListener(ev, e => {
+      if (!card.contains(e.relatedTarget)) card.classList.remove('drag-over');
+    }));
+
+    card.addEventListener('drop', async e => {
+      if (busy) return;
+      const files = Array.from((e.dataTransfer && e.dataTransfer.files) || [])
+        .filter(f => f.type.startsWith('image/'));
+      if (!files.length) return;
+      e.preventDefault();
+      card.classList.remove('drag-over');
+
+      const name = card.dataset.charName || '이 캐릭터';
+      const count = parseInt(card.dataset.count || '0', 10);
+      const room = MAX - count;
+      if (room <= 0) { alert(`"${name}"은(는) 이미 최대 ${MAX}장이에요.`); return; }
+
+      const toSend = files.slice(0, room);
+      const extra = files.length > room ? ` (${room}장만 추가되고 ${files.length - room}장은 초과)` : '';
+      if (!confirm(`"${name}"에 이미지 ${toSend.length}장을 추가할까요?${extra}`)) return;
+
+      busy = true;
+      const hint = card.querySelector('.drop-hint');
+      card.classList.add('uploading');
+      if (hint) hint.textContent = '업로드 중...';
+
+      const fd = new FormData();
+      toSend.forEach(f => fd.append('images', f));
+      try {
+        const res = await fetch(`/characters/${card.dataset.charId}/images/add`, {
+          method: 'POST',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          body: fd
+        });
+        const data = await res.json();
+        if (!data.ok && data.error) {
+          alert(data.error);
+        } else {
+          let msg = `${data.added}장 추가 완료!`;
+          if (data.skipped && data.skipped.length) {
+            msg += '\n\n제외됨:\n' + data.skipped.map(s => `· ${s.name} — ${s.reason}`).join('\n');
+          }
+          alert(msg);
+          location.reload();
+          return;
+        }
+      } catch (err) {
+        alert('업로드 실패 — 잠시 후 다시 시도해주세요.');
+      } finally {
+        busy = false;
+        card.classList.remove('uploading');
+        if (hint) hint.textContent = '＋ 여기에 놓아 추가';
+      }
+    });
+  });
+});
+</script>
 
 <div class="chars-wrap">
   <div class="chars-header">
@@ -49,9 +128,11 @@
   </div>
 
   {% if characters %}
+  <p class="dnd-tip">💡 카드 위에 이미지를 끌어다 놓으면 그 캐릭터에 바로 추가돼요.</p>
   <div class="chars-grid">
     {% for ch in characters %}
-    <a href="{{ url_for('character_detail', char_id=ch.id) }}" class="char-card">
+    <a href="{{ url_for('character_detail', char_id=ch.id) }}" class="char-card"
+       data-char-id="{{ ch.id }}" data-char-name="{{ ch.name|e }}" data-count="{{ ch.images|length }}">
       <div class="char-thumb">
         {% if ch.images and ch.images|length > 0 %}
           <img src="{{ ch.images[0].url }}" loading="lazy" alt="">
@@ -60,6 +141,7 @@
           <div class="empty">📷</div>
           <span class="count-badge">0 / 60</span>
         {% endif %}
+        <div class="drop-hint">＋ 여기에 놓아 추가</div>
       </div>
       <div class="char-info">
         <h3 class="char-name">{{ ch.name }}</h3>
