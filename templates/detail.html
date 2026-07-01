@@ -232,7 +232,7 @@
           <button class="tr-btn" data-target="original" title="원본 보기">원본</button>
           <button class="tr-btn" data-target="ko" title="한국어로 번역">🇰🇷 한국어</button>
           <button class="tr-btn" data-target="en" title="영어로 번역">🇺🇸 EN</button>
-          <button class="tr-btn" data-target="ja" title="일본어로 번역">🇯🇵 日本語</button>
+          <button class="tr-btn" data-target="zh-CN" title="중국어로 번역">🇨🇳 中文</button>
           {% if not post.prompt_truncated %}
           <button class="copy-btn" id="copyBtn" data-text="{{ post.prompt|e }}" style="margin-left:6px;">📋 COPY</button>
           {% endif %}
@@ -247,7 +247,6 @@
       {% else %}
         <p class="prompt-text" id="promptText" data-original="{{ post.prompt|e }}">{{ post.prompt }}</p>
       {% endif %}
-      <script id="promptI18n" type="application/json">{% if post.prompt_truncated %}{}{% else %}{{ (post.prompt_i18n or {})|tojson }}{% endif %}</script>
     </div>
 
     {% if post.negative_prompt_hidden %}
@@ -428,13 +427,6 @@ if (cBody && cLen) {
 }
 
 // ===== 프롬프트 번역 =====
-// 업로드 시 미리 저장된 번역(ko/en/ja). 있으면 API 안 쓰고 즉시 표시.
-let savedTr = {};
-try {
-  const el = document.getElementById('promptI18n');
-  if (el) savedTr = JSON.parse(el.textContent || '{}');
-} catch (e) { savedTr = {}; }
-
 document.querySelectorAll('.tr-btn').forEach(btn => {
   btn.addEventListener('click', async () => {
     const target = btn.dataset.target;
@@ -448,14 +440,6 @@ document.querySelectorAll('.tr-btn').forEach(btn => {
       promptEl.textContent = original;
       return;
     }
-
-    // 1) 저장된 번역이 있으면 즉시 표시 (API 호출 0회)
-    if (savedTr && savedTr[target]) {
-      promptEl.textContent = savedTr[target];
-      return;
-    }
-
-    // 2) 저장된 번역이 없을 때만 실시간 API 폴백 (하루 5회 제한)
     promptEl.innerHTML = '<span style="opacity:0.5; font-style:italic;">번역 중...</span>';
     try {
       const res = await fetch('/api/translate', {
@@ -476,7 +460,6 @@ document.querySelectorAll('.tr-btn').forEach(btn => {
       }
       if (data.error) throw new Error(data.error);
       promptEl.textContent = data.translated || original;
-      if (data.translated) savedTr[target] = data.translated;  // 세션 캐시
     } catch (e) {
       promptEl.innerHTML = '<span style="color:#c00;">번역 실패 — ' + (e.message || '잠시 후 다시 시도') + '</span>';
       setTimeout(() => { promptEl.textContent = original; }, 2000);
