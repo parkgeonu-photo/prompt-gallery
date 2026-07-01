@@ -2640,6 +2640,16 @@ def _parse_char_images(raw):
     return raw or []
 
 
+def _cover_image(images):
+    """대표 이미지 선택: 고정핀(pinned) 꽂힌 것 우선, 없으면 첫 번째."""
+    if not images:
+        return None
+    for img in images:
+        if isinstance(img, dict) and img.get("pinned"):
+            return img
+    return images[0]
+
+
 @app.route("/characters")
 @login_required
 def my_characters():
@@ -2661,6 +2671,7 @@ def my_characters():
             d = dict(r)
             d["id"] = str(d["id"])
             d["images"] = _parse_char_images(d.get("images"))
+            d["cover"] = _cover_image(d["images"])
             characters.append(d)
         total = c.fetchone(
             "SELECT COUNT(*) AS n FROM characters WHERE user_id = %s", (u["id"],)
@@ -2864,6 +2875,30 @@ def character_images_add(char_id):
         })
     if skipped:
         session["char_upload_skipped"] = skipped
+    return redirect(url_for("character_detail", char_id=char_id))
+
+
+@app.route("/characters/<char_id>/images/<image_id>/pin", methods=["POST"])
+@login_required
+def character_image_pin(char_id, image_id):
+    """대표 이미지 고정핀 토글 — 1개만. 이미 핀이면 해제, 아니면 이 이미지만 핀."""
+    u = current_user()
+    with db() as c:
+        row = c.fetchone(
+            "SELECT * FROM characters WHERE id = %s AND user_id = %s",
+            (char_id, u["id"])
+        )
+        if not row:
+            abort(404)
+        images = _parse_char_images(row.get("images"))
+        already = any(i.get("id") == image_id and i.get("pinned") for i in images)
+        for i in images:
+            if isinstance(i, dict):
+                i["pinned"] = (i.get("id") == image_id and not already)
+        c.execute(
+            "UPDATE characters SET images = %s, updated_at = NOW() WHERE id = %s",
+            (Json(images), char_id)
+        )
     return redirect(url_for("character_detail", char_id=char_id))
 
 

@@ -35,6 +35,12 @@
 .img-cell .dl-btn { position:absolute; top:8px; left:8px; width:30px; height:30px; background:rgba(0,0,0,.8); color:#fff; cursor:pointer; opacity:0; transition:opacity .15s; font-size:16px; display:flex; align-items:center; justify-content:center; text-decoration:none; }
 .img-cell:hover .dl-btn { opacity:1; }
 .img-cell .dl-btn:hover { background:#1c7c54; }
+.img-cell .pin-btn { position:absolute; top:8px; left:44px; width:30px; height:30px; background:rgba(0,0,0,.8); border:none; cursor:pointer; opacity:0; transition:opacity .15s,background .15s; font-size:14px; display:flex; align-items:center; justify-content:center; padding:0; filter:grayscale(1) brightness(1.6); }
+.img-cell:hover .pin-btn { opacity:1; }
+.img-cell .pin-btn:hover { background:#c8860a; }
+.img-cell .pin-btn.on { opacity:1; background:#c8860a; filter:none; }
+.img-cell.pinned { outline:3px solid #c8860a; outline-offset:-3px; }
+.img-cell .cover-badge { position:absolute; bottom:8px; left:8px; background:#c8860a; color:#fff; padding:3px 9px; font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.5px; }
 .empty { text-align:center; padding:60px 0; color:#999; font-family:'JetBrains Mono',monospace; font-size:13px; }
 /* lightbox */
 .lb { position:fixed; inset:0; background:rgba(0,0,0,.92); z-index:999; display:none; align-items:center; justify-content:center; padding:20px; }
@@ -98,17 +104,21 @@
   {% if char.images %}
   <div class="img-grid">
     {% for img in char.images %}
-    <div class="img-cell">
+    <div class="img-cell{% if img.pinned %} pinned{% endif %}">
       <img src="{{ img.url }}" loading="lazy" alt="" draggable="true"
            data-dl="{{ img.url }}{% if '?' in img.url %}&{% else %}?{% endif %}download=character-{{ loop.index }}.png"
            onclick="if(!window._drag) openLb('{{ img.url }}')"
            ondragstart="window._drag=true; setTimeout(()=>window._drag=false,300);
                        event.dataTransfer.setData('DownloadURL','image/png:character-{{ loop.index }}.png:'+this.dataset.dl);">
+      <form method="POST" action="{{ url_for('character_image_pin', char_id=char.id, image_id=img.id) }}" style="display:inline;">
+        <button type="submit" class="pin-btn{% if img.pinned %} on{% endif %}" title="{% if img.pinned %}대표 이미지 (클릭하면 해제){% else %}대표 이미지로 지정{% endif %}" onclick="event.stopPropagation()">📌</button>
+      </form>
       <a class="dl-btn" href="{{ img.url }}{% if '?' in img.url %}&{% else %}?{% endif %}download=character-{{ loop.index }}.png"
          title="다운로드" onclick="event.stopPropagation()">↓</a>
       <form method="POST" action="{{ url_for('character_image_delete', char_id=char.id, image_id=img.id) }}" style="display:inline;" onsubmit="return confirm('이 이미지를 삭제할까요?');">
         <button type="submit" class="delete-btn" title="삭제">×</button>
       </form>
+      {% if img.pinned %}<span class="cover-badge">대표</span>{% endif %}
     </div>
     {% endfor %}
   </div>

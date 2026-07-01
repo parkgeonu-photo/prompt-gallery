@@ -143,8 +143,8 @@ document.addEventListener('DOMContentLoaded', function() {
     <a href="{{ url_for('character_detail', char_id=ch.id) }}" class="char-card"
        data-char-id="{{ ch.id }}" data-char-name="{{ ch.name|e }}" data-count="{{ ch.images|length }}">
       <div class="char-thumb">
-        {% if ch.images and ch.images|length > 0 %}
-          <img src="{{ ch.images[0].url }}" loading="lazy" alt="">
+        {% if ch.cover %}
+          <img src="{{ ch.cover.url }}" loading="lazy" alt="">
           <span class="count-badge">{{ ch.images|length }} / 60</span>
         {% else %}
           <div class="empty">📷</div>
