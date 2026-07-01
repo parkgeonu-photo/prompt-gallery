@@ -634,6 +634,8 @@ def init_db():
         c.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS source_url TEXT")
         c.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS category TEXT")
         c.execute("CREATE INDEX IF NOT EXISTS idx_posts_category ON posts(category)")
+        # 프롬프트 사전 번역 저장 (ko/en/ja) — 업로드 시 1회 번역 후 조회는 API 안 씀
+        c.execute("ALTER TABLE posts ADD COLUMN IF NOT EXISTS prompt_i18n JSONB DEFAULT '{}'::jsonb")
         c.execute("CREATE INDEX IF NOT EXISTS idx_posts_created ON posts(created_at DESC)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_posts_model ON posts(model)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id)")
@@ -1005,6 +1007,12 @@ def normalize_post(p, viewer_id=None):
         except Exception: pimgs = []
     p["process_images"] = pimgs
 
+    pi18n = p.get("prompt_i18n") or {}
+    if isinstance(pi18n, str):
+        try: pi18n = json.loads(pi18n)
+        except Exception: pi18n = {}
+    p["prompt_i18n"] = pi18n
+
     p["visibility"] = p.get("visibility") or "public"
 
     is_owner = viewer_id and p.get("user_id") and str(viewer_id) == str(p["user_id"])
@@ -1211,13 +1219,26 @@ def post_edit(post_id):
                         error=f"비공개는 최대 {PRIVATE_POST_LIMIT}개까지만 가능합니다. (현재 {cnt['n']}개)"
                     ), 400
 
+        # 프롬프트가 바뀌었으면 번역 갱신 (안 바뀌면 기존 번역 유지 — 불필요한 API 호출 방지)
+        old_prompt = (post.get("prompt") or "").strip()
+        if prompt and prompt != old_prompt:
+            new_i18n = translate_prompt_to_all(prompt)
+        else:
+            new_i18n = post.get("prompt_i18n") or {}
+            if isinstance(new_i18n, str):
+                try:
+                    new_i18n = json.loads(new_i18n)
+                except Exception:
+                    new_i18n = {}
+
         with db() as c:
             c.execute(
                 """UPDATE posts SET title = %s, prompt = %s, negative_prompt = %s, model = %s,
-                   tags = %s, visibility = %s, source_url = %s, process_text = %s, category = %s
+                   tags = %s, visibility = %s, source_url = %s, process_text = %s, category = %s, prompt_i18n = %s
                    WHERE id = %s""",
                 (title or None, prompt, neg or None, model, tags_raw or None,
-                 visibility, source_url or None, process_text or None, category or None, post_id)
+                 visibility, source_url or None, process_text or None, category or None,
+                 Json(new_i18n), post_id)
             )
         return redirect(url_for("post_detail", post_id=post_id))
 
@@ -1358,14 +1379,17 @@ def upload():
 
         tags_clean = ",".join([t.lstrip("#").strip().lower() for t in tags_raw.replace(",", " ").split() if t.strip()])
 
+        # 프롬프트를 ko/en/ja로 미리 번역 (조회 시 API 안 쓰도록). 실패해도 업로드는 진행.
+        prompt_i18n = translate_prompt_to_all(prompt) if prompt else {}
+
         with db() as c:
             c.execute(
-                """INSERT INTO posts (id, user_id, title, media_path, media_type, prompt, negative_prompt, model, tags, author, created_at, refs, visibility, source_url, process_text, process_images, category)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                """INSERT INTO posts (id, user_id, title, media_path, media_type, prompt, negative_prompt, model, tags, author, created_at, refs, visibility, source_url, process_text, process_images, category, prompt_i18n)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                 (new_id, u["id"], title or None, public_url, media_type, prompt,
                  neg or None, model, tags_clean, u["username"], int(time.time()),
                  Json(refs), visibility, source_url or None,
-                 process_text or None, Json(process_images), category or None),
+                 process_text or None, Json(process_images), category or None, Json(prompt_i18n)),
             )
         return redirect(url_for("post_detail", post_id=new_id))
 
@@ -5137,20 +5161,52 @@ Runway Gen-4: 이미지만 가능, 비디오 레퍼런스 없음
     return jsonify({"ok": True, "msg": "비디오 레퍼런스 가이드 생성 완료!"})
 
 
+def _do_translate(text, target):
+    """Google Translate 무료 엔드포인트로 번역. 성공 시 문자열, 실패 시 None."""
+    if not text or not text.strip():
+        return ""
+    if len(text) > 5000:
+        text = text[:5000]
+    try:
+        r = requests.get(
+            "https://translate.googleapis.com/translate_a/single",
+            params={"client": "gtx", "sl": "auto", "tl": target, "dt": "t", "q": text},
+            timeout=15,
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        r.raise_for_status()
+        data = r.json()
+        translated = "".join(seg[0] for seg in data[0] if seg and len(seg) > 0 and seg[0])
+        return translated
+    except Exception:
+        return None
+
+
+def translate_prompt_to_all(text):
+    """프롬프트를 ko/en/ja 3개국어로 미리 번역. {"ko":.., "en":.., "ja":..} 반환.
+    실패한 언어는 키에서 제외됨. 업로드 시 1회만 호출되어 이후 조회는 API 안 씀."""
+    if not text or not text.strip():
+        return {}
+    result = {}
+    for lang in ("ko", "en", "ja"):
+        tr = _do_translate(text, lang)
+        if tr:
+            result[lang] = tr
+    return result
+
+
 @app.route("/api/translate", methods=["POST"])
 def api_translate():
-    """텍스트 번역. POST {text, target: 'ko'|'en'|'zh-CN'} — 하루 5회 제한."""
+    """텍스트 실시간 번역. POST {text, target} — 하루 5회 제한. (저장된 번역 없을 때 폴백)"""
     from datetime import datetime, timezone, timedelta
 
     data = request.get_json(silent=True) or {}
     text = (data.get("text") or "").strip()
     target = (data.get("target") or "ko").strip()
-    if target not in ("ko", "en", "zh-CN"):
+    if target not in ("ko", "en", "zh-CN", "ja"):
         return jsonify({"error": "지원하지 않는 언어"}), 400
     if not text:
         return jsonify({"translated": ""})
-    if len(text) > 5000:
-        text = text[:5000]
 
     # 로그인 필수 — 회원만 번역 사용 가능
     u = current_user()
@@ -5171,34 +5227,14 @@ def api_translate():
         if used >= DAILY_LIMIT:
             return jsonify({
                 "error": f"번역은 하루 {DAILY_LIMIT}회까지만 가능해요. 내일 다시 시도해주세요.",
-                "limit_reached": True,
-                "used": used,
-                "limit": DAILY_LIMIT,
+                "limit_reached": True, "used": used, "limit": DAILY_LIMIT,
             }), 429
 
-    try:
-        # Google Translate 무료 엔드포인트
-        r = requests.get(
-            "https://translate.googleapis.com/translate_a/single",
-            params={
-                "client": "gtx",
-                "sl": "auto",
-                "tl": target,
-                "dt": "t",
-                "q": text,
-            },
-            timeout=15,
-            headers={"User-Agent": "Mozilla/5.0"},
-        )
-        r.raise_for_status()
-        data = r.json()
-        # 응답 구조: [[[translated, original, ...], [translated2, original2, ...], ...], ...]
-        translated = "".join(seg[0] for seg in data[0] if seg and len(seg) > 0 and seg[0])
-        detected = data[2] if len(data) > 2 else None
-    except Exception as e:
-        return jsonify({"error": f"번역 실패: {str(e)[:120]}"}), 500
+    translated = _do_translate(text, target)
+    if translated is None:
+        return jsonify({"error": "번역 실패"}), 500
 
-    # 번역 성공 시에만 카운트 증가 (실패하면 횟수 차감 안 됨)
+    # 번역 성공 시에만 카운트 증가
     try:
         with db() as c:
             c.execute(
@@ -5207,10 +5243,43 @@ def api_translate():
                 (identifier, today_kst),
             )
     except Exception:
-        pass  # 카운트 증가 실패해도 번역 결과는 반환
+        pass
 
     remaining = max(0, DAILY_LIMIT - (used + 1))
-    return jsonify({"translated": translated, "source": detected, "remaining": remaining})
+    return jsonify({"translated": translated, "remaining": remaining})
+
+
+@app.route("/api/translate-existing-posts", methods=["POST"])
+@admin_required
+def translate_existing_posts():
+    """기존 게시물 중 번역 안 된 것들을 배치로 번역 저장. 다 될 때까지 반복 호출."""
+    BATCH = 10
+    with db() as c:
+        rows = c.fetchall(
+            "SELECT id, prompt FROM posts "
+            "WHERE prompt IS NOT NULL AND prompt != '' "
+            "AND (prompt_i18n IS NULL OR prompt_i18n = '{}'::jsonb) "
+            "LIMIT %s",
+            (BATCH,),
+        )
+    done = 0
+    for r in rows:
+        i18n = translate_prompt_to_all(r["prompt"])
+        if i18n:
+            try:
+                with db() as c:
+                    c.execute("UPDATE posts SET prompt_i18n = %s WHERE id = %s", (Json(i18n), r["id"]))
+                done += 1
+            except Exception:
+                pass
+    with db() as c:
+        rem = c.fetchone(
+            "SELECT COUNT(*) AS n FROM posts "
+            "WHERE prompt IS NOT NULL AND prompt != '' "
+            "AND (prompt_i18n IS NULL OR prompt_i18n = '{}'::jsonb)"
+        )
+    remaining = rem["n"] if rem else 0
+    return jsonify({"translated_now": done, "remaining": remaining, "done": remaining == 0})
 
 
 if __name__ == "__main__":
