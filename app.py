@@ -2703,6 +2703,9 @@ def character_new():
         char_id = str(uuid.uuid4())
         images = []
         skipped = []  # [(filename, reason), ...]
+        # 어드민은 개별 이미지 용량 제한 대폭 완화 (실질 무제한, 전체 요청 한도 내)
+        char_size_limit = (100 * 1024 * 1024) if u.get("is_admin") else CHARACTER_IMG_MAX_BYTES
+        char_size_mb = char_size_limit // (1024 * 1024)
         for f in request.files.getlist("images"):
             if not f or not f.filename:
                 continue
@@ -2717,8 +2720,8 @@ def character_new():
             f.stream.seek(0, 2)
             size = f.stream.tell()
             f.stream.seek(0)
-            if size > CHARACTER_IMG_MAX_BYTES:
-                skipped.append((f.filename, f"{size/1024/1024:.1f}MB — 최대 10MB"))
+            if size > char_size_limit:
+                skipped.append((f.filename, f"{size/1024/1024:.1f}MB — 최대 {char_size_mb}MB"))
                 continue
             try:
                 name_path = f"characters/{u['id']}/{char_id}/{len(images)}{ext}"
@@ -2817,6 +2820,9 @@ def character_images_add(char_id):
 
     added = 0
     skipped = []
+    # 어드민은 개별 이미지 용량 제한 대폭 완화
+    char_size_limit = (100 * 1024 * 1024) if u.get("is_admin") else CHARACTER_IMG_MAX_BYTES
+    char_size_mb = char_size_limit // (1024 * 1024)
     for f in request.files.getlist("images"):
         if not f or not f.filename:
             continue
@@ -2830,8 +2836,8 @@ def character_images_add(char_id):
         f.stream.seek(0, 2)
         size = f.stream.tell()
         f.stream.seek(0)
-        if size > CHARACTER_IMG_MAX_BYTES:
-            skipped.append((f.filename, f"{size/1024/1024:.1f}MB — 최대 10MB"))
+        if size > char_size_limit:
+            skipped.append((f.filename, f"{size/1024/1024:.1f}MB — 최대 {char_size_mb}MB"))
             continue
         try:
             idx = len(existing) + added
