@@ -80,6 +80,10 @@ PORTFOLIO_CATEGORIES = ["사진", "영상", "AI"]
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
 app.secret_key = os.environ.get("SECRET_KEY", "dev-" + secrets.token_hex(16))
+# 세션 쿠키 보안 — HTTPS 전용, JS 접근 차단, CSRF 완화
+app.config["SESSION_COOKIE_SECURE"] = True
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 
 @app.after_request
@@ -90,7 +94,35 @@ def add_no_cache_headers(resp):
         resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         resp.headers["Pragma"] = "no-cache"
         resp.headers["Expires"] = "0"
+    # 기본 보안 헤더
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     return resp
+
+
+@app.errorhandler(404)
+def err_404(e):
+    return render_template("error.html", code=404, heading="페이지를 찾을 수 없어요",
+        message="주소가 잘못됐거나 삭제된 페이지예요."), 404
+
+
+@app.errorhandler(403)
+def err_403(e):
+    return render_template("error.html", code=403, heading="접근 권한이 없어요",
+        message="이 페이지를 볼 수 있는 권한이 없습니다."), 403
+
+
+@app.errorhandler(413)
+def err_413(e):
+    return render_template("error.html", code=413, heading="파일이 너무 커요",
+        message="업로드 용량 제한을 초과했어요. 파일을 나눠서 올려주세요."), 413
+
+
+@app.errorhandler(500)
+def err_500(e):
+    return render_template("error.html", code=500, heading="서버에 문제가 생겼어요",
+        message="일시적인 오류예요. 잠시 후 다시 시도해주세요."), 500
 
 
 @app.route("/_build")
@@ -2062,6 +2094,10 @@ def profile_avatar_update():
         if request.headers.get("Accept", "").startswith("application/json"):
             return jsonify({"error": "이미지 파일만 가능합니다"}), 400
         return redirect(f"/u/{u['username']}")
+    if not is_real_image(avatar_file):
+        if request.headers.get("Accept", "").startswith("application/json"):
+            return jsonify({"error": "이미지 파일이 아니에요"}), 400
+        return redirect(f"/u/{u['username']}")
     name = f"avatars/{u['id']}-{int(time.time())}{ext}"
     avatar_url = storage_upload(avatar_file, name)
     with db() as c:
@@ -2650,6 +2686,26 @@ def _cover_image(images):
     return images[0]
 
 
+def is_real_image(file_storage):
+    """매직 바이트로 실제 이미지 파일인지 검증 (확장자 위조 차단)."""
+    try:
+        head = file_storage.stream.read(16)
+        file_storage.stream.seek(0)
+    except Exception:
+        return False
+    if not head or len(head) < 4:
+        return False
+    if head[:3] == b"\xff\xd8\xff":  # JPEG
+        return True
+    if head[:8] == b"\x89PNG\r\n\x1a\n":  # PNG
+        return True
+    if head[:6] in (b"GIF87a", b"GIF89a"):  # GIF
+        return True
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":  # WEBP
+        return True
+    return False
+
+
 @app.route("/characters")
 @login_required
 def my_characters():
@@ -2682,6 +2738,7 @@ def my_characters():
         current_category=category,
         total_count=total["n"] if total else 0,
         max_chars=MAX_CHARACTERS_PER_USER,
+        char_categories=CHARACTER_CATEGORIES,
     )
 
 
@@ -2726,6 +2783,9 @@ def character_new():
             ext = os.path.splitext(f.filename)[1].lower()
             if ext not in ALLOWED_IMG:
                 skipped.append((f.filename, f"지원하지 않는 형식 ({ext or '확장자 없음'})"))
+                continue
+            if not is_real_image(f):
+                skipped.append((f.filename, "이미지 파일이 아니에요"))
                 continue
             # 크기 체크
             f.stream.seek(0, 2)
@@ -2844,6 +2904,9 @@ def character_images_add(char_id):
         if ext not in ALLOWED_IMG:
             skipped.append((f.filename, f"지원하지 않는 형식 ({ext or '확장자 없음'})"))
             continue
+        if not is_real_image(f):
+            skipped.append((f.filename, "이미지 파일이 아니에요"))
+            continue
         f.stream.seek(0, 2)
         size = f.stream.tell()
         f.stream.seek(0)
@@ -2926,26 +2989,6 @@ def character_image_delete(char_id, image_id):
                 (Json(images), char_id)
             )
     return redirect(url_for("character_detail", char_id=char_id))
-
-
-@app.route("/dl")
-@login_required
-def force_download():
-    """이미지 URL을 받아서 서버 경유로 강제 다운로드시키는 프록시."""
-    url = request.args.get("u", "").strip()
-    fname = request.args.get("n", "image").strip() or "image"
-    if not url.startswith("http"):
-        abort(400)
-    try:
-        r = requests.get(url, timeout=15, stream=True)
-        if r.status_code != 200:
-            abort(404)
-        ct = r.headers.get("Content-Type", "application/octet-stream")
-        resp = Response(r.content, mimetype=ct)
-        resp.headers["Content-Disposition"] = f'attachment; filename="{fname}"'
-        return resp
-    except Exception:
-        abort(500)
 
 
 @app.route("/characters/<char_id>/delete", methods=["POST"])
@@ -3242,6 +3285,8 @@ def portfolio_new():
             ext = os.path.splitext(f.filename)[1].lower()
             if ext not in ALLOWED_IMG:
                 continue
+            if not is_real_image(f):
+                continue
             f.stream.seek(0, 2)
             size = f.stream.tell()
             f.stream.seek(0)
@@ -3287,6 +3332,8 @@ def portfolio_new():
                 continue
             ext = os.path.splitext(f.filename)[1].lower()
             if ext not in ALLOWED_IMG:
+                continue
+            if not is_real_image(f):
                 continue
             f.stream.seek(0, 2)
             sz = f.stream.tell()

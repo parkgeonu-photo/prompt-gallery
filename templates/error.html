@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} — XAZINGA{% endblock %}
+{% block content %}
+<style>
+.err-wrap { max-width:560px; margin:0 auto; padding:100px 20px 120px; text-align:center; }
+.err-code { font-family:'Archivo Black',sans-serif; font-size:96px; line-height:1; margin:0 0 8px; letter-spacing:-2px; }
+.err-title { font-family:'Space Grotesk',sans-serif; font-size:20px; font-weight:700; margin:0 0 12px; }
+.err-desc { font-size:14px; color:#888; line-height:1.7; margin:0 0 36px; }
+.err-btns { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+.err-btn { display:inline-block; padding:12px 28px; border-radius:10px; font-family:'Space Grotesk',sans-serif;
+  font-weight:700; font-size:14px; text-decoration:none; transition:opacity .15s; }
+.err-btn.primary { background:#000; color:#fff; }
+.err-btn.ghost { background:#f4f4f4; color:#000; }
+.err-btn:hover { opacity:0.8; }
+</style>
+<div class="err-wrap">
+  <h1 class="err-code">{{ code }}</h1>
+  <p class="err-title">{{ heading }}</p>
+  <p class="err-desc">{{ message }}</p>
+  <div class="err-btns">
+    <a href="/explore" class="err-btn primary">갤러리로 가기</a>
+    <a href="javascript:history.back()" class="err-btn ghost">이전 페이지</a>
+  </div>
+</div>
+{% endblock %}

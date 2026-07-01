@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   <div class="cat-tabs">
     <a href="{{ url_for('my_characters') }}" class="cat-tab {% if not current_category %}active{% endif %}">ALL</a>
-    {% for cat in ['남자','여자','동물','기타'] %}
+    {% for cat in char_categories %}
       <a href="{{ url_for('my_characters', category=cat) }}" class="cat-tab {% if current_category == cat %}active{% endif %}">{{ cat }}</a>
     {% endfor %}
   </div>
