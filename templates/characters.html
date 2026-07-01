@@ -84,17 +84,26 @@ document.addEventListener('DOMContentLoaded', function() {
           headers: { 'X-Requested-With': 'XMLHttpRequest' },
           body: fd
         });
-        const data = await res.json();
-        if (!data.ok && data.error) {
-          alert(data.error);
-        } else {
-          let msg = `${data.added}장 추가 완료!`;
-          if (data.skipped && data.skipped.length) {
-            msg += '\n\n제외됨:\n' + data.skipped.map(s => `· ${s.name} — ${s.reason}`).join('\n');
+        const ct = res.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          const data = await res.json();
+          if (!data.ok && data.error) {
+            alert(data.error);
+          } else {
+            let msg = `${data.added}장 추가 완료!`;
+            if (data.skipped && data.skipped.length) {
+              msg += '\n\n제외됨:\n' + data.skipped.map(s => `· ${s.name} — ${s.reason}`).join('\n');
+            }
+            alert(msg);
+            location.reload();
+            return;
           }
-          alert(msg);
+        } else if (res.ok || res.redirected) {
+          // 서버가 페이지 응답을 보낸 경우(구버전 등) — 추가는 됐을 가능성. 새로고침해서 확인.
           location.reload();
           return;
+        } else {
+          alert('업로드 실패 — 서버 응답 오류 (' + res.status + ')');
         }
       } catch (err) {
         alert('업로드 실패 — 잠시 후 다시 시도해주세요.');
