@@ -3917,6 +3917,97 @@ First-person POV, handheld camera feeling, natural breathing, travel vlog style.
     return jsonify({"ok": True, "msg": "Seedance 가이드 공지글 생성 완료!"})
 
 
+@app.route("/api/seed-website-cloner", methods=["POST"])
+@admin_required
+def seed_website_cloner():
+    """AI 웹사이트 클로너 오픈소스 추천 게시글 시드."""
+    u = current_user()
+    with db() as c:
+        existing = c.fetchone(
+            "SELECT id FROM app_posts WHERE user_id = %s AND title LIKE %s",
+            (u["id"], "%웹사이트를 통째로 복제%"),
+        )
+        if existing:
+            return jsonify({"ok": False, "msg": "이미 존재합니다"}), 400
+
+        content = """URL 하나만 넣으면 그 웹사이트를 통째로 뜯어서 최신 Next.js 코드로 재구성해주는 오픈소스 템플릿이에요. AI 코딩 에이전트(Claude Code 등)와 함께 씁니다. 깃허브 별점 18,000개가 넘는 화제의 프로젝트예요.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+무엇을 하는 도구인가
+
+타겟 사이트 주소를 지정하고 명령 한 줄(/clone-website)을 실행하면, AI 에이전트가 알아서:
+· 사이트를 스크린샷 찍고 뜯어봄
+· 폰트·색상 같은 디자인 토큰과 이미지·영상 에셋을 추출
+· 각 섹션의 컴포넌트 명세서를 작성
+· 여러 빌더 에이전트를 병렬로 돌려서 섹션별로 재구성
+· 마지막에 원본과 비교(비주얼 diff)해서 QA
+
+핵심은 "추측하지 않는다"는 점이에요. 각 빌더가 실제 computed CSS 값, 상태별 콘텐츠, 반응형 브레이크포인트, 에셋 경로까지 그대로 받아서 만듭니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+동작 방식 (5단계 파이프라인)
+
+1. 정찰 — 스크린샷, 디자인 토큰 추출, 스크롤·클릭·호버·반응형 훑기
+2. 기반 구축 — 폰트/색상/전역 스타일 갱신, 모든 에셋 다운로드
+3. 컴포넌트 명세 — 정확한 CSS 값·상태·동작·콘텐츠를 담은 스펙 파일 작성
+4. 병렬 빌드 — git worktree에서 섹션별 빌더 에이전트 동시 실행
+5. 조립 & QA — worktree 병합, 페이지 연결, 원본과 시각 비교
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+기술 스택
+
+· Next.js 16 (App Router, React 19, TypeScript strict)
+· shadcn/ui (Radix + Tailwind CSS v4)
+· Tailwind CSS v4 (oklch 디자인 토큰)
+· Lucide React 아이콘
+
+지원 에이전트: Claude Code(권장), Cursor, Windsurf, Codex CLI, GitHub Copilot, Gemini CLI, Cline, Aider 등 다양하게 호환됩니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+이럴 때 유용해요
+
+· 플랫폼 이전 — 내가 소유한 WordPress/Webflow/Squarespace 사이트를 최신 Next.js로 재구축
+· 소스코드 유실 — 사이트는 살아있는데 코드가 없거나 개발자가 떠났을 때, 최신 포맷으로 코드를 되살림
+· 학습 — 실제 프로덕션 사이트가 특정 레이아웃·애니메이션·반응형을 어떻게 구현했는지 진짜 코드로 뜯어보며 공부
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+주의사항 (반드시 지키세요)
+
+· 피싱·사칭 금지 — 남을 속이거나 사칭하는 용도, 불법 행위에 쓰면 안 됩니다.
+· 남의 디자인 도용 금지 — 로고, 브랜드 에셋, 원본 문구는 그 주인의 것입니다.
+· 이용약관 위반 금지 — 스크래핑·복제를 금지하는 사이트가 있으니 먼저 확인하세요.
+
+본인이 소유했거나 학습 목적으로 쓰는 게 원칙이에요.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+깃허브: https://github.com/JCodesMore/ai-website-cloner-template
+라이선스: MIT (무료, 상업적 이용 가능)
+
+"Use this template" 버튼으로 본인 저장소를 만들어서 쓰는 걸 권장합니다."""
+
+        c.execute(
+            "INSERT INTO app_posts "
+            "(user_id, title, app_name, app_url, category, thumbnail_url, "
+            " content, pros, cons, rating, status, approved_at, approved_by) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW(),%s) RETURNING id",
+            (u["id"], "웹사이트를 통째로 복제하는 AI 오픈소스 — AI Website Cloner",
+             "AI Website Cloner Template",
+             "https://github.com/JCodesMore/ai-website-cloner-template",
+             "앱 소개", None,
+             content,
+             "• 명령 한 줄로 사이트 전체를 Next.js 코드로 재구성\n• Claude Code 등 대부분의 AI 에이전트 호환\n• 별점 18k+, MIT 라이선스로 무료\n• 디자인 토큰·에셋·반응형까지 정밀 추출",
+             "• 남의 사이트 무단 복제는 저작권·약관 위반 위험\n• Node.js 24+ 및 AI 코딩 에이전트 필요\n• 완벽 복제가 아니라 이후 수정 보완 필요",
+             0, "approved", u["id"])
+        )
+    return jsonify({"ok": True, "msg": "AI 웹사이트 클로너 추천 게시글 생성 완료!"})
+
+
 @app.route("/api/seed-skills", methods=["POST"])
 @admin_required
 def seed_skills():
