@@ -86,25 +86,53 @@
 
   <div class="admin-section">
     <h2>📝 콘텐츠 시드 (게시글 생성)</h2>
-    <p style="font-size:12px; color:var(--text-muted); margin:0 0 14px;">버튼을 누르면 해당 게시글이 NOTICE에 생성돼요. 이미 있으면 "이미 존재" 메시지가 뜹니다.</p>
-    <div id="seedButtons" style="display:flex; flex-wrap:wrap; gap:8px;">
-      <button data-seed="/api/seed-v18-update" class="seed-btn">v1.8 업데이트 노트</button>
-      <button data-seed="/api/seed-website-cloner" class="seed-btn">AI Website Cloner 소개</button>
-      <button data-seed="/api/seed-video-ref-guide" class="seed-btn">비디오 레퍼런스 가이드</button>
-      <button data-seed="/api/seed-seedance-recipes" class="seed-btn">Seedance 레시피북</button>
-      <button data-seed="/api/seed-seedance-guide" class="seed-btn">Seedance 가이드</button>
-      <button data-seed="/api/seed-threads-guide" class="seed-btn">Threads 가이드</button>
-      <button data-seed="/api/seed-skills" class="seed-btn">스킬 3종</button>
-      <button data-seed="/api/seed-v17-update" class="seed-btn">v1.7 노트</button>
-      <button data-seed="/api/seed-notice" class="seed-btn">버전 히스토리</button>
-      <button data-seed="/api/seed-about" class="seed-btn">사이트 소개</button>
+    {% set seed_list = [
+      ("/api/seed-v18-update", "v1.8 업데이트 노트"),
+      ("/api/seed-website-cloner", "AI Website Cloner 소개"),
+      ("/api/seed-video-ref-guide", "비디오 레퍼런스 가이드"),
+      ("/api/seed-seedance-recipes", "Seedance 레시피북"),
+      ("/api/seed-seedance-guide", "Seedance 가이드"),
+      ("/api/seed-threads-guide", "Threads 가이드"),
+      ("/api/seed-skills", "스킬 3종"),
+      ("/api/seed-v17-update", "v1.7 노트"),
+      ("/api/seed-notice", "버전 히스토리"),
+      ("/api/seed-about", "사이트 소개"),
+    ] %}
+    {% set remaining = [] %}{% set uploaded = [] %}
+    {% for ep, label in seed_list %}
+      {% if seed_done.get(ep) %}{% set _ = uploaded.append((ep, label)) %}
+      {% else %}{% set _ = remaining.append((ep, label)) %}{% endif %}
+    {% endfor %}
+
+    {% if remaining %}
+    <p style="font-size:12px; color:var(--text-muted); margin:0 0 14px;">아직 안 올라간 게시글이에요. 버튼을 누르면 NOTICE에 생성됩니다.</p>
+    <div style="display:flex; flex-wrap:wrap; gap:8px;">
+      {% for ep, label in remaining %}
+      <button data-seed="{{ ep }}" class="seed-btn">{{ label }}</button>
+      {% endfor %}
     </div>
+    {% else %}
+    <p style="font-size:12px; color:var(--text-muted); margin:0;">✓ 모든 시드 콘텐츠가 올라가 있어요.</p>
+    {% endif %}
+
+    {% if uploaded %}
+    <details style="margin-top:14px;">
+      <summary style="font-size:12px; color:var(--text-muted); cursor:pointer; user-select:none;">✓ 업로드 완료 ({{ uploaded|length }}개) — 펼치기</summary>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;">
+        {% for ep, label in uploaded %}
+        <button data-seed="{{ ep }}" class="seed-btn seed-done" title="이미 생성됨 — 다시 눌러도 중복 생성 안 됨">✓ {{ label }}</button>
+        {% endfor %}
+      </div>
+    </details>
+    {% endif %}
+
     <div id="seedResult" style="margin-top:12px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text-muted); min-height:18px;"></div>
     <style>
       .seed-btn { padding:9px 14px; background:var(--bg); border:1px solid var(--border); border-radius:8px;
         font-family:'Space Grotesk',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition:all .15s; }
       .seed-btn:hover { background:#000; color:#fff; border-color:#000; }
       .seed-btn:disabled { opacity:0.4; cursor:wait; }
+      .seed-btn.seed-done { opacity:0.55; }
     </style>
     <script>
     document.querySelectorAll('.seed-btn').forEach(btn => {
@@ -116,6 +144,7 @@
           const r = await fetch(btn.dataset.seed, { method: 'POST', headers: {'X-Requested-With':'XMLHttpRequest'} });
           const d = await r.json();
           out.textContent = (d.ok ? '✓ ' : '✕ ') + (d.msg || JSON.stringify(d));
+          if (d.ok) setTimeout(() => location.reload(), 900);
         } catch (e) {
           out.textContent = '✕ 실패: ' + e.message;
         }

@@ -1993,6 +1993,33 @@ def admin_dashboard():
     with db() as c:
         rows = c.fetchall("SELECT key, value FROM site_settings", ())
         settings = {r["key"]: r["value"] for r in rows}
+
+        # 시드 콘텐츠 존재 여부 — 이미 올라간 건 접이식으로 숨기기 위해
+        u = current_user()
+        seed_patterns = {
+            "/api/seed-v18-update": "%v1.8%",
+            "/api/seed-website-cloner": "%웹사이트를 통째로 복제%",
+            "/api/seed-video-ref-guide": "%비디오 레퍼런스%왜 자꾸 실패%",
+            "/api/seed-seedance-recipes": "%Seedance 2.0 실전 프롬프트 레시피북%",
+            "/api/seed-seedance-guide": "%Seedance 2.0 영상 프롬프트 작성 가이드%",
+            "/api/seed-threads-guide": "%스레드 떡상하게 만드는 AI 워크플로우%",
+            "/api/seed-v17-update": "%v1.7 업데이트%",
+            "/api/seed-notice": "%XAZINGA 업데이트 히스토리%",
+            "/api/seed-about": "%XAZINGA에 오신 것을 환영합니다%",
+        }
+        seed_done = {}
+        for ep, pat in seed_patterns.items():
+            row = c.fetchone(
+                "SELECT id FROM app_posts WHERE user_id = %s AND title LIKE %s",
+                (u["id"], pat)
+            )
+            seed_done[ep] = bool(row)
+        skills_n = c.fetchone(
+            "SELECT COUNT(*) AS n FROM skills WHERE user_id = %s AND name = ANY(%s)",
+            (u["id"], ["Seedance 디렉터", "비디오 프롬프트 빌더", "Seedance 프롬프팅 가이드"])
+        )
+        seed_done["/api/seed-skills"] = (skills_n["n"] if skills_n else 0) >= 3
+
         pending = c.fetchall(
             "SELECT ap.*, u.username FROM app_posts ap "
             "JOIN users u ON u.id = ap.user_id "
@@ -2058,7 +2085,8 @@ def admin_dashboard():
         }
 
     return render_template("admin.html", settings=settings, pending=pending,
-                           stats=stats, pf_pending=pf_pending, usage=usage)
+                           stats=stats, pf_pending=pf_pending, usage=usage,
+                           seed_done=seed_done)
 
 
 @app.route("/admin/settings", methods=["POST"])
