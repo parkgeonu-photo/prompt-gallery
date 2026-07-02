@@ -197,7 +197,7 @@
 
     <div class="detail-meta">
       <a href="/u/{{ post.author }}" class="author-link">@{{ post.author }}</a>
-      <span>👁 {{ post.views }}</span>
+      <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;"><path d="M1 12s4-7.5 11-7.5S23 12 23 12s-4 7.5-11 7.5S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg> {{ post.views }}</span>
       <button class="like-btn" id="likeBtn" data-id="{{ post.id }}">
         <span id="heartIcon">♡</span> <span id="likeCount">{{ post.likes }}</span>
       </button>

@@ -93,7 +93,7 @@
       <div class="app-hero-tags">
         {% if app_post.category %}<span class="tag">{{ app_post.category }}</span>{% endif %}
         {% if app_post.rating %}<span class="tag">★ {{ app_post.rating }} / 5</span>{% endif %}
-        <span class="tag">👁 {{ app_post.view_count or 0 }}</span>
+        <span class="tag"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;"><path d="M1 12s4-7.5 11-7.5S23 12 23 12s-4 7.5-11 7.5S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg> {{ app_post.view_count or 0 }}</span>
       </div>
       {% if app_post.app_url %}
       <div><a href="{{ app_post.app_url }}" target="_blank" rel="noopener nofollow" style="color: var(--text); font-size: 12px; word-break: break-all;">🔗 {{ app_post.app_url }}</a></div>
