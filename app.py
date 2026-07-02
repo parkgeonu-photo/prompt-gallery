@@ -631,7 +631,21 @@ class _DB:
         self.cur = None
 
     def __enter__(self):
-        self.conn = _pool.getconn()
+        # 죽은 커넥션이면 버리고 새로 받기 (최대 3회) — 간헐적 500 방지
+        for _ in range(3):
+            self.conn = _pool.getconn()
+            try:
+                with self.conn.cursor() as ping:
+                    ping.execute("SELECT 1")
+                break
+            except Exception:
+                try:
+                    _pool.putconn(self.conn, close=True)
+                except Exception:
+                    pass
+                self.conn = None
+        if self.conn is None:
+            self.conn = _pool.getconn()
         self.cur = self.conn.cursor(cursor_factory=RealDictCursor)
         return self
 
@@ -643,9 +657,13 @@ class _DB:
                 self.conn.commit()
         finally:
             if self.cur:
-                self.cur.close()
+                try: self.cur.close()
+                except Exception: pass
             if self.conn:
-                _pool.putconn(self.conn)
+                try:
+                    _pool.putconn(self.conn)
+                except Exception:
+                    pass
 
     def execute(self, sql, params=None):
         self.cur.execute(sql, params or ())

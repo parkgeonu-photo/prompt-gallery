@@ -85,6 +85,47 @@
 <div class="admin-grid">
 
   <div class="admin-section">
+    <h2>📝 콘텐츠 시드 (게시글 생성)</h2>
+    <p style="font-size:12px; color:var(--text-muted); margin:0 0 14px;">버튼을 누르면 해당 게시글이 NOTICE에 생성돼요. 이미 있으면 "이미 존재" 메시지가 뜹니다.</p>
+    <div id="seedButtons" style="display:flex; flex-wrap:wrap; gap:8px;">
+      <button data-seed="/api/seed-v18-update" class="seed-btn">v1.8 업데이트 노트</button>
+      <button data-seed="/api/seed-website-cloner" class="seed-btn">AI Website Cloner 소개</button>
+      <button data-seed="/api/seed-video-ref-guide" class="seed-btn">비디오 레퍼런스 가이드</button>
+      <button data-seed="/api/seed-seedance-recipes" class="seed-btn">Seedance 레시피북</button>
+      <button data-seed="/api/seed-seedance-guide" class="seed-btn">Seedance 가이드</button>
+      <button data-seed="/api/seed-threads-guide" class="seed-btn">Threads 가이드</button>
+      <button data-seed="/api/seed-skills" class="seed-btn">스킬 3종</button>
+      <button data-seed="/api/seed-v17-update" class="seed-btn">v1.7 노트</button>
+      <button data-seed="/api/seed-notice" class="seed-btn">버전 히스토리</button>
+      <button data-seed="/api/seed-about" class="seed-btn">사이트 소개</button>
+    </div>
+    <div id="seedResult" style="margin-top:12px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text-muted); min-height:18px;"></div>
+    <style>
+      .seed-btn { padding:9px 14px; background:var(--bg); border:1px solid var(--border); border-radius:8px;
+        font-family:'Space Grotesk',sans-serif; font-size:12px; font-weight:700; cursor:pointer; transition:all .15s; }
+      .seed-btn:hover { background:#000; color:#fff; border-color:#000; }
+      .seed-btn:disabled { opacity:0.4; cursor:wait; }
+    </style>
+    <script>
+    document.querySelectorAll('.seed-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const out = document.getElementById('seedResult');
+        btn.disabled = true;
+        out.textContent = '⏳ 생성 중...';
+        try {
+          const r = await fetch(btn.dataset.seed, { method: 'POST', headers: {'X-Requested-With':'XMLHttpRequest'} });
+          const d = await r.json();
+          out.textContent = (d.ok ? '✓ ' : '✕ ') + (d.msg || JSON.stringify(d));
+        } catch (e) {
+          out.textContent = '✕ 실패: ' + e.message;
+        }
+        btn.disabled = false;
+      });
+    });
+    </script>
+  </div>
+
+  <div class="admin-section">
     <h2>STATS</h2>
     <div class="stat-row">
       <div class="stat-card"><div class="stat-num">{{ stats.users_n }}</div><div class="stat-label">USERS</div></div>
