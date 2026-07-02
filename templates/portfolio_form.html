@@ -70,7 +70,7 @@
   <div class="err-msg">{{ error }}</div>
   {% endif %}
 
-  <form method="post" enctype="multipart/form-data" id="pfForm">
+  <form method="post" enctype="multipart/form-data" id="pfForm"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
       <label>TITLE</label>
       <input type="text" name="title" maxlength="200" required placeholder="{{ _("작품 제목") }}">

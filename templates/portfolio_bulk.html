@@ -142,7 +142,7 @@
   </div>
   {% endif %}
 
-  <form method="post" enctype="multipart/form-data" id="bulkForm">
+  <form method="post" enctype="multipart/form-data" id="bulkForm"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div id="rowContainer">
       <div class="post-row" data-idx="0">
         <button type="button" class="remove-row" onclick="removeRow(this)" title="삭제">×</button>
@@ -359,6 +359,7 @@ document.getElementById('bulkForm').addEventListener('submit', function(e) {
   });
 
   xhr.open('POST', '/portfolio/bulk');
+  xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
   xhr.send(formData);
 });
 </script>

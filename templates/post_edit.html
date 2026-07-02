@@ -50,7 +50,7 @@
 
   <div class="locked-notice">🔒 미디어 파일(이미지/영상)은 교체할 수 없어요. 다른 파일로 교체하려면 새로 업로드한 뒤 기존 글을 삭제해주세요.</div>
 
-  <form method="POST">
+  <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
       <label>제목<span class="opt">선택</span></label>
       <input type="text" name="title" maxlength="120" value="{{ post.title or '' }}">

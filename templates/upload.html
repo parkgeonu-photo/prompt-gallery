@@ -10,7 +10,7 @@
 <div class="error" style="margin-bottom: 16px;">{{ error }}</div>
 {% endif %}
 
-<form method="POST" enctype="multipart/form-data" id="uploadForm">
+<form method="POST" enctype="multipart/form-data" id="uploadForm"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div>
     <label>FILE *</label>
     <div class="dnd-zone" id="fileDrop" tabindex="0">

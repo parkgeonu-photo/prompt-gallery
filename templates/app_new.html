@@ -65,7 +65,7 @@
 
   {% if error %}<div class="err-msg">{{ error }}</div>{% endif %}
 
-  <form method="post" enctype="multipart/form-data">
+  <form method="post" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field-row">
       <label>{{ _("제목 *") }}</label>
       <input type="text" name="title" required maxlength="200" placeholder="예: v1.2 업데이트 — 포트폴리오 기능 추가">

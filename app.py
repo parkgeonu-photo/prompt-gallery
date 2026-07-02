@@ -86,6 +86,40 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 
+# ===== CSRF 보호 =====
+def csrf_token():
+    """세션별 CSRF 토큰 — 없으면 생성."""
+    tok = session.get("_csrf")
+    if not tok:
+        tok = secrets.token_urlsafe(32)
+        session["_csrf"] = tok
+    return tok
+
+
+@app.context_processor
+def inject_csrf():
+    return {"csrf_token": csrf_token}
+
+
+@app.before_request
+def csrf_protect():
+    if request.method not in ("POST", "PUT", "DELETE", "PATCH"):
+        return
+    # JSON 요청은 CORS preflight로 크로스사이트 전송 불가 → CSRF 안전
+    if request.is_json:
+        return
+    # 커스텀 헤더는 크로스사이트에서 설정 불가 → CSRF 안전
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return
+    # OAuth 콜백 / 콘솔용 어드민 시드 라우트 예외 (admin_required로 별도 보호)
+    if request.path.startswith("/auth/") or request.path.startswith("/api/seed-"):
+        return
+    tok = session.get("_csrf")
+    sent = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")
+    if not tok or not sent or not secrets.compare_digest(tok, sent):
+        abort(403)
+
+
 @app.after_request
 def add_no_cache_headers(resp):
     """HTML 응답에 캐싱 방지 헤더 — 코드 업데이트가 즉시 반영되도록."""
@@ -1128,8 +1162,18 @@ def index():
             sql += " AND user_id != ALL(%s)"
             params.append(list(blocked))
         sql += " ORDER BY likes DESC, created_at DESC" if sort == "popular" else " ORDER BY created_at DESC"
-        sql += " LIMIT 120"
-        posts = [normalize_post(r, viewer_id) for r in c.fetchall(sql, params)]
+        # 페이지네이션: 60개씩, 61개를 가져와 다음 페이지 존재 여부 판단
+        PER_PAGE = 60
+        try:
+            page = max(1, int(request.args.get("page", 1)))
+        except (TypeError, ValueError):
+            page = 1
+        sql += " LIMIT %s OFFSET %s"
+        params.append(PER_PAGE + 1)
+        params.append((page - 1) * PER_PAGE)
+        rows = c.fetchall(sql, params)
+        has_next = len(rows) > PER_PAGE
+        posts = [normalize_post(r, viewer_id) for r in rows[:PER_PAGE]]
 
         liked_ids = set()
         if viewer_id and posts:
@@ -1148,6 +1192,7 @@ def index():
         current_sort=sort, current_type=media_filter,
         image_count=image_count, video_count=video_count, all_count=all_count,
         liked_ids=liked_ids,
+        page=page, has_next=has_next,
     )
 
 
@@ -2076,7 +2121,9 @@ def user_settings():
                 (bio, avatar_url, u["id"])
             )
         return redirect(f"/u/{u['username']}")
-    return render_template("settings.html")
+    return render_template("settings.html",
+                           has_password=bool(u.get("password_hash")),
+                           msg=request.args.get("msg"), err=request.args.get("err"))
 
 
 @app.route("/profile/avatar", methods=["POST"])
@@ -2105,6 +2152,67 @@ def profile_avatar_update():
     if request.headers.get("Accept", "").startswith("application/json"):
         return jsonify({"avatar_url": avatar_url})
     return redirect(f"/u/{u['username']}")
+
+
+@app.route("/settings/password", methods=["POST"])
+@login_required
+def settings_change_password():
+    """비밀번호 변경 — 현재 비밀번호 확인 후 교체."""
+    u = current_user()
+    if not u.get("password_hash"):
+        return redirect(url_for("user_settings", err="구글 로그인 계정은 비밀번호가 없어요."))
+    cur = request.form.get("current_password") or ""
+    new = request.form.get("new_password") or ""
+    new2 = request.form.get("new_password2") or ""
+    if not verify_password(cur, u["password_hash"]):
+        return redirect(url_for("user_settings", err="현재 비밀번호가 틀렸어요."))
+    if len(new) < 6:
+        return redirect(url_for("user_settings", err="새 비밀번호는 6자 이상이어야 해요."))
+    if new != new2:
+        return redirect(url_for("user_settings", err="새 비밀번호 확인이 일치하지 않아요."))
+    with db() as c:
+        c.execute("UPDATE users SET password_hash = %s WHERE id = %s",
+                  (hash_password(new), u["id"]))
+    return redirect(url_for("user_settings", msg="비밀번호가 변경됐어요."))
+
+
+@app.route("/settings/delete-account", methods=["POST"])
+@login_required
+def settings_delete_account():
+    """회원 탈퇴 — 사용자명 입력 확인 후 모든 데이터 삭제."""
+    u = current_user()
+    confirm = (request.form.get("confirm_username") or "").strip().lower()
+    if confirm != u["username"]:
+        return redirect(url_for("user_settings", err="사용자명이 일치하지 않아 탈퇴가 취소됐어요."))
+    if u.get("is_admin"):
+        return redirect(url_for("user_settings", err="관리자 계정은 이 화면에서 탈퇴할 수 없어요."))
+
+    uid = u["id"]
+    # 스토리지 파일 정리 (best-effort)
+    try:
+        with db() as c:
+            for r in c.fetchall("SELECT media_path FROM posts WHERE user_id = %s", (uid,)):
+                try: storage_delete(r["media_path"])
+                except Exception: pass
+            for r in c.fetchall("SELECT images FROM characters WHERE user_id = %s", (uid,)):
+                for img in _parse_char_images(r.get("images")):
+                    try: storage_delete(img.get("url"))
+                    except Exception: pass
+    except Exception:
+        pass
+
+    # DB 데이터 삭제
+    with db() as c:
+        c.execute("DELETE FROM post_likes WHERE user_id = %s", (uid,))
+        c.execute("DELETE FROM comments WHERE user_id = %s", (uid,))
+        c.execute("DELETE FROM messages WHERE sender_id = %s OR recipient_id = %s", (uid, uid))
+        c.execute("DELETE FROM characters WHERE user_id = %s", (uid,))
+        c.execute("DELETE FROM portfolio_posts WHERE user_id = %s", (uid,))
+        c.execute("DELETE FROM portfolio_members WHERE user_id = %s", (uid,))
+        c.execute("DELETE FROM posts WHERE user_id = %s", (uid,))
+        c.execute("DELETE FROM users WHERE id = %s", (uid,))
+    session.clear()
+    return redirect("/explore")
 
 
 @app.route("/profile/edit", methods=["POST"])
@@ -4015,6 +4123,101 @@ First-person POV, handheld camera feeling, natural breathing, travel vlog style.
              0, "approved", u["id"])
         )
     return jsonify({"ok": True, "msg": "Seedance 가이드 공지글 생성 완료!"})
+
+
+@app.route("/api/seed-v18-update", methods=["POST"])
+@admin_required
+def seed_v18_update():
+    """v1.8 업데이트 노트 — 사용자 대상 최근 기능 정리."""
+    u = current_user()
+    with db() as c:
+        existing = c.fetchone(
+            "SELECT id FROM app_posts WHERE user_id = %s AND title LIKE %s",
+            (u["id"], "%v1.8%"),
+        )
+        if existing:
+            return jsonify({"ok": False, "msg": "이미 존재합니다"}), 400
+
+        content = """최근 몇 주간 XAZINGA에 추가된 기능들을 한 번에 정리했어요. 전부 지금 바로 사용할 수 있습니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🗂 갤러리 콘텐츠 카테고리
+
+PROMPT 갤러리에 콘텐츠 카테고리가 생겼어요.
+액션 / 드라마 / 쇼츠 / 광고 / 뷰티 / 패션 / 제품 / 푸드 / 기타 — 9개 분류로 원하는 스타일만 골라볼 수 있습니다. 모델 필터 아래 카테고리 줄에서 선택하세요. 업로드할 때도 카테고리를 지정할 수 있고, 기존 게시물은 수정에서 분류 가능해요.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📄 갤러리 페이지네이션
+
+게시물이 많아져도 전부 볼 수 있게 페이지 이동이 생겼어요. 갤러리 맨 아래 [← 이전 / 다음 →] 버튼으로 넘기면 됩니다. 필터를 걸어둔 상태 그대로 유지돼요.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🌐 프롬프트 번역
+
+게시물 상세에서 프롬프트를 원본 / 한국어 / EN / 中文으로 바로 번역해볼 수 있어요.
+· 로그인 회원 전용
+· 하루 5회까지 (자정 초기화)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎭 캐릭터 시트 대폭 업그레이드
+
+· 다운로드 버튼 — 이미지에 마우스를 올리면 ↓ 버튼이 떠요. 클릭 한 번으로 어떤 이미지든 다운로드됩니다.
+· 대표 이미지 고정핀 — 📌 버튼으로 원하는 이미지를 대표로 지정하면 캐릭터 목록 썸네일이 그 이미지로 바뀌어요. (캐릭터당 1개)
+· 드래그앤드롭 추가 — 캐릭터 목록에서 카드 위로 이미지 파일을 끌어다 놓으면 그 캐릭터에 바로 추가돼요. 여러 장도 한 번에 가능.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📱 모바일 영상 개선
+
+모바일에서 영상 게시물에 썸네일이 표시되고, 화면에 절반 이상 보이면 자동 재생돼요. 데스크톱은 기존처럼 마우스를 올리면 재생됩니다.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚙️ 계정 설정
+
+마이페이지 → ⚙ 계정 설정에서:
+· 비밀번호 변경 (현재 비밀번호 확인 후)
+· 회원 탈퇴 — 모든 데이터가 영구 삭제됩니다
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔒 보안 강화 (자동 적용)
+
+· 로그인 무차별 대입 차단 (15분 10회 초과 시)
+· 회원가입 봇 차단 (IP당 하루 3계정)
+· 업로드 파일 위조 검증 (진짜 이미지인지 내용 검사)
+· CSRF 공격 방어 (모든 폼 보호)
+· 깔끔한 에러 페이지 (404/500)
+
+여러분이 따로 할 건 없고, 계정과 데이터가 더 안전해졌다는 뜻이에요.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 새 가이드 글
+
+NOTICE에 두 개의 가이드가 올라와 있어요:
+· Seedance 2.0 비디오 레퍼런스, 왜 자꾸 실패할까 — 얼굴 감지 우회법과 필수 프롬프트 정리
+· AI Website Cloner — 웹사이트를 통째로 Next.js 코드로 복제하는 오픈소스 소개
+
+궁금한 점이나 버그 제보는 xazinga에게 메시지 주세요!"""
+
+        c.execute(
+            "INSERT INTO app_posts "
+            "(user_id, title, app_name, app_url, category, thumbnail_url, "
+            " content, pros, cons, rating, status, approved_at, approved_by) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW(),%s) RETURNING id",
+            (u["id"], "v1.8 업데이트 — 카테고리, 고정핀, 계정 설정, 보안 강화",
+             "XAZINGA", "https://www.xazinga.com", "업데이트", None,
+             content,
+             "• 갤러리 카테고리 + 페이지네이션\n• 캐릭터 고정핀/다운로드/드래그 추가\n• 계정 설정(비번 변경/탈퇴)\n• 보안 5종 강화",
+             None,
+             0, "approved", u["id"])
+        )
+    return jsonify({"ok": True, "msg": "v1.8 업데이트 노트 생성 완료!"})
 
 
 @app.route("/api/seed-website-cloner", methods=["POST"])

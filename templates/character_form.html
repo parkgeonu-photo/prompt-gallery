@@ -47,7 +47,7 @@
 
   {% if error %}<div class="err">⚠ {{ error }}</div>{% endif %}
 
-  <form method="POST" enctype="multipart/form-data">
+  <form method="POST" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
       <label>캐릭터 이름</label>
       <input type="text" name="name" maxlength="80" value="{{ char.name if char else '' }}" required autofocus placeholder="예: 주연이, 검은고양이, 사이버펑크 소녀">

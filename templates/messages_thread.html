@@ -115,7 +115,7 @@
     {% endif %}
   </div>
 
-  <form method="POST" class="send-form">
+  <form method="POST" class="send-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <textarea name="body" placeholder="메시지를 입력하세요..." required maxlength="2000" rows="1"></textarea>
     <button type="submit">SEND</button>
   </form>

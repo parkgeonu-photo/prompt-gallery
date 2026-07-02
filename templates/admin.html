@@ -132,7 +132,7 @@
 
   <div class="admin-section">
     <h2>🎨 SITE SETTINGS</h2>
-    <form method="post" action="/admin/settings" enctype="multipart/form-data">
+    <form method="post" action="/admin/settings" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
       <div class="field-row">
         <label>SITE NAME</label>
@@ -204,11 +204,11 @@
         </div>
         <div class="pending-actions">
           <a href="/apps/{{ p.id }}" class="btn-view">VIEW</a>
-          <form method="post" action="/apps/{{ p.id }}/approve" style="display:inline">
+          <form method="post" action="/apps/{{ p.id }}/approve" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn-approve">✓ APPROVE</button>
           </form>
           <form method="post" action="/apps/{{ p.id }}/reject" style="display:inline"
-                onsubmit="this.reason.value = prompt('거절 사유?') || ''; return this.reason.value !== '';">
+                onsubmit="this.reason.value = prompt('거절 사유?') || ''; return this.reason.value !== '';"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="reason">
             <button type="submit" class="btn-reject">✗ REJECT</button>
           </form>
@@ -236,10 +236,10 @@
         </div>
         <div class="pending-actions">
           <a href="/u/{{ p.username }}" class="btn-view">PROFILE</a>
-          <form method="post" action="/portfolio/{{ p.id }}/approve" style="display:inline">
+          <form method="post" action="/portfolio/{{ p.id }}/approve" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn-approve">✓ APPROVE</button>
           </form>
-          <form method="post" action="/portfolio/{{ p.id }}/reject" style="display:inline">
+          <form method="post" action="/portfolio/{{ p.id }}/reject" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn-reject">✗ REJECT</button>
           </form>
         </div>

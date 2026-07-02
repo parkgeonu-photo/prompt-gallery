@@ -142,7 +142,7 @@
       <div class="avatar-letter">{{ profile.username[0]|upper }}</div>
     {% endif %}
     <div class="avatar-hover">📷 변경</div>
-    <form id="avatarForm" method="post" action="/profile/avatar" enctype="multipart/form-data" style="display:none"></form>
+    <form id="avatarForm" method="post" action="/profile/avatar" enctype="multipart/form-data" style="display:none"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
     <input type="file" accept="image/*" id="avatarInput" form="avatarForm" name="avatar_file"
            onchange="if(this.files.length){document.getElementById('avatarForm').submit();}">
   </label>
@@ -190,28 +190,29 @@
       <button type="button" class="edit-profile-btn" onclick="document.getElementById('editForm').classList.toggle('active');">
         ✏️ {{ t.edit_profile|upper }}
       </button>
+      <a href="/settings" class="edit-profile-btn" style="text-decoration:none;">⚙ 계정 설정</a>
       <a href="/upload" class="btn btn-primary"> + {{ t.new_post|upper }}</a>
     {% elif user %}
       <a href="/messages/{{ profile.username }}" class="btn btn-ghost">✉ MESSAGE</a>
       {% set is_blocked = blocked_ids and profile.id in (blocked_ids|map('string')|list) %}
       {% set is_muted = muted_ids and profile.id in (muted_ids|map('string')|list) %}
       {% if is_blocked %}
-        <form method="post" action="/unblock/{{ profile.username }}" style="display:inline;">
+        <form method="post" action="/unblock/{{ profile.username }}" style="display:inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-ghost" style="color:#b33a3a;">UNBLOCK</button>
         </form>
       {% else %}
         {% if is_muted %}
-          <form method="post" action="/unmute/{{ profile.username }}" style="display:inline;">
+          <form method="post" action="/unmute/{{ profile.username }}" style="display:inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-ghost" title="이 사용자를 다시 피드에 표시">👁 UNHIDE</button>
           </form>
         {% else %}
           <form method="post" action="/mute/{{ profile.username }}" style="display:inline;"
-                onsubmit="return confirm('@{{ profile.username }}님을 피드에서 숨길까요?\n메시지/댓글은 그대로 받습니다.');">
+                onsubmit="return confirm('@{{ profile.username }}님을 피드에서 숨길까요?\n메시지/댓글은 그대로 받습니다.');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-ghost" title="이 사용자의 게시물을 피드에서 숨김">🙈 HIDE</button>
           </form>
         {% endif %}
         <form method="post" action="/block/{{ profile.username }}" style="display:inline;"
-              onsubmit="return confirm('@{{ profile.username }}님을 차단할까요?\n글/댓글/메시지 모두 안 보입니다.');">
+              onsubmit="return confirm('@{{ profile.username }}님을 차단할까요?\n글/댓글/메시지 모두 안 보입니다.');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-ghost" style="color:#b33a3a;">🚫 BLOCK</button>
         </form>
       {% endif %}
@@ -220,7 +221,7 @@
 </div>
 
 {% if is_self %}
-<form class="profile-edit-form" id="editForm" method="post" action="/profile/edit">
+<form class="profile-edit-form" id="editForm" method="post" action="/profile/edit"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <div class="pf-row">
     <label>BIO (자기소개)</label>
     <textarea name="bio" maxlength="500" placeholder="간단한 자기소개를 적어주세요...">{{ profile.bio or '' }}</textarea>

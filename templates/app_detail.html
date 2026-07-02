@@ -70,7 +70,7 @@
   <div class="app-status-bar status-pending">
     <span>⏳ 승인 대기 중 — 주인장이 확인 후 발행돼요.</span>
     {% if user and user.is_admin %}
-    <form method="post" action="/apps/{{ app_post.id }}/approve" style="display:inline;">
+    <form method="post" action="/apps/{{ app_post.id }}/approve" style="display:inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" style="background:#1c7c54;color:white;padding:6px 14px;border:none;border-radius:4px;font-size:11px;cursor:pointer;font-weight:800;">✓ APPROVE NOW</button>
     </form>
     {% endif %}
@@ -141,7 +141,7 @@
     <a href="/apps">← BACK TO NOTICE</a>
     {% if user and (app_post.is_mine or user.is_admin) %}
     <form method="post" action="/apps/{{ app_post.id }}/delete" style="display:inline;"
-          onsubmit="return confirm('{{ _("이 글을 삭제할까요?") }}');">
+          onsubmit="return confirm('{{ _("이 글을 삭제할까요?") }}');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn-danger">🗑 DELETE</button>
     </form>
     {% endif %}

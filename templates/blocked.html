@@ -55,7 +55,7 @@
           <div class="blocked-username">@{{ b.username }}</div>
           <div class="blocked-meta">{% if b.created_at %}{{ b.created_at.strftime('%Y-%m-%d') }} 차단{% endif %}</div>
         </div>
-        <form method="post" action="/unblock/{{ b.username }}" style="display:inline">
+        <form method="post" action="/unblock/{{ b.username }}" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="unblock-btn">UNBLOCK</button>
         </form>
       </div>

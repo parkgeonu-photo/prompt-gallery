@@ -57,7 +57,7 @@
     </div>
     {% if is_mine %}
     <form method="post" action="/portfolio/post/{{ post.id }}/delete"
-          onsubmit="return confirm('{{ t.confirm_delete }}');">
+          onsubmit="return confirm('{{ t.confirm_delete }}');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="pfd-del-btn">× 삭제</button>
     </form>
     {% endif %}

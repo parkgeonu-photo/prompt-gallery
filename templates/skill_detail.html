@@ -93,7 +93,7 @@
   <div class="skd-admin-actions">
     <a href="/skills/{{ skill.id }}/edit" class="skd-edit-btn">EDIT</a>
     <form method="post" action="/skills/{{ skill.id }}/delete"
-          onsubmit="return confirm('{{ _("이 스킬을 삭제할까요?") }}');">
+          onsubmit="return confirm('{{ _("이 스킬을 삭제할까요?") }}');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="skd-del-btn">DELETE</button>
     </form>
   </div>

@@ -40,7 +40,7 @@
 
 <div class="settings-wrap">
   <div class="settings-card">
-    <form method="post" enctype="multipart/form-data">
+    <form method="post" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       {% if user.avatar_url %}
       <img src="{{ user.avatar_url }}" class="avatar-preview" alt="avatar">
       {% else %}
@@ -66,6 +66,49 @@
   <div style="margin-top: 24px; text-align: center;">
     <a href="/muted" style="color: var(--text-muted); font-size: 12px; margin: 0 10px;">🙈 숨긴 사용자 관리 →</a>
     <a href="/blocked" style="color: var(--text-muted); font-size: 12px; margin: 0 10px;">🚫 차단한 사용자 관리 →</a>
+  </div>
+
+  {% if msg %}<div style="margin-top:24px; padding:12px 16px; border-radius:8px; font-size:13px; background:#e8f5ee; color:#1c7c54;">✓ {{ msg }}</div>{% endif %}
+  {% if err %}<div style="margin-top:24px; padding:12px 16px; border-radius:8px; font-size:13px; background:#fdeaea; color:#c0392b;">✕ {{ err }}</div>{% endif %}
+
+  <div class="settings-card" style="margin-top: 24px;">
+    <h2 style="font-family:'Space Grotesk',sans-serif; font-size:15px; font-weight:700; margin:0 0 16px;">🔑 비밀번호 변경</h2>
+    {% if has_password %}
+    <form method="POST" action="/settings/password"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field-row">
+        <label>현재 비밀번호</label>
+        <input type="password" name="current_password" required autocomplete="current-password"
+               style="background:var(--bg); border:1px solid var(--border); color:var(--text); padding:10px 12px; border-radius:6px; font-size:13px;">
+      </div>
+      <div class="field-row">
+        <label>새 비밀번호 (6자 이상)</label>
+        <input type="password" name="new_password" required minlength="6" autocomplete="new-password"
+               style="background:var(--bg); border:1px solid var(--border); color:var(--text); padding:10px 12px; border-radius:6px; font-size:13px;">
+      </div>
+      <div class="field-row">
+        <label>새 비밀번호 확인</label>
+        <input type="password" name="new_password2" required minlength="6" autocomplete="new-password"
+               style="background:var(--bg); border:1px solid var(--border); color:var(--text); padding:10px 12px; border-radius:6px; font-size:13px;">
+      </div>
+      <button type="submit" class="save-btn">비밀번호 변경</button>
+    </form>
+    {% else %}
+    <p style="font-size:13px; color:var(--text-muted); margin:0;">구글 로그인 계정이라 비밀번호가 없어요. 구글 계정 보안 설정에서 관리하시면 됩니다.</p>
+    {% endif %}
+  </div>
+
+  <div class="settings-card" style="margin-top: 24px; border-color:#f3c4c0; background:#fff7f6;">
+    <h2 style="font-family:'Space Grotesk',sans-serif; font-size:15px; font-weight:700; margin:0 0 12px; color:#c0392b;">⚠ 회원 탈퇴</h2>
+    <p style="font-size:13px; color:#8a4a44; line-height:1.7; margin:0 0 6px;">탈퇴하면 <strong>모든 게시물, 캐릭터, 포트폴리오, 댓글, 메시지가 영구 삭제</strong>되며 되돌릴 수 없어요.</p>
+    <p style="font-size:13px; color:#8a4a44; margin:0 0 14px;">계속하려면 사용자명 <strong>{{ user.username }}</strong> 을(를) 입력하세요.</p>
+    <form method="POST" action="/settings/delete-account"
+          onsubmit="return confirm('정말 탈퇴할까요? 모든 데이터가 영구 삭제되며 되돌릴 수 없어요.');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field-row">
+        <input type="text" name="confirm_username" placeholder="{{ user.username }}" required autocomplete="off"
+               style="background:#fff; border:1px solid #e3b6b1; color:#000; padding:10px 12px; border-radius:6px; font-size:13px;">
+      </div>
+      <button type="submit" class="save-btn" style="background:#c0392b; color:#fff;">영구 탈퇴</button>
+    </form>
   </div>
 </div>
 {% endblock %}

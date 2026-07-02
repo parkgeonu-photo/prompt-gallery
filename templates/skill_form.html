@@ -44,7 +44,7 @@
   <div class="err-msg">{{ error }}</div>
   {% endif %}
 
-  <form method="post">
+  <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
       <label>NAME *</label>
       <input type="text" name="name" maxlength="200" required

@@ -206,11 +206,11 @@
       {% endif %}
       {% if user and post.user_id == user.id %}
       <a href="/post/{{ post.id }}/edit" class="btn btn-ghost" style="font-size: 11px; padding: 6px 12px;">✎ EDIT</a>
-      <form method="POST" action="/post/{{ post.id }}/delete" class="inline-form" onsubmit="return confirm('정말 삭제하시겠습니까?');">
+      <form method="POST" action="/post/{{ post.id }}/delete" class="inline-form" onsubmit="return confirm('정말 삭제하시겠습니까?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-danger" style="font-size: 11px; padding: 6px 12px;">DELETE</button>
       </form>
       {% elif user and user.is_admin %}
-      <form method="POST" action="/post/{{ post.id }}/delete" class="inline-form" onsubmit="return confirm('⚙ 어드민 권한으로 @{{ post.author }}님의 게시물을 삭제합니다. 진행할까요?');">
+      <form method="POST" action="/post/{{ post.id }}/delete" class="inline-form" onsubmit="return confirm('⚙ 어드민 권한으로 @{{ post.author }}님의 게시물을 삭제합니다. 진행할까요?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-danger" style="font-size: 11px; padding: 6px 12px;" title="어드민 삭제">⚙ ADMIN DELETE</button>
       </form>
       {% endif %}
@@ -339,7 +339,7 @@
       <div class="section-label" style="margin-bottom: 12px;">COMMENTS ({{ comments|length }})</div>
 
       {% if user %}
-      <form class="comment-form" method="POST" action="/post/{{ post.id }}/comment">
+      <form class="comment-form" method="POST" action="/post/{{ post.id }}/comment"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <textarea name="body" id="commentBody" required maxlength="1000"
                   placeholder="댓글을 남겨보세요..."></textarea>
         <div class="comment-form-actions">
@@ -364,7 +364,7 @@
               </div>
               <div class="comment-actions">
                 {% if user and (c.is_mine or post.user_id == user.id) %}
-                <form method="POST" action="/comment/{{ c.id }}/delete" class="inline-form" onsubmit="return confirm('댓글을 삭제하시겠습니까?');">
+                <form method="POST" action="/comment/{{ c.id }}/delete" class="inline-form" onsubmit="return confirm('댓글을 삭제하시겠습니까?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="comment-delete">삭제</button>
                 </form>
                 {% endif %}
@@ -410,7 +410,7 @@ if (likeBtn) {
   likeBtn.addEventListener('click', async () => {
     if (liked) return;
     liked = true;
-    const res = await fetch('/like/' + likeBtn.dataset.id, { method: 'POST' });
+    const res = await fetch('/like/' + likeBtn.dataset.id, { method: 'POST', headers: {'X-Requested-With':'XMLHttpRequest'} });
     if (!res.ok) { liked = false; return; }
     const data = await res.json();
     likeCount.textContent = data.likes;

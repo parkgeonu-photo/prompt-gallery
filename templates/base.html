@@ -693,7 +693,7 @@ select { cursor: pointer; }
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg>
         </button>
         <a href="/upload" class="btn btn-primary">+ {{ t.upload|upper }}</a>
-        <form method="POST" action="/logout" class="inline-form">
+        <form method="POST" action="/logout" class="inline-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-ghost">{{ t.logout|upper }}</button>
         </form>
       {% else %}

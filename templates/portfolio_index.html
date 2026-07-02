@@ -64,7 +64,7 @@
   {% if user %}
     {% if not my_status %}
     <div class="pf-actions">
-      <form method="post" action="/portfolio/apply">
+      <form method="post" action="/portfolio/apply"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="pf-apply-btn">{{ t.portfolio_apply }}</button>
       </form>
     </div>

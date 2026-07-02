@@ -63,7 +63,7 @@
     <div class="cd-actions">
       <a href="{{ url_for('character_edit', char_id=char.id) }}" class="cd-btn">✎ EDIT</a>
       <form method="POST" action="{{ url_for('character_delete', char_id=char.id) }}"
-            onsubmit="return confirm('이 캐릭터와 모든 이미지를 삭제할까요? (복구 불가)');" style="display:inline;">
+            onsubmit="return confirm('이 캐릭터와 모든 이미지를 삭제할까요? (복구 불가)');" style="display:inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="cd-btn danger">DELETE</button>
       </form>
     </div>
@@ -86,7 +86,7 @@
   {% endif %}
 
   {% if char.images|length < max_images %}
-  <form method="POST" action="{{ url_for('character_images_add', char_id=char.id) }}" enctype="multipart/form-data" id="add-form">
+  <form method="POST" action="{{ url_for('character_images_add', char_id=char.id) }}" enctype="multipart/form-data" id="add-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <label class="upload-zone" for="add-input" id="addDropZone">
       <div class="icon">＋</div>
       <div class="txt">클릭 또는 드래그앤드롭으로 이미지 추가</div>
@@ -110,12 +110,12 @@
            onclick="if(!window._drag) openLb('{{ img.url }}')"
            ondragstart="window._drag=true; setTimeout(()=>window._drag=false,300);
                        event.dataTransfer.setData('DownloadURL','image/png:character-{{ loop.index }}.png:'+this.dataset.dl);">
-      <form method="POST" action="{{ url_for('character_image_pin', char_id=char.id, image_id=img.id) }}" style="display:inline;">
+      <form method="POST" action="{{ url_for('character_image_pin', char_id=char.id, image_id=img.id) }}" style="display:inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="pin-btn{% if img.pinned %} on{% endif %}" title="{% if img.pinned %}대표 이미지 (클릭하면 해제){% else %}대표 이미지로 지정{% endif %}" onclick="event.stopPropagation()">📌</button>
       </form>
       <a class="dl-btn" href="{{ img.url }}{% if '?' in img.url %}&{% else %}?{% endif %}download=character-{{ loop.index }}.png"
          title="다운로드" onclick="event.stopPropagation()">↓</a>
-      <form method="POST" action="{{ url_for('character_image_delete', char_id=char.id, image_id=img.id) }}" style="display:inline;" onsubmit="return confirm('이 이미지를 삭제할까요?');">
+      <form method="POST" action="{{ url_for('character_image_delete', char_id=char.id, image_id=img.id) }}" style="display:inline;" onsubmit="return confirm('이 이미지를 삭제할까요?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="delete-btn" title="삭제">×</button>
       </form>
       {% if img.pinned %}<span class="cover-badge">대표</span>{% endif %}

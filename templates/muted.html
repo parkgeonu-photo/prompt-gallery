@@ -68,7 +68,7 @@
           <div class="muted-username">@{{ m.username }}</div>
           <div class="muted-meta">{% if m.created_at %}{{ m.created_at.strftime('%Y-%m-%d') }} 숨김{% endif %}</div>
         </div>
-        <form method="post" action="/unmute/{{ m.username }}" style="display:inline">
+        <form method="post" action="/unmute/{{ m.username }}" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="unmute-btn">UNHIDE</button>
         </form>
       </div>

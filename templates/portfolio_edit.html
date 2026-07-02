@@ -39,7 +39,7 @@
   <div class="pfe-title">EDIT WORK</div>
   {% if error %}<div class="err-msg">{{ error }}</div>{% endif %}
 
-  <form method="post" enctype="multipart/form-data">
+  <form method="post" enctype="multipart/form-data"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="field">
       <label>TITLE</label>
       <input type="text" name="title" value="{{ post.title }}" maxlength="200" required>
